@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Plus, Search, MapPin, Pencil, Trash2, X, Check, Globe } from "lucide-react";
 
 import Modal from "../../components/modal";
-import Popup from "../../components/Popup";
+import Popup from "../../components/popup";
 import zoneService from "../../api/zoneService";
 
 // ── Zone Form Modal ───────────────────────────────────────────────────────────
