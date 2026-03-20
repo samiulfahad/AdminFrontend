@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 
 import Modal from "../../components/modal";
-import Popup from "../../components/Popup";
+import Popup from "../../components/popup";
 import labService from "../../api/labService";
 import zoneService from "../../api/zoneService";
 
