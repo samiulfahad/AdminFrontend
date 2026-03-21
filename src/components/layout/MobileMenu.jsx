@@ -73,7 +73,7 @@ const MobileMenu = () => {
             className={`w-12 h-12 flex items-center justify-center rounded-xl border transition-all duration-200 cursor-pointer
               ${isMenuOpen ? "bg-indigo-50 border-indigo-200" : "bg-slate-50 border-slate-200 hover:bg-slate-100"}`}
           >
-            {isMenuOpen ? <X size={15} className="text-indigo-500" /> : <Menu size={15} className="text-slate-500" />}
+            {isMenuOpen ? <X size={20} className="text-indigo-500" /> : <Menu size={20} className="text-slate-500" />}
           </button>
         </nav>
 
