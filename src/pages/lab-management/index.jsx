@@ -1,353 +1,170 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
-  Search,
-  FlaskConical,
-  RefreshCw,
-  X,
-  ChevronRight,
-  ChevronLeft,
-  ToggleLeft,
-  ToggleRight,
-  CreditCard,
-  Users,
-  Shield,
-  UserPlus,
-  Pencil,
-  Trash2,
-  Phone,
-  Mail,
-  Hash,
-  Plus,
-  AlertCircle,
-  UserCog,
-  Key,
-  Eye,
-  EyeOff,
+  Search, FlaskConical, RefreshCw, X, ChevronRight,
+  CreditCard, Users, Shield, UserPlus, Pencil, Trash2,
+  Phone, Mail, Hash, Plus, AlertCircle, UserCog, Key,
+  Eye, EyeOff, Check, MapPin,
 } from "lucide-react";
-
 import Modal from "../../components/modal";
 import Popup from "../../components/popup";
 import labService from "../../api/labService";
 import staffService from "../../api/staffService";
-import kingoService from "../../api/kingoService";
 
-// ── Permissions ───────────────────────────────────────────────────────────────
+// ── Constants ─────────────────────────────────────────────────────────────────
+const ROLES = { ADMIN: "admin", STAFF: "staff", SUPPORT_ADMIN: "supportAdmin" };
+
 const PERMISSIONS = [
-  { key: "createInvoice", label: "Create Invoice" },
-  { key: "editInvoice", label: "Edit Invoice" },
-  { key: "deleteInvoice", label: "Delete Invoice" },
-  { key: "cashmemo", label: "Cash Memo" },
-  { key: "uploadReport", label: "Upload Report" },
-  { key: "downloadReport", label: "Download Report" },
+  { key: "createInvoice",   label: "Create Invoice" },
+  { key: "editInvoice",     label: "Edit Invoice" },
+  { key: "deleteInvoice",   label: "Delete Invoice" },
+  { key: "cashmemo",        label: "Cash Memo" },
+  { key: "uploadReport",    label: "Upload Report" },
+  { key: "downloadReport",  label: "Download Report" },
 ];
 
-const DEFAULT_PERMISSIONS = {
-  createInvoice: false,
-  editInvoice: false,
-  deleteInvoice: false,
-  cashmemo: false,
-  uploadReport: false,
-  downloadReport: false,
+const DEFAULT_PERMS = {
+  createInvoice: false, editInvoice: false, deleteInvoice: false,
+  cashmemo: false, uploadReport: false, downloadReport: false,
 };
 
-// ── Shared primitives ─────────────────────────────────────────────────────────
-const DarkInput = ({ label, ...props }) => (
-  <div>
+// ── Design Primitives ─────────────────────────────────────────────────────────
+const Input = ({ label, required, className = "", ...props }) => (
+  <div className="flex items-center border border-slate-200 rounded-lg bg-slate-50 focus-within:border-teal-400 focus-within:bg-white focus-within:ring-2 focus-within:ring-teal-400/20 transition-all overflow-hidden">
     {label && (
-      <label className="block text-[10px] font-bold text-[#4a5060] uppercase tracking-widest mb-1.5">{label}</label>
+      <span className="px-3 text-[11px] font-semibold text-slate-400 whitespace-nowrap border-r border-slate-200 bg-slate-100 self-stretch flex items-center min-w-[90px]">
+        {label}
+        {required && <span className="text-red-400 ml-0.5">*</span>}
+      </span>
     )}
     <input
-      className="w-full px-3 py-2.5 text-sm rounded-lg border border-[#d0d4dc] bg-[#f7f8fa] focus:outline-none focus:ring-2 focus:ring-[#1a1c20]/10 focus:border-[#1a1c20] focus:bg-white transition-all placeholder-[#b0b6c2] text-[#1a1c20]"
+      className={`flex-1 px-3 py-2 text-sm bg-transparent text-slate-800 placeholder-slate-300 focus:outline-none ${className}`}
       {...props}
     />
   </div>
 );
 
-const StatusBadge = ({ active }) => (
-  <span
-    className={`inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
-      active
-        ? "bg-emerald-50 text-emerald-600 border border-emerald-100"
-        : "bg-[#f0f1f3] text-[#8a909e] border border-[#e2e5eb]"
-    }`}
-  >
-    <span className={`w-1.5 h-1.5 rounded-full ${active ? "bg-emerald-400" : "bg-[#c0c5d0]"}`} />
-    {active ? "Active" : "Inactive"}
+const StatusBadge = ({ active, onClick }) => (
+  <span className={`relative inline-flex group ${onClick ? "cursor-pointer" : "cursor-default"}`} onClick={onClick}>
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all duration-200 select-none ${
+      active ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-slate-100 text-slate-400 border-slate-200"
+    }`}>
+      <span className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 transition-colors ${active ? "bg-emerald-600" : "bg-slate-300"}`}>
+        {active
+          ? <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
+          : <X className="w-2.5 h-2.5 text-white" strokeWidth={2.5} />}
+      </span>
+      {active ? "Active" : "Inactive"}
+    </span>
+    {onClick && (
+      <span className={`absolute inset-0 rounded-full flex items-center justify-center gap-1 text-[11px] font-semibold border opacity-0 group-hover:opacity-100 transition-all duration-200 ${
+        active ? "bg-red-50 text-red-500 border-red-200" : "bg-emerald-50 text-emerald-600 border-emerald-200"
+      }`}>
+        {active
+          ? <><X className="w-2.5 h-2.5" strokeWidth={2.5} /> Deactivate</>
+          : <><Check className="w-2.5 h-2.5" strokeWidth={3} /> Activate</>}
+      </span>
+    )}
   </span>
 );
 
-const ModalHeader = ({ icon: Icon, title, subtitle, onClose }) => (
-  <div className="flex items-center justify-between px-5 py-4 border-b border-[#e8eaed]">
+const SwitchToggle = ({ active, onChange }) => (
+  <button
+    type="button"
+    onClick={() => onChange(!active)}
+    className="inline-flex items-center gap-2 cursor-pointer bg-transparent border-none p-0"
+  >
+    <span className={`relative inline-block w-[34px] h-5 rounded-full transition-colors duration-200 ${active ? "bg-emerald-600" : "bg-slate-300"}`}>
+      <span className={`absolute top-[3px] w-3.5 h-3.5 rounded-full bg-white transition-all duration-200 ${active ? "left-[17px]" : "left-[3px]"}`} />
+    </span>
+    <span className={`text-xs font-semibold transition-colors ${active ? "text-emerald-700" : "text-slate-400"}`}>
+      {active ? "Active" : "Inactive"}
+    </span>
+  </button>
+);
+
+const Btn = ({ teal, children, className = "", ...props }) => (
+  <button
+    className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border transition-all ${
+      teal
+        ? "text-teal-600 border-teal-300 hover:bg-teal-50 hover:border-teal-400"
+        : "text-slate-500 border-slate-200 hover:bg-slate-50 hover:border-slate-300"
+    } ${className}`}
+    {...props}
+  >
+    {children}
+  </button>
+);
+
+// ── Modal Shell ───────────────────────────────────────────────────────────────
+const MHead = ({ icon: Icon, title, sub, onClose }) => (
+  <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
     <div className="flex items-center gap-3">
-      <div className="w-9 h-9 bg-[#1a1c20] rounded-xl flex items-center justify-center shrink-0">
-        <Icon className="w-4 h-4 text-white" />
+      <div className="w-8 h-8 rounded-lg bg-teal-50 border border-teal-200 flex items-center justify-center">
+        <Icon className="w-4 h-4 text-teal-600" />
       </div>
       <div>
-        <p className="font-bold text-[#1a1c20] text-sm tracking-tight">{title}</p>
-        {subtitle && <p className="text-[11px] text-[#8a909e]">{subtitle}</p>}
+        <p className="text-sm font-bold text-slate-800 tracking-tight">{title}</p>
+        {sub && <p className="text-[11px] text-slate-400">{sub}</p>}
       </div>
     </div>
-    <button
-      type="button"
-      onClick={onClose}
-      className="w-7 h-7 flex items-center justify-center rounded-lg text-[#8a909e] hover:bg-[#f0f1f3] transition"
-    >
+    <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 transition">
       <X className="w-4 h-4" />
     </button>
   </div>
 );
 
-const ModalFooter = ({ onClose, loading, submitLabel }) => (
-  <div className="flex justify-end gap-2 px-5 py-4 border-t border-[#e8eaed] bg-[#f7f8fa]/60">
-    <button
-      type="button"
-      onClick={onClose}
-      className="px-4 py-2 text-xs font-semibold text-[#3a3d45] bg-white border border-[#d0d4dc] rounded-lg hover:bg-[#f7f8fa] transition"
-    >
-      Cancel
-    </button>
+const MFoot = ({ onClose, loading, label }) => (
+  <div className="flex justify-end gap-2 px-5 py-3 border-t border-slate-100 bg-slate-50/50">
+    <Btn type="button" onClick={onClose}>Cancel</Btn>
     <button
       type="submit"
       disabled={loading}
-      className="px-5 py-2 text-xs font-bold text-white bg-[#1a1c20] hover:bg-[#252830] rounded-lg disabled:opacity-60 transition flex items-center gap-2"
+      className="flex items-center gap-2 px-4 py-1.5 text-xs font-semibold text-teal-600 border border-teal-300 rounded-md hover:bg-teal-50 disabled:opacity-50 transition-all"
     >
-      {loading && <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
-      {submitLabel}
+      {loading && <div className="w-3.5 h-3.5 border-2 border-teal-200 border-t-teal-500 rounded-full animate-spin" />}
+      {label}
     </button>
   </div>
 );
 
-// ── Billing Modal ─────────────────────────────────────────────────────────────
-const BillingModal = ({ isOpen, onClose, lab, onSave }) => {
-  const [form, setForm] = useState({ perInvoiceFee: "", monthlyFee: "", commission: "" });
+const MSectionLabel = ({ label }) => (
+  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pt-1 mb-2">{label}</p>
+);
+
+// ── Edit Lab Info Modal ───────────────────────────────────────────────────────
+const EditLabModal = ({ isOpen, onClose, lab, onSave }) => {
+  const EMPTY = { name: "", primary: "", secondary: "", publicEmail: "", privateEmail: "", address: "", district: "", zone: "" };
+  const [form, setForm]     = useState(EMPTY);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (isOpen && lab)
       setForm({
-        perInvoiceFee: lab.billing?.perInvoiceFee ?? "",
-        monthlyFee: lab.billing?.monthlyFee ?? "",
-        commission: lab.billing?.commission ?? "",
+        name:         lab.name               ?? "",
+        primary:      lab.contact?.primary   ?? "",
+        secondary:    lab.contact?.secondary ?? "",
+        publicEmail:  lab.contact?.publicEmail  ?? "",
+        privateEmail: lab.contact?.privateEmail ?? "",
+        address:      lab.contact?.address   ?? "",
+        district:     lab.contact?.district  ?? "",
+        zone:         lab.contact?.zone      ?? "",
       });
   }, [isOpen, lab]);
+
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
   const submit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
       await onSave({
-        perInvoiceFee: Number(form.perInvoiceFee),
-        monthlyFee: Number(form.monthlyFee),
-        commission: Number(form.commission),
+        name: form.name,
+        contact: {
+          primary: form.primary, secondary: form.secondary,
+          publicEmail: form.publicEmail, privateEmail: form.privateEmail,
+          address: form.address, district: form.district, zone: form.zone,
+        },
       });
-      onClose();
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <Modal isOpen={isOpen} onClose={onClose} size="sm">
-      <form onSubmit={submit}>
-        <ModalHeader icon={CreditCard} title="Edit Billing" subtitle={lab?.name} onClose={onClose} />
-        <div className="px-5 py-5 space-y-4">
-          <DarkInput
-            label="Per Invoice Fee (৳)"
-            type="number"
-            value={form.perInvoiceFee}
-            onChange={(e) => setForm((f) => ({ ...f, perInvoiceFee: e.target.value }))}
-            placeholder="0"
-            min="0"
-          />
-          <DarkInput
-            label="Monthly Fee (৳)"
-            type="number"
-            value={form.monthlyFee}
-            onChange={(e) => setForm((f) => ({ ...f, monthlyFee: e.target.value }))}
-            placeholder="0"
-            min="0"
-          />
-          <DarkInput
-            label="Commission (%)"
-            type="number"
-            value={form.commission}
-            onChange={(e) => setForm((f) => ({ ...f, commission: e.target.value }))}
-            placeholder="0"
-            min="0"
-          />
-          <div className="grid grid-cols-3 gap-px bg-[#e2e5eb] rounded-xl overflow-hidden border border-[#e2e5eb]">
-            {[
-              { label: "Invoice", value: `৳${form.perInvoiceFee || 0}` },
-              { label: "Monthly", value: `৳${form.monthlyFee || 0}` },
-              { label: "Comm.", value: `${form.commission || 0}%` },
-            ].map(({ label, value }) => (
-              <div key={label} className="bg-[#f7f8fa] text-center py-3">
-                <p className="text-[9px] text-[#8a909e] font-bold uppercase tracking-widest">{label}</p>
-                <p className="text-sm font-black text-[#1a1c20] mt-0.5">{value}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-        <ModalFooter onClose={onClose} loading={loading} submitLabel="Save Billing" />
-      </form>
-    </Modal>
-  );
-};
-
-// ── Support Admin Modal (password only) ───────────────────────────────────────
-const SupportAdminModal = ({ isOpen, onClose, onSave }) => {
-  const [password, setPassword] = useState("");
-  const [show, setShow] = useState(false);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (isOpen) {
-      setPassword("");
-      setShow(false);
-    }
-  }, [isOpen]);
-
-  const submit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      await onSave(password);
-      onClose();
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <Modal isOpen={isOpen} onClose={onClose} size="sm">
-      <form onSubmit={submit}>
-        <ModalHeader
-          icon={Key}
-          title="Set Support Admin Password"
-          subtitle="One support admin allowed globally"
-          onClose={onClose}
-        />
-        <div className="px-5 py-6">
-          <label className="block text-[10px] font-bold text-[#4a5060] uppercase tracking-widest mb-1.5">
-            Password <span className="text-red-400">*</span>
-          </label>
-          <div className="relative">
-            <input
-              type={show ? "text" : "password"}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Min. 6 characters"
-              required
-              minLength={6}
-              autoFocus
-              className="w-full px-3 py-3 pr-10 text-sm rounded-lg border border-[#d0d4dc] bg-[#f7f8fa] focus:outline-none focus:ring-2 focus:ring-[#1a1c20]/10 focus:border-[#1a1c20] focus:bg-white transition-all placeholder-[#b0b6c2] text-[#1a1c20] text-base tracking-widest"
-            />
-            <button
-              type="button"
-              onClick={() => setShow((s) => !s)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8a909e] hover:text-[#1a1c20] transition"
-            >
-              {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
-          </div>
-          <p className="mt-2 text-[11px] text-[#8a909e]">
-            Username will be set to <span className="font-mono font-bold text-[#3a3d45]">supportadmin</span>{" "}
-            automatically.
-          </p>
-        </div>
-        <ModalFooter onClose={onClose} loading={loading} submitLabel="Create Support Admin" />
-      </form>
-    </Modal>
-  );
-};
-
-// ── Admin Modal ───────────────────────────────────────────────────────────────
-const AdminModal = ({ isOpen, onClose, onSave, initial, mode }) => {
-  const EMPTY = { name: "", username: "", email: "", phone: "" };
-  const [form, setForm] = useState(EMPTY);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (isOpen) setForm(initial ? { ...initial } : EMPTY);
-  }, [isOpen, initial]);
-
-  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
-
-  const submit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      await onSave(form);
-      onClose();
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <Modal isOpen={isOpen} onClose={onClose} size="sm">
-      <form onSubmit={submit}>
-        <ModalHeader
-          icon={Shield}
-          title={mode === "create" ? "Add Admin" : "Edit Admin"}
-          subtitle="Lab administrator account"
-          onClose={onClose}
-        />
-        <div className="px-5 py-5 space-y-4">
-          <DarkInput label="Full Name *" value={form.name} onChange={set("name")} placeholder="Jane Admin" required />
-          <DarkInput
-            label="Username *"
-            value={form.username}
-            onChange={set("username")}
-            placeholder="janeadmin"
-            required={mode === "create"}
-          />
-          <DarkInput
-            label="Email *"
-            type="email"
-            value={form.email}
-            onChange={set("email")}
-            placeholder="admin@lab.com"
-            required
-          />
-          <DarkInput label="Phone *" value={form.phone} onChange={set("phone")} placeholder="01700000000" required />
-        </div>
-        <ModalFooter
-          onClose={onClose}
-          loading={loading}
-          submitLabel={mode === "create" ? "Add Admin" : "Save Changes"}
-        />
-      </form>
-    </Modal>
-  );
-};
-
-// ── Staff Modal ───────────────────────────────────────────────────────────────
-const StaffModal = ({ isOpen, onClose, onSave, initial, mode }) => {
-  const EMPTY = {
-    name: "",
-    username: "",
-    email: "",
-    mobileNumber: "",
-    permissions: { ...DEFAULT_PERMISSIONS },
-    isActive: true,
-  };
-  const [form, setForm] = useState(EMPTY);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (isOpen)
-      setForm(initial ? { ...initial, permissions: { ...DEFAULT_PERMISSIONS, ...initial.permissions } } : EMPTY);
-  }, [isOpen, initial]);
-
-  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
-  const togglePerm = (k) => setForm((f) => ({ ...f, permissions: { ...f.permissions, [k]: !f.permissions[k] } }));
-
-  const submit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      await onSave(form);
       onClose();
     } finally {
       setLoading(false);
@@ -357,79 +174,242 @@ const StaffModal = ({ isOpen, onClose, onSave, initial, mode }) => {
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="md">
       <form onSubmit={submit}>
-        <ModalHeader
-          icon={UserPlus}
-          title={mode === "create" ? "Add Staff Member" : "Edit Staff"}
-          subtitle="Fill in details and set permissions"
-          onClose={onClose}
-        />
-        <div className="px-5 py-5 space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <DarkInput label="Full Name *" value={form.name} onChange={set("name")} placeholder="John Doe" required />
-            <DarkInput
-              label="Username *"
-              value={form.username}
-              onChange={set("username")}
-              placeholder="johndoe"
-              required
-            />
-            <DarkInput
-              label="Email *"
-              type="email"
-              value={form.email}
-              onChange={set("email")}
-              placeholder="john@lab.com"
-              required
-            />
-            <DarkInput
-              label="Mobile *"
-              value={form.mobileNumber}
-              onChange={set("mobileNumber")}
-              placeholder="01700000000"
-              required
-            />
-          </div>
-
+        <MHead icon={Pencil} title="Edit Lab Info" sub={lab?.labID} onClose={onClose} />
+        <div className="px-5 py-4 space-y-3">
+          <Input label="Lab Name" value={form.name} onChange={set("name")} required placeholder="e.g. Dhaka Diagnostic" />
           <div>
-            <label className="block text-[10px] font-bold text-[#4a5060] uppercase tracking-widest mb-1.5">
-              Status
-            </label>
+            <MSectionLabel label="Contact" />
+            <div className="grid grid-cols-2 gap-2.5">
+              <Input label="Primary"      type="tel"   value={form.primary}      onChange={set("primary")}      placeholder="+880…" />
+              <Input label="Secondary"    type="tel"   value={form.secondary}    onChange={set("secondary")}    placeholder="Optional" />
+              <Input label="Public Email" type="email" value={form.publicEmail}  onChange={set("publicEmail")}  placeholder="Shown publicly" />
+              <Input label="Private Email" type="email" value={form.privateEmail} onChange={set("privateEmail")} placeholder="Internal only" />
+            </div>
+          </div>
+          <div>
+            <MSectionLabel label="Address" />
+            <div className="space-y-2.5">
+              <Input label="Street" value={form.address} onChange={set("address")} placeholder="Full street address" />
+              <div className="grid grid-cols-2 gap-2.5">
+                <Input label="District" value={form.district} onChange={set("district")} placeholder="e.g. Dhaka" />
+                <Input label="Zone"     value={form.zone}     onChange={set("zone")}     placeholder="e.g. North" />
+              </div>
+            </div>
+          </div>
+        </div>
+        <MFoot onClose={onClose} loading={loading} label="Save Changes" />
+      </form>
+    </Modal>
+  );
+};
+
+// ── Billing Modal ─────────────────────────────────────────────────────────────
+const BillingModal = ({ isOpen, onClose, lab, onSave }) => {
+  const [form, setForm]       = useState({ perInvoiceFee: "", monthlyFee: "", commission: "" });
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (isOpen && lab)
+      setForm({
+        perInvoiceFee: lab.billing?.perInvoiceFee ?? "",
+        monthlyFee:    lab.billing?.monthlyFee    ?? "",
+        commission:    lab.billing?.commission    ?? "",
+      });
+  }, [isOpen, lab]);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await onSave({ perInvoiceFee: +form.perInvoiceFee, monthlyFee: +form.monthlyFee, commission: +form.commission });
+      onClose();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} size="sm">
+      <form onSubmit={submit}>
+        <MHead icon={CreditCard} title="Edit Billing" sub={lab?.name} onClose={onClose} />
+        <div className="px-5 py-4 space-y-3">
+          <Input
+            label="Invoice Fee (৳)"
+            type="number"
+            value={form.perInvoiceFee}
+            onChange={(e) => setForm((f) => ({ ...f, perInvoiceFee: e.target.value }))}
+            min="0" required
+          />
+          <Input
+            label="Monthly Fee (৳)"
+            type="number"
+            value={form.monthlyFee}
+            onChange={(e) => setForm((f) => ({ ...f, monthlyFee: e.target.value }))}
+            min="0" required
+          />
+          <Input
+            label="Commission (৳)"       
+            type="number"
+            value={form.commission}
+            onChange={(e) => setForm((f) => ({ ...f, commission: e.target.value }))}
+            min="0" required
+          />
+        </div>
+        <div className="mx-5 mb-4 grid grid-cols-3 divide-x divide-slate-100 border border-slate-100 rounded-lg overflow-hidden">
+          {[
+            ["Invoice",    `৳${form.perInvoiceFee || 0}`],
+            ["Monthly",    `৳${form.monthlyFee    || 0}`],
+            ["Comm.",      `৳${form.commission    || 0}`],  
+          ].map(([l, v]) => (
+            <div key={l} className="bg-slate-50 text-center py-2.5">
+              <p className="text-[9px] text-slate-400 font-semibold uppercase tracking-widest">{l}</p>
+              <p className="text-sm font-black text-teal-600 mt-0.5">{v}</p>
+            </div>
+          ))}
+        </div>
+        <MFoot onClose={onClose} loading={loading} label="Save Billing" />
+      </form>
+    </Modal>
+  );
+};
+
+// ── Support Admin Modal ───────────────────────────────────────────────────────
+const SupportModal = ({ isOpen, onClose, onSave }) => {
+  const [pw, setPw]           = useState("");
+  const [show, setShow]       = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) { setPw(""); setShow(false); }
+  }, [isOpen]);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try { await onSave(pw); onClose(); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} size="sm">
+      <form onSubmit={submit}>
+        <MHead icon={Key} title="Support Admin" sub="One support admin per lab" onClose={onClose} />
+        <div className="px-5 py-4 space-y-3">
+          <Input label="Phone" value="SUPPORTADMIN" disabled />
+          <div className="relative">
+            <Input
+              label="Password"
+              type={show ? "text" : "password"}
+              value={pw}
+              onChange={(e) => setPw(e.target.value)}
+              required minLength={6} autoFocus
+              className="pr-8 tracking-widest"
+            />
             <button
               type="button"
-              onClick={() => setForm((f) => ({ ...f, isActive: !f.isActive }))}
-              className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${
-                form.isActive
-                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                  : "bg-[#f0f1f3] text-[#6a707e] border-[#e2e5eb]"
-              }`}
+              onClick={() => setShow((s) => !s)}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition"
             >
-              {form.isActive ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
-              {form.isActive ? "Active" : "Inactive"}
+              {show ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
             </button>
           </div>
+        </div>
+        <MFoot onClose={onClose} loading={loading} label="Create Support Admin" />
+      </form>
+    </Modal>
+  );
+};
 
+// ── Admin Modal ───────────────────────────────────────────────────────────────
+const AdminModal = ({ isOpen, onClose, onSave, initial, mode }) => {
+  const EMPTY = { name: "", phone: "", email: "", isActive: true };
+  const [form, setForm]       = useState(EMPTY);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) setForm(initial ?? EMPTY);
+  }, [isOpen, initial]);
+
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try { await onSave(form); onClose(); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} size="sm">
+      <form onSubmit={submit}>
+        <MHead icon={Shield} title={mode === "create" ? "Add Admin" : "Edit Admin"} sub="Full lab access" onClose={onClose} />
+        <div className="px-5 py-4 space-y-3">
+          <Input label="Full Name" value={form.name} onChange={set("name")} required />
+          <Input label="Phone" value={form.phone} onChange={set("phone")} required={mode === "create"} placeholder="Login identity" />
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Email" type="email" value={form.email || ""} onChange={set("email")} placeholder="Optional" />
+            <div className="flex items-center justify-between px-3 py-2 rounded-lg border border-slate-200 bg-slate-50 h-full">
+              <span className="text-[11px] font-semibold text-slate-400">Status</span>
+              <SwitchToggle active={form.isActive} onChange={(v) => setForm((f) => ({ ...f, isActive: v }))} />
+            </div>
+          </div>
+        </div>
+        <MFoot onClose={onClose} loading={loading} label={mode === "create" ? "Add Admin" : "Save Changes"} />
+      </form>
+    </Modal>
+  );
+};
+
+// ── Staff Modal ───────────────────────────────────────────────────────────────
+const StaffModal = ({ isOpen, onClose, onSave, initial, mode }) => {
+  const EMPTY = { name: "", phone: "", email: "", permissions: { ...DEFAULT_PERMS }, isActive: true };
+  const [form, setForm]       = useState(EMPTY);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) setForm(initial ? { ...initial, permissions: { ...DEFAULT_PERMS, ...initial.permissions } } : EMPTY);
+  }, [isOpen, initial]);
+
+  const set        = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const togglePerm = (k) => setForm((f) => ({ ...f, permissions: { ...f.permissions, [k]: !f.permissions[k] } }));
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try { await onSave(form); onClose(); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} size="md">
+      <form onSubmit={submit}>
+        <MHead icon={UserPlus} title={mode === "create" ? "Add Staff" : "Edit Staff"} sub="Fill in details and set permissions" onClose={onClose} />
+        <div className="px-5 py-4 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Full Name" value={form.name} onChange={set("name")} required />
+            <Input label="Phone" value={form.phone} onChange={set("phone")} required={mode === "create"} placeholder="Login identity" />
+            <Input label="Email" type="email" value={form.email || ""} onChange={set("email")} placeholder="Optional" />
+            <div className="flex items-center justify-between px-3 py-2 rounded-lg border border-slate-200 bg-slate-50 h-full">
+              <span className="text-[11px] font-semibold text-slate-400">Status</span>
+              <SwitchToggle active={form.isActive} onChange={(v) => setForm((f) => ({ ...f, isActive: v }))} />
+            </div>
+          </div>
           <div>
-            <label className="block text-[10px] font-bold text-[#4a5060] uppercase tracking-widest mb-2">
-              Permissions
-            </label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Permissions</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
               {PERMISSIONS.map(({ key, label }) => (
                 <button
                   key={key}
                   type="button"
                   onClick={() => togglePerm(key)}
-                  className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-xs font-semibold transition-all text-left ${
+                  className={`flex items-center gap-2 px-2.5 py-1.5 rounded-md border text-[11px] font-semibold transition-all ${
                     form.permissions[key]
-                      ? "bg-[#1a1c20] text-white border-[#1a1c20]"
-                      : "bg-white text-[#6a707e] border-[#d0d4dc] hover:border-[#1a1c20]/30 hover:bg-[#f7f8fa]"
+                      ? "bg-teal-50 text-teal-700 border-teal-300"
+                      : "bg-white text-slate-400 border-slate-200 hover:border-teal-200 hover:text-slate-600"
                   }`}
                 >
-                  <div
-                    className={`w-4 h-4 rounded-md border-2 flex items-center justify-center shrink-0 ${
-                      form.permissions[key] ? "border-white bg-white/20" : "border-[#c0c5d0]"
-                    }`}
-                  >
-                    {form.permissions[key] && <div className="w-2 h-2 bg-white rounded-sm" />}
+                  <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 transition-all ${form.permissions[key] ? "bg-teal-500 border-teal-500" : "border-slate-300"}`}>
+                    {form.permissions[key] && <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />}
                   </div>
                   {label}
                 </button>
@@ -437,11 +417,7 @@ const StaffModal = ({ isOpen, onClose, onSave, initial, mode }) => {
             </div>
           </div>
         </div>
-        <ModalFooter
-          onClose={onClose}
-          loading={loading}
-          submitLabel={mode === "create" ? "Add Staff" : "Save Changes"}
-        />
+        <MFoot onClose={onClose} loading={loading} label={mode === "create" ? "Add Staff" : "Save Changes"} />
       </form>
     </Modal>
   );
@@ -449,504 +425,329 @@ const StaffModal = ({ isOpen, onClose, onSave, initial, mode }) => {
 
 // ── Person Row ────────────────────────────────────────────────────────────────
 const PersonRow = ({ person, onEdit, onToggle, onDelete, showPerms }) => (
-  <div className="group bg-white border border-[#e2e5eb] rounded-xl px-4 py-3 hover:border-[#c8ccd4] hover:shadow-sm transition-all">
-    <div className="flex items-start gap-3">
-      <div
-        className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 font-black text-xs mt-0.5 ${
-          person.isActive ? "bg-[#1a1c20] text-white" : "bg-[#f0f1f3] text-[#8a909e]"
-        }`}
-      >
-        {(person.name || "?")[0].toUpperCase()}
+  <div className="group flex items-start gap-3 px-4 py-3 rounded-xl border border-slate-100 bg-white hover:border-teal-200 hover:bg-teal-50/30 transition-all">
+    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-xs font-black mt-0.5 border ${person.isActive ? "bg-teal-50 text-teal-700 border-teal-200" : "bg-slate-100 text-slate-400 border-slate-200"}`}>
+      {(person.name || "?")[0].toUpperCase()}
+    </div>
+    <div className="flex-1 min-w-0">
+      <div className="flex items-center gap-2 flex-wrap">
+        <p className="text-sm font-bold text-slate-700 tracking-tight">{person.name}</p>
+        {person.role === ROLES.SUPPORT_ADMIN && (
+          <span className="text-[9px] font-bold px-1.5 py-0.5 bg-amber-50 text-amber-500 border border-amber-200 rounded uppercase tracking-wider">Support</span>
+        )}
+        {person.role === ROLES.ADMIN && (
+          <span className="text-[9px] font-bold px-1.5 py-0.5 bg-violet-50 text-violet-500 border border-violet-200 rounded uppercase tracking-wider">Admin</span>
+        )}
+        <StatusBadge active={person.isActive} onClick={() => onToggle(person)} />
       </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <p className="text-sm font-bold text-[#1a1c20] tracking-tight">{person.name}</p>
-          {person.role === "supportAdmin" && (
-            <span className="text-[9px] font-black px-2 py-0.5 bg-amber-50 text-amber-600 border border-amber-100 rounded-full uppercase tracking-wider">
-              Support
+      <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1">
+        {person.phone && person.phone !== "SUPPORTADMIN" && (
+          <span className="flex items-center gap-1 text-[11px] text-slate-400">
+            <Phone className="w-2.5 h-2.5" />{person.phone}
+          </span>
+        )}
+        {person.email && person.email !== "supportadmin@system" && (
+          <span className="flex items-center gap-1 text-[11px] text-slate-400 truncate">
+            <Mail className="w-2.5 h-2.5 shrink-0" />{person.email}
+          </span>
+        )}
+      </div>
+      {showPerms && person.permissions && (
+        <div className="flex flex-wrap gap-1 mt-1.5">
+          {PERMISSIONS.filter((p) => person.permissions[p.key]).map((p) => (
+            <span key={p.key} className="flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 bg-teal-50 text-teal-600 border border-teal-100 rounded">
+              <Check className="w-2.5 h-2.5" strokeWidth={2.5} />{p.label}
             </span>
-          )}
-          <StatusBadge active={person.isActive} />
-        </div>
-        <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1">
-          {person.username && (
-            <div className="flex items-center gap-1">
-              <Hash className="w-2.5 h-2.5 text-[#b0b6c2] shrink-0" />
-              <span className="text-[11px] text-[#8a909e] font-mono">{person.username}</span>
-            </div>
-          )}
-          {person.email && person.email !== "supportadmin@system" && (
-            <div className="flex items-center gap-1 min-w-0">
-              <Mail className="w-2.5 h-2.5 text-[#b0b6c2] shrink-0" />
-              <span className="text-[11px] text-[#8a909e] truncate">{person.email}</span>
-            </div>
-          )}
-          {(person.phone || person.mobileNumber) && person.phone !== "-" && (
-            <div className="flex items-center gap-1">
-              <Phone className="w-2.5 h-2.5 text-[#b0b6c2] shrink-0" />
-              <span className="text-[11px] text-[#8a909e]">{person.phone || person.mobileNumber}</span>
-            </div>
+          ))}
+          {!PERMISSIONS.some((p) => person.permissions[p.key]) && (
+            <span className="text-[10px] text-slate-300 italic">No permissions assigned</span>
           )}
         </div>
-        {showPerms && person.permissions && (
-          <div className="flex flex-wrap gap-1 mt-1.5">
-            {PERMISSIONS.filter((p) => person.permissions[p.key]).map((p) => (
-              <span
-                key={p.key}
-                className="text-[9px] font-semibold px-1.5 py-0.5 bg-[#f0f1f3] text-[#6a707e] border border-[#e2e5eb] rounded-md"
-              >
-                {p.label}
-              </span>
-            ))}
-            {PERMISSIONS.filter((p) => person.permissions[p.key]).length === 0 && (
-              <span className="text-[9px] text-[#b0b6c2] italic">No permissions</span>
-            )}
-          </div>
-        )}
-      </div>
-      {/* Actions — always visible on mobile, hover on desktop */}
-      <div className="flex items-center gap-1 shrink-0 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
-        {onEdit && (
-          <button
-            onClick={() => onEdit(person)}
-            className="p-1.5 rounded-lg text-[#6a707e] hover:bg-[#f0f1f3] hover:text-[#1a1c20] transition"
-            title="Edit"
-          >
-            <Pencil className="w-3.5 h-3.5" />
-          </button>
-        )}
-        <button
-          onClick={() => onToggle(person)}
-          className={`p-1.5 rounded-lg transition ${person.isActive ? "text-amber-500 hover:bg-amber-50" : "text-emerald-500 hover:bg-emerald-50"}`}
-          title={person.isActive ? "Deactivate" : "Activate"}
-        >
-          {person.isActive ? <ToggleLeft className="w-3.5 h-3.5" /> : <ToggleRight className="w-3.5 h-3.5" />}
+      )}
+    </div>
+    <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+      {onEdit && (
+        <button onClick={() => onEdit(person)} className="p-1.5 rounded-md text-slate-400 hover:bg-white hover:text-slate-700 hover:border hover:border-slate-200 transition">
+          <Pencil className="w-3.5 h-3.5" />
         </button>
-        {onDelete && (
-          <button
-            onClick={() => onDelete(person)}
-            className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 transition"
-            title="Delete"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
-        )}
-      </div>
+      )}
+      {onDelete && (
+        <button onClick={() => onDelete(person)} className="p-1.5 rounded-md text-slate-300 hover:bg-white hover:text-red-400 transition">
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      )}
     </div>
   </div>
 );
 
-const SkeletonRow = () => (
-  <div className="bg-white border border-[#e2e5eb] rounded-xl px-4 py-3 animate-pulse">
-    <div className="flex items-center gap-3">
-      <div className="w-8 h-8 bg-[#f0f1f3] rounded-lg shrink-0" />
-      <div className="flex-1 space-y-2">
-        <div className="h-3 bg-[#f0f1f3] rounded w-1/3" />
-        <div className="h-2.5 bg-[#f0f1f3] rounded w-1/2" />
-      </div>
+const Skeleton = () => (
+  <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-slate-100 bg-white animate-pulse">
+    <div className="w-8 h-8 bg-slate-100 rounded-lg shrink-0" />
+    <div className="flex-1 space-y-2">
+      <div className="h-3 bg-slate-100 rounded w-1/3" />
+      <div className="h-2.5 bg-slate-100 rounded w-1/2" />
     </div>
+  </div>
+);
+
+const EmptyState = ({ icon: Icon, title, sub, onAdd, addLabel }) => (
+  <div className="flex flex-col items-center justify-center py-12 text-center">
+    <div className="w-11 h-11 bg-slate-50 border-2 border-dashed border-slate-200 rounded-xl flex items-center justify-center mb-3">
+      <Icon className="w-5 h-5 text-slate-300" />
+    </div>
+    <p className="text-sm font-bold text-slate-500 mb-1">{title}</p>
+    <p className="text-xs text-slate-400 mb-4">{sub}</p>
+    <Btn teal onClick={onAdd}><Plus className="w-3.5 h-3.5" />{addLabel}</Btn>
   </div>
 );
 
 // ── Lab Detail Panel ──────────────────────────────────────────────────────────
-const LabDetailPanel = ({ lab, onLabUpdated, showPopup, onBack }) => {
-  const [staff, setStaff] = useState([]);
-  const [admins, setAdmins] = useState([]);
-  const [staffLoading, setStaffLoading] = useState(true);
-  const [adminsLoading, setAdminsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("staff");
-  const [billingModal, setBillingModal] = useState(false);
-  const [supportModal, setSupportModal] = useState(false);
-  const [staffModal, setStaffModal] = useState({ open: false, mode: "create", initial: null });
-  const [adminModal, setAdminModal] = useState({ open: false, mode: "create", initial: null });
+const LabDetailPanel = ({ lab, onLabUpdated, showPopup }) => {
+  const [allMembers, setAllMembers]       = useState([]);
+  const [membersLoading, setMembersLoading] = useState(true);
+  const [tab, setTab]                     = useState("staff");
+  const [editOpen, setEditOpen]           = useState(false);
+  const [billingOpen, setBillingOpen]     = useState(false);
+  const [supportOpen, setSupportOpen]     = useState(false);
+  const [staffM, setStaffM]   = useState({ open: false, mode: "create", initial: null });
+  const [adminM, setAdminM]   = useState({ open: false, mode: "create", initial: null });
 
-  const fetchStaff = useCallback(async () => {
-    setStaffLoading(true);
+  const staffList = allMembers.filter((m) => m.role === ROLES.STAFF);
+  const adminList = allMembers.filter((m) => m.role === ROLES.ADMIN || m.role === ROLES.SUPPORT_ADMIN);
+
+  const fetchMembers = async () => {
+    setMembersLoading(true);
     try {
-      const res = await staffService.getStaff(lab._id);
-      setStaff(Array.isArray(res.data) ? res.data : []);
+      const r = await staffService.getAll(lab._id);
+      setAllMembers(Array.isArray(r.data) ? r.data : []);
     } catch {
-      showPopup("error", "Failed to load staff.");
+      showPopup("error", "Failed to load members.");
     } finally {
-      setStaffLoading(false);
-    }
-  }, [lab._id]);
-
-  const fetchAdmins = useCallback(async () => {
-    setAdminsLoading(true);
-    try {
-      const res = await kingoService.getAll();
-      setAdmins(Array.isArray(res.data) ? res.data : []);
-    } catch {
-      showPopup("error", "Failed to load admins.");
-    } finally {
-      setAdminsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchStaff();
-    fetchAdmins();
-  }, [fetchStaff, fetchAdmins]);
-
-  // Billing
-  const handleSaveBilling = async (billing) => {
-    try {
-      await labService.updateLabBilling(lab._id, billing);
-      showPopup("success", "Billing updated!");
-      onLabUpdated();
-    } catch (err) {
-      showPopup("error", err?.response?.data?.message || "Failed to update billing.");
-      throw err;
+      setMembersLoading(false);
     }
   };
 
-  // Lab toggle
-  const handleToggleLab = () =>
+  useEffect(() => {
+    fetchMembers();
+  }, [lab._id]);
+
+  // ── Save handlers ──────────────────────────────────────────────────────────
+  const saveLabInfo = async (data) => {
+    try {
+      await labService.updateLabInfo(lab._id, data);
+      showPopup("success", "Lab info updated!");
+      onLabUpdated();
+    } catch (e) {
+      showPopup("error", e?.response?.data?.message || "Failed.");
+      throw e;
+    }
+  };
+
+  const saveBilling = async (b) => {
+    try {
+      await labService.updateLabBilling(lab._id, b);
+      showPopup("success", "Billing updated!");
+      onLabUpdated();
+    } catch (e) {
+      showPopup("error", e?.response?.data?.message || "Failed.");
+      throw e;
+    }
+  };
+
+  const toggleLab = () =>
     showPopup("warning", `${lab.isActive ? "Deactivate" : "Activate"} "${lab.name}"?`, async () => {
       try {
         lab.isActive ? await labService.deactivateLab(lab._id) : await labService.activateLab(lab._id);
-        showPopup("success", `Lab ${lab.isActive ? "deactivated" : "activated"}!`);
+        showPopup("success", "Done!");
         onLabUpdated();
-      } catch {
-        showPopup("error", "Failed to update status.");
-      }
+      } catch { showPopup("error", "Failed."); }
     });
 
-  // Staff
-  const handleCreateStaff = async (form) => {
-    try {
-      await staffService.createStaff(lab._id, form);
-      showPopup("success", "Staff added!");
-      fetchStaff();
-    } catch (err) {
-      showPopup("error", err?.response?.data?.message || "Failed to add staff.");
-      throw err;
-    }
+  const createStaff = async (f) => {
+    try { await staffService.createMember(lab._id, f); showPopup("success", "Staff added!"); fetchMembers(); }
+    catch (e) { showPopup("error", e?.response?.data?.message || "Failed."); throw e; }
   };
-  const handleUpdateStaff = async (form) => {
-    try {
-      await staffService.updateStaff(staffModal.initial._id, form);
-      showPopup("success", "Staff updated!");
-      fetchStaff();
-    } catch (err) {
-      showPopup("error", err?.response?.data?.message || "Failed to update staff.");
-      throw err;
-    }
+  const updateStaff = async (f) => {
+    try { await staffService.update(lab._id, staffM.initial._id, f); showPopup("success", "Staff updated!"); fetchMembers(); }
+    catch (e) { showPopup("error", e?.response?.data?.message || "Failed."); throw e; }
   };
-  const handleToggleStaff = (p) =>
+  const toggleMember = (p) =>
     showPopup("warning", `${p.isActive ? "Deactivate" : "Activate"} "${p.name}"?`, async () => {
       try {
-        p.isActive ? await staffService.deactivateStaff(p._id) : await staffService.activateStaff(p._id);
-        showPopup("success", `Staff ${p.isActive ? "deactivated" : "activated"}!`);
-        fetchStaff();
-      } catch {
-        showPopup("error", "Failed.");
-      }
+        p.isActive ? await staffService.deactivate(lab._id, p._id) : await staffService.activate(lab._id, p._id);
+        showPopup("success", "Done!"); fetchMembers();
+      } catch { showPopup("error", "Failed."); }
     });
-  const handleDeleteStaff = (p) =>
+  const deleteMember = (p) =>
     showPopup("warning", `Delete "${p.name}"?`, async () => {
-      try {
-        await staffService.deleteStaff(p._id);
-        showPopup("success", "Staff deleted!");
-        fetchStaff();
-      } catch {
-        showPopup("error", "Failed to delete.");
-      }
+      try { await staffService.delete(lab._id, p._id); showPopup("success", "Deleted!"); fetchMembers(); }
+      catch { showPopup("error", "Failed."); }
     });
-
-  // Admins
-  const handleCreateAdmin = async (form) => {
-    try {
-      await kingoService.create(form);
-      showPopup("success", "Admin created!");
-      fetchAdmins();
-    } catch (err) {
-      showPopup("error", err?.response?.data?.message || "Failed.");
-      throw err;
-    }
+  const createAdmin = async (f) => {
+    try { await staffService.createAdmin(lab._id, f); showPopup("success", "Admin created!"); fetchMembers(); }
+    catch (e) { showPopup("error", e?.response?.data?.message || "Failed."); throw e; }
   };
-  const handleUpdateAdmin = async (form) => {
-    try {
-      await kingoService.update(adminModal.initial._id, form);
-      showPopup("success", "Admin updated!");
-      fetchAdmins();
-    } catch (err) {
-      showPopup("error", err?.response?.data?.message || "Failed.");
-      throw err;
-    }
+  const updateAdmin = async (f) => {
+    try { await staffService.update(lab._id, adminM.initial._id, f); showPopup("success", "Updated!"); fetchMembers(); }
+    catch (e) { showPopup("error", e?.response?.data?.message || "Failed."); throw e; }
   };
-  const handleCreateSupport = async (password) => {
-    try {
-      await kingoService.createSupport(password);
-      showPopup("success", "Support admin created!");
-      fetchAdmins();
-    } catch (err) {
-      showPopup("error", err?.response?.data?.message || "Failed.");
-      throw err;
-    }
+  const createSupport = async (pw) => {
+    try { await staffService.createSupport(lab._id, { password: pw }); showPopup("success", "Support admin created!"); fetchMembers(); }
+    catch (e) { showPopup("error", e?.response?.data?.message || "Failed."); throw e; }
   };
-  const handleToggleAdmin = (p) =>
-    showPopup("warning", `${p.isActive ? "Deactivate" : "Activate"} "${p.name}"?`, async () => {
-      try {
-        p.isActive ? await kingoService.deactivate(p._id) : await kingoService.activate(p._id);
-        showPopup("success", `Admin ${p.isActive ? "deactivated" : "activated"}!`);
-        fetchAdmins();
-      } catch {
-        showPopup("error", "Failed.");
-      }
-    });
-  const handleDeleteAdmin = (p) =>
-    showPopup("warning", `Delete admin "${p.name}"?`, async () => {
-      try {
-        await kingoService.delete(p._id);
-        showPopup("success", "Admin deleted!");
-        fetchAdmins();
-      } catch {
-        showPopup("error", "Failed.");
-      }
-    });
-
-  const tabs = [
-    { id: "staff", label: "Staff", icon: Users, count: staff.length },
-    { id: "admins", label: "Admins", icon: Shield, count: admins.length },
-  ];
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Back button — mobile only */}
-      {onBack && (
-        <button
-          onClick={onBack}
-          className="lg:hidden flex items-center gap-2 text-xs font-bold text-[#6a707e] hover:text-[#1a1c20] transition"
-        >
-          <ChevronLeft className="w-4 h-4" /> Back to results
-        </button>
-      )}
-
       {/* Lab header card */}
-      <div className="bg-white border border-[#e2e5eb] rounded-2xl p-4 sm:p-5">
+      <div className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm">
         <div className="flex items-start justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-3 min-w-0">
-            <div
-              className={`w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center shrink-0 ${
-                lab.isActive ? "bg-[#1a1c20]" : "bg-[#f0f1f3] border border-[#e2e5eb]"
-              }`}
-            >
-              <FlaskConical className={`w-4 h-4 sm:w-5 sm:h-5 ${lab.isActive ? "text-white" : "text-[#8a909e]"}`} />
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${lab.isActive ? "bg-teal-50 border-teal-200" : "bg-slate-50 border-slate-200"}`}>
+              <FlaskConical className={`w-5 h-5 ${lab.isActive ? "text-teal-600" : "text-slate-400"}`} />
             </div>
-            <div className="min-w-0">
+            <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-base font-black text-[#1a1c20] tracking-tight">{lab.name}</h2>
-                <StatusBadge active={lab.isActive} />
+                <h2 className="text-base font-black text-slate-800 tracking-tight">{lab.name}</h2>
+                <StatusBadge active={lab.isActive} onClick={toggleLab} />
               </div>
               <div className="flex items-center gap-1 mt-0.5">
-                <Hash className="w-3 h-3 text-[#b0b6c2]" />
-                <span className="text-xs font-mono font-bold text-[#8a909e] tracking-wider">{lab.labID}</span>
+                <Hash className="w-3 h-3 text-slate-300" />
+                <span className="text-xs font-mono font-bold text-slate-400">{lab.labID}</span>
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <button
-              onClick={() => setBillingModal(true)}
-              className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-[#1a1c20] bg-[#f0f1f3] hover:bg-[#e5e7eb] border border-[#d8dce4] rounded-lg transition"
-            >
-              <CreditCard className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Edit Billing</span>
-              <span className="sm:hidden">Billing</span>
-            </button>
-            <button
-              onClick={handleToggleLab}
-              className={`flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg border transition ${
-                lab.isActive
-                  ? "text-amber-600 bg-amber-50 hover:bg-amber-100 border-amber-100"
-                  : "text-emerald-600 bg-emerald-50 hover:bg-emerald-100 border-emerald-100"
-              }`}
-            >
-              {lab.isActive ? <ToggleLeft className="w-3.5 h-3.5" /> : <ToggleRight className="w-3.5 h-3.5" />}
-              {lab.isActive ? "Deactivate" : "Activate"}
-            </button>
+          <div className="flex gap-1.5">
+            <Btn onClick={() => setEditOpen(true)}><Pencil className="w-3.5 h-3.5" />Edit Info</Btn>
+            <Btn onClick={() => setBillingOpen(true)}><CreditCard className="w-3.5 h-3.5" />Edit Billing</Btn>
           </div>
         </div>
 
-        {/* Billing strip */}
-        <div className="grid grid-cols-3 gap-px bg-[#e2e5eb] rounded-xl overflow-hidden border border-[#e2e5eb] mt-4">
+        {/* Billing summary bar */}
+        <div className="grid grid-cols-3 divide-x divide-slate-100 border border-slate-100 rounded-lg overflow-hidden mt-3">
           {[
-            { label: "Invoice", value: `৳${lab.billing?.perInvoiceFee ?? 0}` },
-            { label: "Monthly", value: `৳${lab.billing?.monthlyFee ?? 0}` },
-            { label: "Comm.", value: `${lab.billing?.commission ?? 0}%` },
-          ].map(({ label, value }) => (
-            <div key={label} className="bg-[#f7f8fa] text-center py-3">
-              <p className="text-[9px] text-[#8a909e] font-bold uppercase tracking-widest">{label}</p>
-              <p className="text-sm font-black text-[#1a1c20] mt-0.5">{value}</p>
+            ["Invoice",    `৳${lab.billing?.perInvoiceFee ?? 0}`],
+            ["Monthly",    `৳${lab.billing?.monthlyFee    ?? 0}`],
+            ["Commission", `৳${lab.billing?.commission    ?? 0}`],  
+          ].map(([l, v]) => (
+            <div key={l} className="bg-slate-50 text-center py-2.5">
+              <p className="text-[9px] text-slate-400 font-semibold uppercase tracking-widest">{l}</p>
+              <p className="text-sm font-black text-teal-600 mt-0.5">{v}</p>
             </div>
           ))}
         </div>
 
-        {/* Contact */}
-        {(lab.contact?.primary || lab.contact?.publicEmail || lab.contact?.district) && (
-          <div className="flex flex-wrap gap-3 mt-3 pt-3 border-t border-[#f0f1f3]">
+        {/* Contact row */}
+        {(lab.contact?.primary || lab.contact?.publicEmail || lab.contact?.district || lab.contact?.address) && (
+          <div className="flex flex-wrap gap-4 mt-3 pt-3 border-t border-slate-50 text-xs text-slate-400">
             {lab.contact?.primary && (
-              <div className="flex items-center gap-1.5 text-xs text-[#6a707e]">
-                <Phone className="w-3 h-3 text-[#b0b6c2]" /> {lab.contact.primary}
-              </div>
+              <span className="flex items-center gap-1.5"><Phone className="w-3 h-3" />{lab.contact.primary}</span>
+            )}
+            {lab.contact?.secondary && (
+              <span className="flex items-center gap-1.5"><Phone className="w-3 h-3" />{lab.contact.secondary}</span>
             )}
             {lab.contact?.publicEmail && (
-              <div className="flex items-center gap-1.5 text-xs text-[#6a707e] min-w-0">
-                <Mail className="w-3 h-3 text-[#b0b6c2] shrink-0" />
-                <span className="truncate">{lab.contact.publicEmail}</span>
-              </div>
+              <span className="flex items-center gap-1.5 truncate"><Mail className="w-3 h-3 shrink-0" />{lab.contact.publicEmail}</span>
             )}
-            {lab.contact?.district && (
-              <div className="flex items-center gap-1.5 text-xs text-[#6a707e]">
-                <span className="text-[#b0b6c2]">📍</span>
-                {[lab.contact.district, lab.contact.zone].filter(Boolean).join(" · ")}
-              </div>
+            {(lab.contact?.district || lab.contact?.address) && (
+              <span className="flex items-center gap-1.5">
+                <MapPin className="w-3 h-3 shrink-0" />
+                {[lab.contact.address, lab.contact.district, lab.contact.zone].filter(Boolean).join(" · ")}
+              </span>
             )}
           </div>
         )}
       </div>
 
-      {/* Tabs */}
-      <div className="bg-white border border-[#e2e5eb] rounded-2xl overflow-hidden">
-        <div className="flex items-center justify-between px-4 pt-3 border-b border-[#e8eaed] gap-2 flex-wrap">
-          <div className="flex gap-1">
-            {tabs.map(({ id, label, icon: Icon, count }) => (
+      {/* Tabs card */}
+      <div className="bg-white border border-slate-100 rounded-xl overflow-hidden shadow-sm">
+        <div className="flex items-center justify-between px-4 border-b border-slate-100 flex-wrap gap-2">
+          <div className="flex">
+            {[
+              ["staff",  "Staff",  Users,  staffList.length],
+              ["admins", "Admins", Shield, adminList.length],
+            ].map(([id, label, Icon, count]) => (
               <button
                 key={id}
-                onClick={() => setActiveTab(id)}
-                className={`flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-t-lg border-b-2 -mb-px transition-all ${
-                  activeTab === id
-                    ? "border-[#1a1c20] text-[#1a1c20] bg-[#f7f8fa]"
-                    : "border-transparent text-[#8a909e] hover:text-[#3a3d45]"
-                }`}
+                onClick={() => setTab(id)}
+                className={`flex items-center gap-1.5 px-4 py-3 text-xs font-bold border-b-2 -mb-px transition-all ${tab === id ? "border-teal-400 text-teal-600" : "border-transparent text-slate-400 hover:text-slate-600"}`}
               >
                 <Icon className="w-3.5 h-3.5" />
                 {label}
-                <span
-                  className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${
-                    activeTab === id ? "bg-[#1a1c20] text-white" : "bg-[#f0f1f3] text-[#8a909e]"
-                  }`}
-                >
+                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${tab === id ? "bg-teal-100 text-teal-600" : "bg-slate-100 text-slate-400"}`}>
                   {count}
                 </span>
               </button>
             ))}
           </div>
-          <div className="flex gap-1.5 pb-2">
-            {activeTab === "staff" && (
-              <button
-                onClick={() => setStaffModal({ open: true, mode: "create", initial: null })}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-[#1a1c20] hover:bg-[#252830] rounded-lg transition"
-              >
-                <Plus className="w-3 h-3" /> <span className="hidden sm:inline">Add</span> Staff
-              </button>
+          <div className="flex gap-1.5 py-2">
+            {tab === "staff" && (
+              <Btn teal onClick={() => setStaffM({ open: true, mode: "create", initial: null })}>
+                <Plus className="w-3 h-3" />Add Staff
+              </Btn>
             )}
-            {activeTab === "admins" && (
-              <div className="flex gap-1.5">
-                <button
-                  onClick={() => setAdminModal({ open: true, mode: "create", initial: null })}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-[#1a1c20] hover:bg-[#252830] rounded-lg transition"
-                >
-                  <UserPlus className="w-3 h-3" /> <span className="hidden sm:inline">Add</span> Admin
-                </button>
-                <button
-                  onClick={() => setSupportModal(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-[#1a1c20] bg-[#f0f1f3] hover:bg-[#e5e7eb] border border-[#d8dce4] rounded-lg transition"
-                >
-                  <Key className="w-3 h-3" /> <span className="hidden sm:inline">Support</span>
-                </button>
-              </div>
+            {tab === "admins" && (
+              <>
+                <Btn teal onClick={() => setAdminM({ open: true, mode: "create", initial: null })}>
+                  <UserPlus className="w-3 h-3" />Add Admin
+                </Btn>
+                <Btn onClick={() => setSupportOpen(true)}>
+                  <Key className="w-3 h-3" />Support
+                </Btn>
+              </>
             )}
           </div>
         </div>
 
-        <div className="p-4 space-y-2">
-          {activeTab === "staff" && (
-            <>
-              {staffLoading ? (
-                Array.from({ length: 3 }).map((_, i) => <SkeletonRow key={i} />)
-              ) : staff.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-10 text-center">
-                  <div className="w-11 h-11 bg-[#f7f8fa] border-2 border-dashed border-[#d0d4dc] rounded-xl flex items-center justify-center mb-3">
-                    <Users className="w-5 h-5 text-[#c0c5d0]" />
-                  </div>
-                  <p className="text-sm font-bold text-[#3a3d45] mb-1">No staff members</p>
-                  <p className="text-xs text-[#8a909e] mb-4">Add staff to manage lab operations</p>
-                  <button
-                    onClick={() => setStaffModal({ open: true, mode: "create", initial: null })}
-                    className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-white bg-[#1a1c20] rounded-lg hover:bg-[#252830] transition"
-                  >
-                    <Plus className="w-3.5 h-3.5" /> Add First Staff
-                  </button>
-                </div>
-              ) : (
-                staff.map((s) => (
-                  <PersonRow
-                    key={s._id}
-                    person={s}
-                    showPerms
-                    onEdit={(p) => setStaffModal({ open: true, mode: "edit", initial: p })}
-                    onToggle={handleToggleStaff}
-                    onDelete={handleDeleteStaff}
-                  />
-                ))
-              )}
-            </>
-          )}
-          {activeTab === "admins" && (
-            <>
-              {adminsLoading ? (
-                Array.from({ length: 3 }).map((_, i) => <SkeletonRow key={i} />)
-              ) : admins.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-10 text-center">
-                  <div className="w-11 h-11 bg-[#f7f8fa] border-2 border-dashed border-[#d0d4dc] rounded-xl flex items-center justify-center mb-3">
-                    <Shield className="w-5 h-5 text-[#c0c5d0]" />
-                  </div>
-                  <p className="text-sm font-bold text-[#3a3d45] mb-1">No admins yet</p>
-                  <p className="text-xs text-[#8a909e] mb-4">Create an admin or support admin</p>
-                  <button
-                    onClick={() => setAdminModal({ open: true, mode: "create", initial: null })}
-                    className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-white bg-[#1a1c20] rounded-lg hover:bg-[#252830] transition"
-                  >
-                    <Plus className="w-3.5 h-3.5" /> Add Admin
-                  </button>
-                </div>
-              ) : (
-                admins.map((a) => (
-                  <PersonRow
-                    key={a._id}
-                    person={a}
-                    showPerms={false}
-                    onEdit={
-                      a.role !== "supportAdmin" ? (p) => setAdminModal({ open: true, mode: "edit", initial: p }) : null
-                    }
-                    onToggle={handleToggleAdmin}
-                    onDelete={a.role !== "supportAdmin" ? handleDeleteAdmin : null}
-                  />
-                ))
-              )}
-            </>
-          )}
+        <div className="p-3 space-y-1.5">
+          {tab === "staff" &&
+            (membersLoading ? (
+              [0, 1, 2].map((i) => <Skeleton key={i} />)
+            ) : staffList.length === 0 ? (
+              <EmptyState
+                icon={Users} title="No staff members" sub="Add staff to manage lab operations"
+                onAdd={() => setStaffM({ open: true, mode: "create", initial: null })} addLabel="Add First Staff"
+              />
+            ) : (
+              staffList.map((s) => (
+                <PersonRow key={s._id} person={s} showPerms
+                  onEdit={(p) => setStaffM({ open: true, mode: "edit", initial: p })}
+                  onToggle={toggleMember} onDelete={deleteMember}
+                />
+              ))
+            ))}
+          {tab === "admins" &&
+            (membersLoading ? (
+              [0, 1, 2].map((i) => <Skeleton key={i} />)
+            ) : adminList.length === 0 ? (
+              <EmptyState
+                icon={Shield} title="No admins yet" sub="Create an admin or support admin"
+                onAdd={() => setAdminM({ open: true, mode: "create", initial: null })} addLabel="Add Admin"
+              />
+            ) : (
+              adminList.map((a) => (
+                <PersonRow key={a._id} person={a} showPerms={false}
+                  onEdit={a.role !== ROLES.SUPPORT_ADMIN ? (p) => setAdminM({ open: true, mode: "edit", initial: p }) : null}
+                  onToggle={toggleMember}
+                  onDelete={a.role !== ROLES.SUPPORT_ADMIN ? deleteMember : null}
+                />
+              ))
+            ))}
         </div>
       </div>
 
       {/* Modals */}
-      <BillingModal isOpen={billingModal} onClose={() => setBillingModal(false)} lab={lab} onSave={handleSaveBilling} />
-      <SupportAdminModal isOpen={supportModal} onClose={() => setSupportModal(false)} onSave={handleCreateSupport} />
+      <EditLabModal  isOpen={editOpen}    onClose={() => setEditOpen(false)}    lab={lab} onSave={saveLabInfo} />
+      <BillingModal  isOpen={billingOpen} onClose={() => setBillingOpen(false)} lab={lab} onSave={saveBilling} />
+      <SupportModal  isOpen={supportOpen} onClose={() => setSupportOpen(false)} onSave={createSupport} />
       <StaffModal
-        isOpen={staffModal.open}
-        onClose={() => setStaffModal((f) => ({ ...f, open: false }))}
-        onSave={staffModal.mode === "create" ? handleCreateStaff : handleUpdateStaff}
-        initial={staffModal.initial}
-        mode={staffModal.mode}
+        isOpen={staffM.open} onClose={() => setStaffM((f) => ({ ...f, open: false }))}
+        onSave={staffM.mode === "create" ? createStaff : updateStaff}
+        initial={staffM.initial} mode={staffM.mode}
       />
       <AdminModal
-        isOpen={adminModal.open}
-        onClose={() => setAdminModal((f) => ({ ...f, open: false }))}
-        onSave={adminModal.mode === "create" ? handleCreateAdmin : handleUpdateAdmin}
-        initial={adminModal.initial}
-        mode={adminModal.mode}
+        isOpen={adminM.open} onClose={() => setAdminM((f) => ({ ...f, open: false }))}
+        onSave={adminM.mode === "create" ? createAdmin : updateAdmin}
+        initial={adminM.initial} mode={adminM.mode}
       />
     </div>
   );
@@ -954,229 +755,142 @@ const LabDetailPanel = ({ lab, onLabUpdated, showPopup, onBack }) => {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 const LabManagement = () => {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchLoading, setSearchLoading] = useState(false);
-  const [searchResults, setSearchResults] = useState([]);
-  const [hasSearched, setHasSearched] = useState(false);
-  const [selectedLab, setSelectedLab] = useState(null);
-  const [popup, setPopup] = useState({ open: false, type: "success", message: "", onConfirm: null });
-  const debounceRef = useRef(null);
+  const [query, setQuery]       = useState("");
+  const [loading, setLoading]   = useState(false);
+  const [results, setResults]   = useState([]);
+  const [searched, setSearched] = useState(false);
+  const [selected, setSelected] = useState(null);
+  const [popup, setPopup]       = useState({ open: false, type: "success", message: "", onConfirm: null });
+  const debounce                = useRef(null);
 
-  // On mobile we show either search panel OR detail panel
-  const showDetail = !!selectedLab;
-
-  const showPopup = (type, message, onConfirm = null) => setPopup({ open: true, type, message, onConfirm });
+  const showPopup  = (type, message, onConfirm = null) => setPopup({ open: true, type, message, onConfirm });
   const closePopup = () => setPopup((p) => ({ ...p, open: false, onConfirm: null }));
 
-  const searchLabs = useCallback(async (q) => {
-    if (!q.trim()) {
-      setSearchResults([]);
-      setHasSearched(false);
-      return;
-    }
-    setSearchLoading(true);
-    setHasSearched(true);
+  const search = async (q) => {
+    if (!q.trim()) { setResults([]); setSearched(false); return; }
+    setLoading(true);
+    setSearched(true);
     try {
-      const res = await labService.getLabs({ page: 1, limit: 20, labID: q.trim() });
-      const d = res.data;
-      setSearchResults(Array.isArray(d) ? d : (d.data ?? []));
-    } catch {
-      showPopup("error", "Search failed.");
-    } finally {
-      setSearchLoading(false);
-    }
-  }, []);
-
-  const handleSearchChange = (val) => {
-    setSearchQuery(val);
-    clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => searchLabs(val), 400);
+      const r = await labService.getLabs({ page: 1, limit: 20, labID: q.trim() });
+      const d = r.data;
+      setResults(Array.isArray(d) ? d : (d.data ?? []));
+    } catch { showPopup("error", "Search failed."); }
+    finally { setLoading(false); }
   };
 
-  const handleSelectLab = (lab) => setSelectedLab(lab);
+  const onChange = (val) => {
+    setQuery(val);
+    clearTimeout(debounce.current);
+    debounce.current = setTimeout(() => search(val), 400);
+  };
 
-  const handleLabUpdated = useCallback(async () => {
-    if (!selectedLab) return;
+  const onLabUpdated = async () => {
+    if (!selected) return;
     try {
-      const res = await labService.getLabById(selectedLab._id);
-      setSelectedLab(res.data);
-      if (searchQuery.trim()) {
-        const r = await labService.getLabs({ page: 1, limit: 20, labID: searchQuery.trim() });
-        const d = r.data;
-        setSearchResults(Array.isArray(d) ? d : (d.data ?? []));
+      const r = await labService.getLabById(selected._id);
+      setSelected(r.data);
+      if (query.trim()) {
+        const r2 = await labService.getLabs({ page: 1, limit: 20, labID: query.trim() });
+        const d  = r2.data;
+        setResults(Array.isArray(d) ? d : (d.data ?? []));
       }
-    } catch {
-      /* silent */
-    }
-  }, [selectedLab, searchQuery]);
-
-  // Search panel — shared between mobile and desktop
-  const SearchPanel = (
-    <div className="flex flex-col gap-3 h-full">
-      {/* Search input */}
-      <div className="relative">
-        <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
-          {searchLoading ? (
-            <RefreshCw className="w-3.5 h-3.5 text-[#6a707e] animate-spin" />
-          ) : (
-            <Search className="w-3.5 h-3.5 text-[#8a909e]" />
-          )}
-        </div>
-        <input
-          type="text"
-          placeholder="Search by Lab ID…"
-          value={searchQuery}
-          onChange={(e) => handleSearchChange(e.target.value)}
-          className="w-full pl-9 pr-8 py-2.5 rounded-xl border border-[#d0d4dc] bg-white text-sm text-[#1a1c20] placeholder-[#b0b6c2] focus:outline-none focus:ring-2 focus:ring-[#1a1c20]/10 focus:border-[#1a1c20] transition-all shadow-sm"
-        />
-        {searchQuery && (
-          <button
-            onClick={() => {
-              setSearchQuery("");
-              setSearchResults([]);
-              setHasSearched(false);
-              setSelectedLab(null);
-            }}
-            className="absolute right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded-md text-[#8a909e] hover:text-[#1a1c20] hover:bg-[#f0f1f3] transition"
-          >
-            <X className="w-3 h-3" />
-          </button>
-        )}
-      </div>
-
-      {/* Results */}
-      <div className="flex-1 overflow-y-auto space-y-1.5">
-        {!hasSearched && (
-          <div className="flex flex-col items-center justify-center h-full text-center px-4 py-8">
-            <div className="w-12 h-12 bg-[#f7f8fa] border-2 border-dashed border-[#d0d4dc] rounded-2xl flex items-center justify-center mb-3">
-              <Search className="w-5 h-5 text-[#c0c5d0]" />
-            </div>
-            <p className="text-xs font-bold text-[#3a3d45] mb-1">Search for a lab</p>
-            <p className="text-[11px] text-[#8a909e]">Enter a Lab ID to find and manage</p>
-          </div>
-        )}
-        {hasSearched && !searchLoading && searchResults.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-full text-center px-4 py-8">
-            <AlertCircle className="w-8 h-8 text-[#c0c5d0] mb-3" />
-            <p className="text-xs font-bold text-[#3a3d45]">No labs found</p>
-            <p className="text-[11px] text-[#8a909e] mt-1">Try a different Lab ID</p>
-          </div>
-        )}
-        {searchLoading &&
-          Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="bg-white border border-[#e2e5eb] rounded-xl px-4 py-3 animate-pulse">
-              <div className="flex items-center gap-3">
-                <div className="w-7 h-7 bg-[#f0f1f3] rounded-lg shrink-0" />
-                <div className="space-y-1.5 flex-1">
-                  <div className="h-3 bg-[#f0f1f3] rounded w-2/3" />
-                  <div className="h-2.5 bg-[#f0f1f3] rounded w-1/3" />
-                </div>
-              </div>
-            </div>
-          ))}
-        {!searchLoading &&
-          searchResults.map((lab) => (
-            <button
-              key={lab._id}
-              onClick={() => handleSelectLab(lab)}
-              className={`w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl border transition-all ${
-                selectedLab?._id === lab._id
-                  ? "bg-[#1a1c20] border-[#1a1c20] shadow-md"
-                  : "bg-white border-[#e2e5eb] hover:border-[#c8ccd4] hover:shadow-sm"
-              }`}
-            >
-              <div
-                className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
-                  selectedLab?._id === lab._id ? "bg-white/10" : lab.isActive ? "bg-[#1a1c20]" : "bg-[#f0f1f3]"
-                }`}
-              >
-                <FlaskConical
-                  className={`w-3.5 h-3.5 ${
-                    selectedLab?._id === lab._id ? "text-white" : lab.isActive ? "text-white" : "text-[#8a909e]"
-                  }`}
-                />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p
-                  className={`text-sm font-bold truncate tracking-tight ${selectedLab?._id === lab._id ? "text-white" : "text-[#1a1c20]"}`}
-                >
-                  {lab.name}
-                </p>
-                <div className="flex items-center gap-1">
-                  <Hash
-                    className={`w-2.5 h-2.5 shrink-0 ${selectedLab?._id === lab._id ? "text-white/40" : "text-[#b0b6c2]"}`}
-                  />
-                  <span
-                    className={`text-[11px] font-mono font-semibold ${selectedLab?._id === lab._id ? "text-white/60" : "text-[#8a909e]"}`}
-                  >
-                    {lab.labID}
-                  </span>
-                </div>
-              </div>
-              <ChevronRight
-                className={`w-3.5 h-3.5 shrink-0 ${selectedLab?._id === lab._id ? "text-white/40" : "text-[#c0c5d0]"}`}
-              />
-            </button>
-          ))}
-      </div>
-    </div>
-  );
+    } catch {}
+  };
 
   return (
-    <div className="px-4 sm:px-6 lg:px-8 py-6 sm:py-8 max-w-full overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-10 h-10 bg-[#1a1c20] rounded-2xl flex items-center justify-center shadow-md shadow-black/10">
-          <UserCog className="w-5 h-5 text-white" />
+    <div className="px-4 sm:px-6 lg:px-8 py-8 max-w-4xl mx-auto">
+      <div className="flex items-center gap-3 mb-8">
+        <div className="w-9 h-9 bg-teal-50 border border-teal-200 rounded-xl flex items-center justify-center shrink-0">
+          <UserCog className="w-5 h-5 text-teal-600" />
         </div>
         <div>
-          <h1 className="text-xl font-black text-[#1a1c20] tracking-tight leading-none">Lab Management</h1>
-          <p className="text-xs text-[#8a909e] mt-0.5">Search a lab by ID to manage staff, admins & billing</p>
+          <h1 className="text-lg font-black text-slate-800 tracking-tight leading-none">Lab Management</h1>
+          <p className="text-[11px] text-slate-400 mt-0.5">Search a lab to manage staff, admins &amp; billing</p>
         </div>
       </div>
 
-      {/* ── Mobile: stacked ── */}
-      <div className="lg:hidden">
-        {!showDetail ? (
-          SearchPanel
-        ) : (
-          <LabDetailPanel
-            key={selectedLab._id}
-            lab={selectedLab}
-            onLabUpdated={handleLabUpdated}
-            showPopup={showPopup}
-            onBack={() => setSelectedLab(null)}
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden mb-5">
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-100">
+          <div className="shrink-0">
+            {loading
+              ? <RefreshCw className="w-4 h-4 text-teal-500 animate-spin" />
+              : <Search    className="w-4 h-4 text-slate-400" />}
+          </div>
+          <input
+            type="text"
+            placeholder="Type a Lab ID to search…"
+            value={query}
+            onChange={(e) => onChange(e.target.value)}
+            className="flex-1 text-sm text-slate-800 placeholder-slate-300 bg-transparent focus:outline-none"
           />
+          {query && (
+            <button
+              onClick={() => { setQuery(""); setResults([]); setSearched(false); setSelected(null); }}
+              className="shrink-0 w-5 h-5 flex items-center justify-center rounded text-slate-400 hover:text-slate-600 transition"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+
+        {!searched && (
+          <div className="flex items-center justify-center gap-2 py-10 text-slate-400">
+            <Search className="w-4 h-4" />
+            <span className="text-xs">Enter a Lab ID to begin</span>
+          </div>
+        )}
+        {searched && loading && (
+          <div className="divide-y divide-slate-50">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="flex items-center gap-3 px-4 py-3 animate-pulse">
+                <div className="w-7 h-7 bg-slate-100 rounded-lg shrink-0" />
+                <div className="flex-1 space-y-1.5">
+                  <div className="h-3 bg-slate-100 rounded w-1/3" />
+                  <div className="h-2.5 bg-slate-100 rounded w-1/5" />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {searched && !loading && results.length === 0 && (
+          <div className="flex items-center justify-center gap-2 py-10 text-slate-400">
+            <AlertCircle className="w-4 h-4" />
+            <span className="text-xs">No labs found for &ldquo;{query}&rdquo;</span>
+          </div>
+        )}
+        {searched && !loading && results.length > 0 && (
+          <div className="divide-y divide-slate-50">
+            {results.map((lab) => {
+              const active = selected?._id === lab._id;
+              return (
+                <button
+                  key={lab._id}
+                  onClick={() => setSelected(active ? null : lab)}
+                  className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-all ${active ? "bg-teal-50" : "hover:bg-slate-50"}`}
+                >
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border ${active ? "bg-teal-100 border-teal-200" : lab.isActive ? "bg-teal-50 border-teal-100" : "bg-slate-100 border-slate-200"}`}>
+                    <FlaskConical className={`w-3.5 h-3.5 ${active ? "text-teal-600" : lab.isActive ? "text-teal-500" : "text-slate-400"}`} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm font-semibold truncate ${active ? "text-teal-700" : "text-slate-700"}`}>{lab.name}</p>
+                    <p className={`text-[11px] font-mono ${active ? "text-teal-400" : "text-slate-400"}`}>#{lab.labID}</p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <StatusBadge active={lab.isActive} />
+                    {active
+                      ? <X className="w-3.5 h-3.5 text-teal-400" />
+                      : <ChevronRight className="w-3.5 h-3.5 text-slate-300" />}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         )}
       </div>
 
-      {/* ── Desktop: side by side ── */}
-      <div className="hidden lg:flex gap-5 h-[calc(100vh-200px)] min-h-[520px]">
-        {/* Left panel */}
-        <div className="w-72 shrink-0 flex flex-col">{SearchPanel}</div>
-
-        {/* Right panel */}
-        <div className="flex-1 min-w-0 overflow-y-auto">
-          {!selectedLab ? (
-            <div className="flex flex-col items-center justify-center h-full text-center">
-              <div className="w-16 h-16 bg-[#f7f8fa] border-2 border-dashed border-[#d0d4dc] rounded-2xl flex items-center justify-center mb-5">
-                <FlaskConical className="w-7 h-7 text-[#c0c5d0]" />
-              </div>
-              <p className="text-sm font-bold text-[#3a3d45] mb-1.5">Select a lab to manage</p>
-              <p className="text-xs text-[#8a909e] max-w-xs">
-                Search by Lab ID on the left, then click a result to view staff, admins, billing and more.
-              </p>
-            </div>
-          ) : (
-            <LabDetailPanel
-              key={selectedLab._id}
-              lab={selectedLab}
-              onLabUpdated={handleLabUpdated}
-              showPopup={showPopup}
-            />
-          )}
-        </div>
-      </div>
+      {selected && (
+        <LabDetailPanel key={selected._id} lab={selected} onLabUpdated={onLabUpdated} showPopup={showPopup} />
+      )}
 
       {popup.open && (
         <Popup

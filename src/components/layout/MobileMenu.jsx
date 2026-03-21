@@ -41,137 +41,360 @@ const MobileMenu = () => {
     };
   }, [isMenuOpen]);
 
+  const hidden = scrollDirection === "down";
+
   return (
     <>
-      {/* Top Navbar */}
       <div className="lg:hidden">
+        {/* Teal accent bar */}
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 3,
+            zIndex: 51,
+            background: "linear-gradient(90deg, #0d9488, #14b8a6 55%, #5eead4)",
+            transition: "transform 0.3s ease",
+            transform: hidden ? "translateY(-200%)" : "translateY(0)",
+          }}
+        />
+
         <nav
-          className={`
-          fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-3
-          bg-[#1a1c20]/95 backdrop-blur-md border-b border-[#2a2d33]
-          transition-transform duration-300 shadow-lg shadow-black/30
-          ${scrollDirection === "down" ? "-translate-y-full" : "translate-y-0"}
-        `}
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 50,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "0 16px",
+            height: 52,
+            background: "#ffffff",
+            borderBottom: "1px solid #e1e8ef",
+            boxShadow: "0 1px 10px rgba(15,40,55,0.07)",
+            transition: "transform 0.3s ease",
+            transform: hidden ? "translateY(-100%)" : "translateY(0)",
+            fontFamily: "'Geist', 'DM Sans', sans-serif",
+          }}
         >
-          <Link to="/" className="flex items-center gap-2.5">
-            <div className="w-7 h-7 bg-gradient-to-br from-blue-500 to-blue-700 rounded-lg flex items-center justify-center shadow-md shadow-blue-900/40">
-              <span className="text-white font-black text-xs">LP</span>
+          <Link to="/" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 10 }}>
+            <div
+              style={{
+                width: 30,
+                height: 30,
+                background: "linear-gradient(135deg, #0d9488, #0f766e)",
+                borderRadius: 8,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                boxShadow: "0 3px 10px rgba(13,148,136,0.32)",
+              }}
+            >
+              <span style={{ color: "#fff", fontWeight: 800, fontSize: 10 }}>LP</span>
             </div>
-            <div className="flex flex-col">
-              <span className="text-slate-100 font-bold text-sm tracking-tight leading-none">
-                LabPilot<span className="text-slate-500 font-light">Pro</span>
-              </span>
-              <span className="text-[9px] text-slate-500 font-medium">Health Management</span>
+            <div>
+              <div style={{ color: "#0f2537", fontWeight: 700, fontSize: 13, letterSpacing: "-0.4px", lineHeight: 1 }}>
+                LabPilot<span style={{ color: "#94a3b8", fontWeight: 300 }}>Pro</span>
+              </div>
+              <div
+                style={{
+                  fontSize: 8.5,
+                  color: "#94a3b8",
+                  fontWeight: 600,
+                  letterSpacing: "0.07em",
+                  textTransform: "uppercase",
+                  marginTop: 3,
+                }}
+              >
+                Health Mgmt
+              </div>
             </div>
           </Link>
 
           <button
             onClick={toggleMenu}
-            className="w-9 h-9 flex items-center justify-center rounded-xl bg-[#22252b] hover:bg-[#2a2d35] border border-[#2a2d33] transition-all"
+            style={{
+              width: 34,
+              height: 34,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              borderRadius: 9,
+              background: "#f0f4f7",
+              border: "1px solid #e1e8ef",
+              cursor: "pointer",
+            }}
             aria-label="Toggle menu"
           >
-            {isMenuOpen ? <X className="w-4 h-4 text-slate-400" /> : <Menu className="w-4 h-4 text-slate-400" />}
+            {isMenuOpen ? (
+              <X style={{ width: 14, height: 14, color: "#64829a" }} />
+            ) : (
+              <Menu style={{ width: 14, height: 14, color: "#64829a" }} />
+            )}
           </button>
         </nav>
-        <div className="h-[52px]" />
+        <div style={{ height: 52 }} />
       </div>
 
       {/* Overlay */}
-      {isMenuOpen && <div className="lg:hidden fixed inset-0 z-40 bg-black/60 backdrop-blur-sm" onClick={closeMenu} />}
+      {isMenuOpen && (
+        <div
+          className="lg:hidden"
+          onClick={closeMenu}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 40,
+            background: "rgba(15,37,55,0.3)",
+            backdropFilter: "blur(4px)",
+          }}
+        />
+      )}
 
-      {/* Slide-out Drawer */}
+      {/* Drawer */}
       <div
-        className={`
-        lg:hidden fixed top-0 right-0 h-full w-72 max-w-[85vw]
-        bg-[#1a1c20] border-l border-[#2a2d33]
-        z-50 shadow-2xl shadow-black/40
-        transform transition-transform duration-300 ease-out
-        ${isMenuOpen ? "translate-x-0" : "translate-x-full"}
-      `}
+        className="lg:hidden"
+        style={{
+          position: "fixed",
+          top: 0,
+          right: 0,
+          height: "100%",
+          width: 284,
+          maxWidth: "85vw",
+          background: "linear-gradient(180deg, #ffffff 0%, #f8fafb 100%)",
+          borderLeft: "1px solid #e1e8ef",
+          zIndex: 50,
+          boxShadow: "-14px 0 50px rgba(15,40,55,0.12)",
+          transform: isMenuOpen ? "translateX(0)" : "translateX(100%)",
+          transition: "transform 0.32s cubic-bezier(0.16, 1, 0.3, 1)",
+          display: "flex",
+          flexDirection: "column",
+          fontFamily: "'Geist', 'DM Sans', sans-serif",
+        }}
       >
-        <div className="flex flex-col h-full">
-          {/* Drawer Header */}
-          <div className="flex-shrink-0 px-5 py-5 border-b border-[#2a2d33]">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl flex items-center justify-center shadow-lg shadow-blue-900/40">
-                  <span className="text-white font-black text-sm">LP</span>
-                </div>
-                <div>
-                  <p className="text-slate-100 font-bold text-sm tracking-tight leading-none">
-                    LabPilot<span className="text-slate-500 font-light">Pro</span>
-                  </p>
-                  <p className="text-[10px] text-slate-500 font-medium mt-0.5">Professional Edition</p>
-                </div>
-              </div>
-              <button
-                onClick={closeMenu}
-                className="w-8 h-8 flex items-center justify-center rounded-lg bg-[#22252b] hover:bg-[#2a2d35] border border-[#2a2d33] transition-all"
+        {/* Teal top accent */}
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 3,
+            background: "linear-gradient(90deg, #0d9488, #14b8a6 55%, #5eead4)",
+          }}
+        />
+
+        {/* Teal ambient glow */}
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            right: 0,
+            width: 140,
+            height: 140,
+            background: "radial-gradient(circle at 100% 0%, rgba(13,148,136,0.07) 0%, transparent 70%)",
+            pointerEvents: "none",
+          }}
+        />
+
+        {/* Header */}
+        <div style={{ flexShrink: 0, padding: "24px 18px 16px", borderBottom: "1px solid #eaf0f5" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
+              <div
+                style={{
+                  width: 38,
+                  height: 38,
+                  background: "linear-gradient(135deg, #0d9488, #0f766e)",
+                  borderRadius: 10,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  boxShadow: "0 4px 14px rgba(13,148,136,0.35)",
+                  position: "relative",
+                  overflow: "hidden",
+                }}
               >
-                <X className="w-3.5 h-3.5 text-slate-400" />
-              </button>
-            </div>
-          </div>
-
-          {/* Menu Items */}
-          <div className="flex-1 overflow-hidden">
-            <div className="h-full overflow-y-auto px-3 py-3">
-              <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest px-2 mb-2 mt-1">
-                Navigation
-              </p>
-              <div className="space-y-0.5">
-                {menu.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <NavLink
-                      key={item.path}
-                      to={item.path}
-                      end={item.path === "/"}
-                      onClick={closeMenu}
-                      className={({ isActive }) =>
-                        `flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 group ${
-                          isActive
-                            ? "bg-[#252830] text-slate-100 border border-[#32363f]"
-                            : "text-slate-500 hover:text-slate-200 hover:bg-[#22252b] border border-transparent"
-                        }`
-                      }
-                    >
-                      {({ isActive }) => (
-                        <>
-                          <div
-                            className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-all duration-150 ${
-                              isActive
-                                ? "bg-blue-500/20 text-blue-400"
-                                : "bg-[#22252b] text-slate-500 group-hover:bg-[#2a2d35] group-hover:text-slate-300"
-                            }`}
-                          >
-                            <Icon className="w-3.5 h-3.5" />
-                          </div>
-                          <span className="font-medium text-sm flex-1 tracking-tight">{item.label}</span>
-                          <ChevronRight
-                            className={`w-3.5 h-3.5 shrink-0 transition-all duration-150 ${
-                              isActive ? "text-blue-400" : "text-slate-700 group-hover:text-slate-500"
-                            }`}
-                          />
-                        </>
-                      )}
-                    </NavLink>
-                  );
-                })}
+                <div
+                  style={{
+                    position: "absolute",
+                    top: -5,
+                    right: -5,
+                    width: 16,
+                    height: 16,
+                    borderRadius: "50%",
+                    background: "rgba(255,255,255,0.12)",
+                  }}
+                />
+                <span style={{ color: "#fff", fontWeight: 800, fontSize: 12, position: "relative", zIndex: 1 }}>
+                  LP
+                </span>
+              </div>
+              <div>
+                <div
+                  style={{ color: "#0f2537", fontWeight: 700, fontSize: 13.5, letterSpacing: "-0.4px", lineHeight: 1 }}
+                >
+                  LabPilot<span style={{ color: "#94a3b8", fontWeight: 300 }}>Pro</span>
+                </div>
+                <div
+                  style={{
+                    fontSize: 9,
+                    color: "#94a3b8",
+                    fontWeight: 600,
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    marginTop: 4,
+                  }}
+                >
+                  Professional Edition
+                </div>
               </div>
             </div>
-          </div>
-
-          {/* Footer */}
-          <div className="flex-shrink-0 p-3 border-t border-[#2a2d33]">
             <button
               onClick={closeMenu}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-500 hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/15 transition-all duration-150 group"
+              style={{
+                width: 30,
+                height: 30,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                borderRadius: 8,
+                background: "#f0f4f7",
+                border: "1px solid #e1e8ef",
+                cursor: "pointer",
+              }}
             >
-              <div className="w-8 h-8 rounded-lg bg-[#22252b] group-hover:bg-red-500/10 flex items-center justify-center shrink-0 transition-all duration-150">
-                <LogOut className="w-3.5 h-3.5" />
+              <X style={{ width: 13, height: 13, color: "#64829a" }} />
+            </button>
+          </div>
+        </div>
+
+        {/* Menu Items */}
+        <div style={{ flex: 1, padding: "12px 10px", overflowY: "auto" }}>
+          <p
+            style={{
+              fontSize: 9.5,
+              fontWeight: 700,
+              color: "#c8d6e0",
+              letterSpacing: "0.14em",
+              textTransform: "uppercase",
+              padding: "0 10px",
+              marginBottom: 8,
+            }}
+          >
+            Main Menu
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            {menu.map((item) => {
+              const Icon = item.icon;
+              return (
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  end={item.path === "/"}
+                  onClick={closeMenu}
+                  style={{ textDecoration: "none" }}
+                >
+                  {({ isActive }) => (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 11,
+                        padding: "9px 11px",
+                        borderRadius: 10,
+                        position: "relative",
+                        background: isActive ? "rgba(13,148,136,0.07)" : "transparent",
+                        border: isActive ? "1px solid rgba(13,148,136,0.18)" : "1px solid transparent",
+                      }}
+                    >
+                      {isActive && (
+                        <div
+                          style={{
+                            position: "absolute",
+                            left: 0,
+                            top: "22%",
+                            bottom: "22%",
+                            width: 3,
+                            background: "linear-gradient(180deg, #0d9488, #14b8a6)",
+                            borderRadius: "0 3px 3px 0",
+                          }}
+                        />
+                      )}
+                      <div
+                        style={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: 8,
+                          flexShrink: 0,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          background: isActive ? "rgba(13,148,136,0.12)" : "#f0f4f7",
+                          border: isActive ? "1px solid rgba(13,148,136,0.22)" : "1px solid #e4ecf1",
+                        }}
+                      >
+                        <Icon style={{ width: 14, height: 14, color: isActive ? "#0d9488" : "#8fafc4" }} />
+                      </div>
+                      <span
+                        style={{
+                          fontSize: 13,
+                          flex: 1,
+                          letterSpacing: "-0.15px",
+                          fontWeight: isActive ? 600 : 500,
+                          color: isActive ? "#0f2537" : "#64829a",
+                        }}
+                      >
+                        {item.label}
+                      </span>
+                      <ChevronRight
+                        style={{ width: 13, height: 13, color: isActive ? "#0d9488" : "#d4e0e9", flexShrink: 0 }}
+                      />
+                    </div>
+                  )}
+                </NavLink>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div style={{ flexShrink: 0, borderTop: "1px solid #eaf0f5" }}>
+          <div style={{ padding: "8px 10px 12px" }}>
+            <button
+              onClick={closeMenu}
+              style={{
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "8px 11px",
+                borderRadius: 9,
+                background: "transparent",
+                border: "1px solid transparent",
+                cursor: "pointer",
+              }}
+            >
+              <div
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 8,
+                  background: "#f0f4f7",
+                  border: "1px solid #e4ecf1",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}
+              >
+                <LogOut style={{ width: 13, height: 13, color: "#8fafc4" }} />
               </div>
-              <span className="text-sm font-medium tracking-tight">Logout</span>
+              <span style={{ fontSize: 13, fontWeight: 500, color: "#64829a" }}>Sign Out</span>
             </button>
           </div>
         </div>

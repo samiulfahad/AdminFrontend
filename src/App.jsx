@@ -5,6 +5,7 @@ import Home from "./pages/home";
 import Labs from "./pages/labs";
 import Zones from "./pages/zones";
 import LabManagement from "./pages/lab-management";
+import TestCatalog from "./pages/test-catalog";
 
 function App() {
   return (
@@ -12,8 +13,9 @@ function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/labs" element={<Labs />} />
-        <Route path="/zones" element={<Zones />} />
         <Route path="/lab-management" element={<LabManagement />} />
+        <Route path="/test-catalog" element={<TestCatalog />} />
+        <Route path="/zones" element={<Zones />} />
       </Routes>
     </Layout>
   );

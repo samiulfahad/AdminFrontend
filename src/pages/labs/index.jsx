@@ -1,14 +1,10 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   Plus,
   Search,
   FlaskConical,
   ChevronLeft,
   ChevronRight,
-  Pencil,
-  Trash2,
-  ToggleLeft,
-  ToggleRight,
   Phone,
   Mail,
   MapPin,
@@ -16,10 +12,11 @@ import {
   X,
   Building2,
   Hash,
-  Activity,
-  TrendingUp,
   Layers,
   RefreshCw,
+  Check,
+  TrendingUp,
+  Activity,
 } from "lucide-react";
 
 import Modal from "../../components/modal";
@@ -27,52 +24,95 @@ import Popup from "../../components/popup";
 import labService from "../../api/labService";
 import zoneService from "../../api/zoneService";
 
-// ── Constants ─────────────────────────────────────────────────────────────────
-const LIMIT = 10;
+const LIMIT = 20;
 
 const EMPTY_LAB = {
   name: "",
   labID: "",
   isActive: true,
-  contact: { primary: "", secondary: "", publicEmail: "", privateEmail: "", address: "", district: "", zone: "" },
+  contact: {
+    primary: "",
+    secondary: "",
+    publicEmail: "",
+    privateEmail: "",
+    address: "",
+    district: "",
+    zone: "",
+    zoneId: "",
+  },
   billing: { perInvoiceFee: "", monthlyFee: "", commission: "" },
 };
 
-// ── Primitives ────────────────────────────────────────────────────────────────
 const Input = ({ label, ...props }) => (
   <div>
     {label && (
-      <label className="block text-[10px] font-bold text-[#4a5060] uppercase tracking-widest mb-1.5">{label}</label>
+      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">{label}</label>
     )}
     <input
-      className="w-full px-3 py-2.5 text-sm rounded-lg border border-[#d0d4dc] bg-[#f7f8fa] focus:outline-none focus:ring-2 focus:ring-[#1a1c20]/10 focus:border-[#1a1c20] focus:bg-white transition-all placeholder-[#b0b6c2] text-[#1a1c20]"
+      className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-400/20 focus:border-teal-400 focus:bg-white transition-all placeholder-slate-300 text-slate-800"
       {...props}
     />
   </div>
 );
 
-const Select = ({ label, value, onChange, options, placeholder }) => (
-  <div>
-    {label && (
-      <label className="block text-[10px] font-bold text-[#4a5060] uppercase tracking-widest mb-1.5">{label}</label>
-    )}
-    <select
-      value={value}
-      onChange={onChange}
-      className="w-full px-3 py-2.5 text-sm rounded-lg border border-[#d0d4dc] bg-[#f7f8fa] focus:outline-none focus:ring-2 focus:ring-[#1a1c20]/10 focus:border-[#1a1c20] focus:bg-white transition-all text-[#1a1c20]"
-    >
-      <option value="">{placeholder}</option>
-      {options.map((o) => (
-        <option key={o} value={o}>
-          {o}
-        </option>
-      ))}
-    </select>
-  </div>
+const Btn = ({ teal, children, className = "", ...props }) => (
+  <button
+    className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border transition-all ${
+      teal
+        ? "text-teal-600 border-teal-300 hover:bg-teal-50 hover:border-teal-400"
+        : "text-slate-500 border-slate-200 hover:bg-slate-50 hover:border-slate-300"
+    } ${className}`}
+    {...props}
+  >
+    {children}
+  </button>
 );
 
-// ── Lab Form Modal ────────────────────────────────────────────────────────────
-const LabModal = ({ isOpen, onClose, onSubmit, initial, mode }) => {
+const StatusBadge = ({ active }) => (
+  <span
+    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border select-none ${
+      active ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-slate-100 text-slate-400 border-slate-200"
+    }`}
+  >
+    <span
+      className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 ${active ? "bg-emerald-600" : "bg-slate-300"}`}
+    >
+      {active ? (
+        <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
+      ) : (
+        <X className="w-2.5 h-2.5 text-white" strokeWidth={2.5} />
+      )}
+    </span>
+    {active ? "Active" : "Inactive"}
+  </span>
+);
+
+const SwitchToggle = ({ active, onChange }) => (
+  <button
+    type="button"
+    onClick={() => onChange(!active)}
+    className="inline-flex items-center gap-2 cursor-pointer bg-transparent border-none p-0"
+  >
+    <span
+      className={`relative inline-block w-[34px] h-5 rounded-full transition-colors duration-200 ${active ? "bg-emerald-600" : "bg-slate-300"}`}
+    >
+      <span
+        className={`absolute top-[3px] w-3.5 h-3.5 rounded-full bg-white transition-all duration-200 ${active ? "left-[17px]" : "left-[3px]"}`}
+      />
+    </span>
+    <span className={`text-xs font-semibold transition-colors ${active ? "text-emerald-700" : "text-slate-400"}`}>
+      {active ? "Active" : "Inactive"}
+    </span>
+  </button>
+);
+
+const LAB_TABS = [
+  { id: "info", label: "Info", icon: Building2, sub: "Basic details and status" },
+  { id: "contact", label: "Contact", icon: Phone, sub: "Phone, email and location" },
+  { id: "billing", label: "Billing", icon: CreditCard, sub: "Fees and commission" },
+];
+
+const LabModal = ({ isOpen, onClose, onSubmit }) => {
   const [form, setForm] = useState(EMPTY_LAB);
   const [tab, setTab] = useState("info");
   const [loading, setLoading] = useState(false);
@@ -80,31 +120,30 @@ const LabModal = ({ isOpen, onClose, onSubmit, initial, mode }) => {
 
   useEffect(() => {
     if (!isOpen) return;
-    setForm(
-      initial
-        ? {
-            ...initial,
-            billing: {
-              perInvoiceFee: initial.billing?.perInvoiceFee ?? "",
-              monthlyFee: initial.billing?.monthlyFee ?? "",
-              commission: initial.billing?.commission ?? "",
-            },
-          }
-        : EMPTY_LAB,
-    );
+    setForm(EMPTY_LAB);
     setTab("info");
     zoneService
       .getZones()
-      .then((r) => setZones((Array.isArray(r.data) ? r.data : (r.data?.data ?? [])).map((z) => z.name)))
+      .then((r) => setZones(Array.isArray(r.data) ? r.data : (r.data?.data ?? [])))
       .catch(() => setZones([]));
-  }, [isOpen, initial]);
+  }, [isOpen]);
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
   const setC = (k) => (e) => setForm((f) => ({ ...f, contact: { ...f.contact, [k]: e.target.value } }));
   const setB = (k) => (e) => setForm((f) => ({ ...f, billing: { ...f.billing, [k]: e.target.value } }));
 
-  const submit = async (e) => {
-    e.preventDefault();
+  const tabIdx = LAB_TABS.findIndex((t) => t.id === tab);
+  const current = LAB_TABS[tabIdx];
+  const isLast = tabIdx === LAB_TABS.length - 1;
+  const goNext = () => {
+    if (!isLast) setTab(LAB_TABS[tabIdx + 1].id);
+  };
+  const goBack = () => {
+    if (tabIdx > 0) setTab(LAB_TABS[tabIdx - 1].id);
+  };
+
+  const handleRegister = async () => {
+    if (loading) return;
     setLoading(true);
     try {
       await onSubmit(form);
@@ -114,417 +153,369 @@ const LabModal = ({ isOpen, onClose, onSubmit, initial, mode }) => {
     }
   };
 
-  const tabs = [
-    { id: "info", label: "Info", icon: Building2 },
-    { id: "contact", label: "Contact", icon: Phone },
-    { id: "billing", label: "Billing", icon: CreditCard },
-  ];
-
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="lg">
-      <form onSubmit={submit}>
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-[#e8eaed]">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-[#1a1c20] rounded-xl flex items-center justify-center shadow-sm">
-              <FlaskConical className="w-4 h-4 text-white" />
+      <div className="flex min-h-[420px]">
+        {/* Sidebar */}
+        <div className="w-44 shrink-0 flex flex-col border-r border-slate-100 bg-slate-50/60 rounded-tl-xl rounded-bl-xl">
+          <div className="flex items-center gap-2.5 px-4 py-4 border-b border-slate-100">
+            <div className="w-7 h-7 rounded-lg bg-teal-50 border border-teal-200 flex items-center justify-center shrink-0">
+              <FlaskConical className="w-3.5 h-3.5 text-teal-600" />
             </div>
-            <div>
-              <p className="font-bold text-[#1a1c20] text-sm tracking-tight">
-                {mode === "create" ? "Register New Lab" : "Edit Lab"}
-              </p>
-              <p className="text-[11px] text-[#8a909e]">
-                {mode === "create" ? "Complete all sections below" : "Update lab information"}
-              </p>
+            <div className="min-w-0">
+              <p className="text-xs font-bold text-slate-700 leading-none">Register Lab</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">3 sections</p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-7 h-7 flex items-center justify-center rounded-lg text-[#8a909e] hover:bg-[#f0f1f3] hover:text-[#1a1c20] transition"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          <nav className="flex flex-col gap-1 p-3 flex-1">
+            {LAB_TABS.map(({ id, label, icon: Icon }, i) => {
+              const isActive = tab === id;
+              const isComplete = i < tabIdx;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setTab(id)}
+                  className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left transition-all ${
+                    isActive ? "bg-teal-50 border border-teal-200" : "hover:bg-slate-100 border border-transparent"
+                  }`}
+                >
+                  <div
+                    className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 transition-colors ${
+                      isActive ? "bg-teal-600" : isComplete ? "bg-emerald-500" : "bg-slate-200"
+                    }`}
+                  >
+                    {isComplete ? (
+                      <Check className="w-3 h-3 text-white" strokeWidth={3} />
+                    ) : (
+                      <Icon className={`w-3 h-3 ${isActive ? "text-white" : "text-slate-400"}`} />
+                    )}
+                  </div>
+                  <span
+                    className={`text-xs font-semibold ${isActive ? "text-teal-700" : isComplete ? "text-slate-600" : "text-slate-400"}`}
+                  >
+                    {label}
+                  </span>
+                </button>
+              );
+            })}
+          </nav>
+          <div className="p-4 border-t border-slate-100">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[10px] text-slate-400">Progress</span>
+              <span className="text-[10px] font-bold text-slate-500">{tabIdx + 1}/3</span>
+            </div>
+            <div className="h-1 bg-slate-200 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-teal-500 rounded-full transition-all duration-300"
+                style={{ width: `${((tabIdx + 1) / 3) * 100}%` }}
+              />
+            </div>
+          </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-1 px-6 pt-4">
-          {tabs.map(({ id, label, icon: Icon }) => (
+        {/* Main panel */}
+        <div className="flex flex-col flex-1 min-w-0">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+            <div>
+              <p className="text-sm font-bold text-slate-800 tracking-tight">{current.label}</p>
+              <p className="text-[11px] text-slate-400 mt-0.5">{current.sub}</p>
+            </div>
             <button
-              key={id}
               type="button"
-              onClick={() => setTab(id)}
-              className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg transition-all ${
-                tab === id
-                  ? "bg-[#1a1c20] text-white shadow-sm"
-                  : "text-[#6a707e] hover:text-[#1a1c20] hover:bg-[#f0f1f3]"
-              }`}
+              onClick={onClose}
+              className="w-7 h-7 flex items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 transition"
             >
-              <Icon className="w-3.5 h-3.5" />
-              {label}
+              <X className="w-4 h-4" />
             </button>
-          ))}
-        </div>
+          </div>
 
-        {/* Tab content */}
-        <div className="px-6 py-5 min-h-[260px]">
-          {tab === "info" && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <Input
-                  label="Lab Name *"
-                  value={form.name}
-                  onChange={set("name")}
-                  placeholder="City Diagnostic"
-                  required
-                />
-                {mode === "create" ? (
+          <div className="flex-1 px-5 py-5 overflow-y-auto">
+            {/* Info tab */}
+            {tab === "info" && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <Input label="Lab Name *" value={form.name} onChange={set("name")} placeholder="City Diagnostic" />
                   <Input
                     label="Lab ID (5 digits) *"
                     value={form.labID}
                     onChange={(e) => setForm((f) => ({ ...f, labID: e.target.value.replace(/\D/g, "").slice(0, 5) }))}
                     placeholder="12345"
-                    required
                     maxLength={5}
                   />
-                ) : (
-                  <div>
-                    <label className="block text-[10px] font-bold text-[#4a5060] uppercase tracking-widest mb-1.5">
-                      Lab ID{" "}
-                      <span className="normal-case font-normal tracking-normal text-[#b0b6c2]">
-                        (cannot be changed)
-                      </span>
-                    </label>
-                    <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-[#e2e5eb] bg-[#f0f1f3] cursor-not-allowed">
-                      <Hash className="w-3.5 h-3.5 text-[#b0b6c2] shrink-0" />
-                      <span className="text-sm font-mono font-bold text-[#8a909e] tracking-widest">{form.labID}</span>
-                      <span className="ml-auto text-[10px] font-semibold text-[#b0b6c2] uppercase tracking-wider">
-                        Locked
-                      </span>
-                    </div>
-                  </div>
-                )}
+                </div>
+                <div className="flex items-center justify-between px-3 py-2.5 rounded-lg border border-slate-200 bg-slate-50">
+                  <span className="text-[11px] font-semibold text-slate-400">Status</span>
+                  <SwitchToggle active={form.isActive} onChange={(v) => setForm((f) => ({ ...f, isActive: v }))} />
+                </div>
               </div>
-              <div>
-                <label className="block text-[10px] font-bold text-[#4a5060] uppercase tracking-widest mb-1.5">
-                  Status
-                </label>
-                <button
-                  type="button"
-                  onClick={() => setForm((f) => ({ ...f, isActive: !f.isActive }))}
-                  className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${
-                    form.isActive
-                      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                      : "bg-[#f0f1f3] text-[#6a707e] border-[#e2e5eb]"
-                  }`}
-                >
-                  {form.isActive ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
-                  {form.isActive ? "Active" : "Inactive"}
-                </button>
-              </div>
-            </div>
-          )}
-          {tab === "contact" && (
-            <div className="grid grid-cols-2 gap-4">
-              <Input
-                label="Primary Phone"
-                value={form.contact.primary}
-                onChange={setC("primary")}
-                placeholder="01700000000"
-              />
-              <Input
-                label="Secondary Phone"
-                value={form.contact.secondary}
-                onChange={setC("secondary")}
-                placeholder="01800000000"
-              />
-              <Input
-                label="Public Email"
-                type="email"
-                value={form.contact.publicEmail}
-                onChange={setC("publicEmail")}
-                placeholder="lab@example.com"
-              />
-              <Input
-                label="Private Email"
-                type="email"
-                value={form.contact.privateEmail}
-                onChange={setC("privateEmail")}
-                placeholder="private@example.com"
-              />
-              <Input label="District" value={form.contact.district} onChange={setC("district")} placeholder="Dhaka" />
-              <Select
-                label="Zone"
-                value={form.contact.zone}
-                onChange={setC("zone")}
-                options={zones}
-                placeholder="— Select zone —"
-              />
-              <div className="col-span-2">
-                <Input
-                  label="Address"
-                  value={form.contact.address}
-                  onChange={setC("address")}
-                  placeholder="Full address"
-                />
-              </div>
-            </div>
-          )}
-          {tab === "billing" && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-3 gap-4">
-                <Input
-                  label="Per Invoice Fee (৳)"
-                  type="number"
-                  value={form.billing.perInvoiceFee}
-                  onChange={setB("perInvoiceFee")}
-                  placeholder="0"
-                />
-                <Input
-                  label="Monthly Fee (৳)"
-                  type="number"
-                  value={form.billing.monthlyFee}
-                  onChange={setB("monthlyFee")}
-                  placeholder="0"
-                />
-                <Input
-                  label="Commission (%)"
-                  type="number"
-                  value={form.billing.commission}
-                  onChange={setB("commission")}
-                  placeholder="0"
-                />
-              </div>
-              <div className="grid grid-cols-3 gap-3 p-4 bg-[#f0f1f3] rounded-xl border border-[#e2e5eb]">
-                {[
-                  { label: "Per Invoice", value: `৳${form.billing.perInvoiceFee || 0}` },
-                  { label: "Monthly", value: `৳${form.billing.monthlyFee || 0}` },
-                  { label: "Commission", value: `${form.billing.commission || 0}%` },
-                ].map(({ label, value }) => (
-                  <div key={label} className="text-center">
-                    <p className="text-[9px] text-[#6a707e] font-bold uppercase tracking-widest">{label}</p>
-                    <p className="text-xl font-black text-[#1a1c20] mt-1 tracking-tight">{value}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+            )}
 
-        {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-[#e8eaed] bg-[#f7f8fa]/60 rounded-b-xl">
-          <div className="flex gap-1">
-            {tabs.map(({ id }) => (
-              <div
-                key={id}
-                className={`h-1 rounded-full transition-all ${tab === id ? "w-6 bg-[#1a1c20]" : "w-1.5 bg-[#e2e5eb]"}`}
-              />
-            ))}
+            {/* Contact tab */}
+            {tab === "contact" && (
+              <div className="grid grid-cols-2 gap-4">
+                <Input
+                  label="Primary Phone"
+                  value={form.contact.primary}
+                  onChange={setC("primary")}
+                  placeholder="01700000000"
+                />
+                <Input
+                  label="Secondary Phone"
+                  value={form.contact.secondary}
+                  onChange={setC("secondary")}
+                  placeholder="01800000000"
+                />
+                <Input
+                  label="Public Email"
+                  type="email"
+                  value={form.contact.publicEmail}
+                  onChange={setC("publicEmail")}
+                  placeholder="lab@example.com"
+                />
+                <Input
+                  label="Private Email"
+                  type="email"
+                  value={form.contact.privateEmail}
+                  onChange={setC("privateEmail")}
+                  placeholder="private@example.com"
+                />
+                <Input label="District" value={form.contact.district} onChange={setC("district")} placeholder="Dhaka" />
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
+                    Zone
+                  </label>
+                  <select
+                    value={form.contact.zoneId}
+                    onChange={(e) => {
+                      const z = zones.find((z) => z._id === e.target.value);
+                      setForm((f) => ({
+                        ...f,
+                        contact: { ...f.contact, zone: z?.name ?? "", zoneId: e.target.value },
+                      }));
+                    }}
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-400/20 focus:border-teal-400 focus:bg-white transition-all text-slate-800"
+                  >
+                    <option value="">— Select zone —</option>
+                    {zones.map((z) => (
+                      <option key={z._id} value={z._id}>
+                        {z.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="col-span-2">
+                  <Input
+                    label="Address"
+                    value={form.contact.address}
+                    onChange={setC("address")}
+                    placeholder="Full address"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Billing tab */}
+            {tab === "billing" && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-3 gap-4">
+                  <Input
+                    label="Invoice Fee (৳)"
+                    type="number"
+                    value={form.billing.perInvoiceFee}
+                    onChange={setB("perInvoiceFee")}
+                    placeholder="0"
+                  />
+                  <Input
+                    label="Monthly Fee (৳)"
+                    type="number"
+                    value={form.billing.monthlyFee}
+                    onChange={setB("monthlyFee")}
+                    placeholder="0"
+                  />
+                  <Input
+                    label="Commission (৳)"
+                    type="number"
+                    value={form.billing.commission}
+                    onChange={setB("commission")}
+                    placeholder="0"
+                  />
+                </div>
+                <div className="grid grid-cols-3 divide-x divide-slate-100 border border-slate-100 rounded-lg overflow-hidden">
+                  {[
+                    ["Invoice", `৳${form.billing.perInvoiceFee || 0}`],
+                    ["Monthly", `৳${form.billing.monthlyFee || 0}`],
+                    ["Commission", `৳${form.billing.commission || 0}`], // ← ৳ not %
+                  ].map(([l, v]) => (
+                    <div key={l} className="bg-slate-50 text-center py-3">
+                      <p className="text-[9px] text-slate-400 font-semibold uppercase tracking-widest">{l}</p>
+                      <p className="text-lg font-black text-teal-600 mt-0.5 tracking-tight">{v}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
-          <div className="flex gap-2">
+
+          {/* Footer */}
+          <div className="flex items-center justify-between px-5 py-3 border-t border-slate-100 bg-slate-50/50">
             <button
               type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-xs font-semibold text-[#3a3d45] bg-white border border-[#d0d4dc] rounded-lg hover:bg-[#f7f8fa] transition"
+              onClick={goBack}
+              className={`flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-slate-600 transition ${tabIdx === 0 ? "invisible" : ""}`}
             >
-              Cancel
+              <ChevronLeft className="w-3.5 h-3.5" />
+              Back
             </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="px-5 py-2 text-xs font-bold text-white bg-[#1a1c20] hover:bg-[#252830] rounded-lg disabled:opacity-60 transition flex items-center gap-2 shadow-sm"
-            >
-              {loading && (
-                <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            <div className="flex gap-2">
+              <Btn type="button" onClick={onClose}>
+                Cancel
+              </Btn>
+              {isLast ? (
+                <button
+                  type="button"
+                  onClick={handleRegister}
+                  disabled={loading}
+                  className="flex items-center gap-2 px-4 py-1.5 text-xs font-semibold text-teal-600 border border-teal-300 rounded-md hover:bg-teal-50 disabled:opacity-50 transition-all"
+                >
+                  {loading && (
+                    <div className="w-3.5 h-3.5 border-2 border-teal-200 border-t-teal-500 rounded-full animate-spin" />
+                  )}
+                  Register Lab
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={goNext}
+                  className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold text-teal-600 border border-teal-300 rounded-md hover:bg-teal-50 transition-all"
+                >
+                  Next
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
               )}
-              {mode === "create" ? "Register Lab" : "Save Changes"}
-            </button>
+            </div>
           </div>
         </div>
-      </form>
+      </div>
     </Modal>
   );
 };
 
-// ── Lab Card ──────────────────────────────────────────────────────────────────
-const LabCard = ({ lab, onEdit, onDelete, onToggleStatus }) => (
-  <div className="group relative bg-white border border-[#e2e5eb] rounded-2xl overflow-hidden hover:border-[#c8ccd4] hover:shadow-lg hover:shadow-slate-100 transition-all duration-300">
-    {/* Top accent bar */}
-    <div className={`h-0.5 w-full ${lab.isActive ? "bg-[#1a1c20]" : "bg-[#e2e5eb]"}`} />
-    <div className="p-4">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-2 mb-4">
-        <div className="flex items-center gap-3 min-w-0">
-          <div
-            className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-              lab.isActive ? "bg-[#1a1c20]" : "bg-[#f0f1f3] border border-[#e2e5eb]"
-            }`}
-          >
-            <FlaskConical className={`w-4 h-4 ${lab.isActive ? "text-white" : "text-[#8a909e]"}`} />
-          </div>
-          <div className="min-w-0">
-            <p className="font-bold text-[#1a1c20] text-sm truncate leading-tight tracking-tight">{lab.name}</p>
-            <div className="flex items-center gap-1 mt-0.5">
-              <Hash className="w-2.5 h-2.5 text-[#b0b6c2] shrink-0" />
-              <span className="text-[11px] text-[#8a909e] font-mono font-semibold tracking-wider">{lab.labID}</span>
-            </div>
-          </div>
-        </div>
-        <span
-          className={`inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full shrink-0 ${
-            lab.isActive
-              ? "bg-emerald-50 text-emerald-600 border border-emerald-100"
-              : "bg-[#f0f1f3] text-[#8a909e] border border-[#e2e5eb]"
-          }`}
-        >
-          <span className={`w-1.5 h-1.5 rounded-full ${lab.isActive ? "bg-emerald-400" : "bg-[#c0c5d0]"}`} />
-          {lab.isActive ? "Active" : "Inactive"}
-        </span>
-      </div>
-
-      {/* Contact */}
-      <div className="space-y-1.5 mb-4 min-h-[52px]">
-        {lab.contact?.primary && (
-          <div className="flex items-center gap-2">
-            <Phone className="w-3 h-3 text-[#b0b6c2] shrink-0" />
-            <span className="text-xs text-[#6a707e] truncate">{lab.contact.primary}</span>
-          </div>
-        )}
-        {lab.contact?.publicEmail && (
-          <div className="flex items-center gap-2">
-            <Mail className="w-3 h-3 text-[#b0b6c2] shrink-0" />
-            <span className="text-xs text-[#6a707e] truncate">{lab.contact.publicEmail}</span>
-          </div>
-        )}
-        {(lab.contact?.district || lab.contact?.zone) && (
-          <div className="flex items-center gap-2">
-            <MapPin className="w-3 h-3 text-[#b0b6c2] shrink-0" />
-            <span className="text-xs text-[#6a707e] truncate">
-              {[lab.contact.district, lab.contact.zone].filter(Boolean).join(" · ")}
-            </span>
-          </div>
-        )}
-        {!lab.contact?.primary && !lab.contact?.publicEmail && !lab.contact?.district && (
-          <p className="text-xs text-[#c0c5d0] italic">No contact info</p>
-        )}
-      </div>
-
-      {/* Billing strip */}
-      <div className="grid grid-cols-3 gap-px bg-[#e2e5eb] rounded-xl overflow-hidden border border-[#e2e5eb] mb-4">
-        {[
-          { label: "Invoice", value: `৳${lab.billing?.perInvoiceFee ?? 0}` },
-          { label: "Monthly", value: `৳${lab.billing?.monthlyFee ?? 0}` },
-          { label: "Comm.", value: `${lab.billing?.commission ?? 0}%` },
-        ].map(({ label, value }) => (
-          <div key={label} className="bg-[#f7f8fa] text-center py-2.5 px-1">
-            <p className="text-[9px] text-[#8a909e] font-bold uppercase tracking-widest">{label}</p>
-            <p className="text-xs font-black text-[#1a1c20] mt-0.5 tracking-tight">{value}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Actions */}
-      <div className="flex gap-1.5">
-        <button
-          onClick={() => onEdit(lab)}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold text-[#1a1c20] bg-[#f0f1f3] hover:bg-[#e5e7eb] border border-[#d8dce4] transition"
-        >
-          <Pencil className="w-3 h-3" /> Edit
-        </button>
-        <button
-          onClick={() => onToggleStatus(lab)}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold border transition ${
-            lab.isActive
-              ? "text-amber-600 bg-amber-50 hover:bg-amber-100 border-amber-100 hover:border-amber-200"
-              : "text-emerald-600 bg-emerald-50 hover:bg-emerald-100 border-emerald-100 hover:border-emerald-200"
-          }`}
-        >
-          {lab.isActive ? <ToggleLeft className="w-3 h-3" /> : <ToggleRight className="w-3 h-3" />}
-          {lab.isActive ? "Deactivate" : "Activate"}
-        </button>
-        <button
-          onClick={() => onDelete(lab)}
-          title="Delete"
-          className="w-9 flex items-center justify-center rounded-lg text-red-400 bg-red-50 hover:bg-red-100 border border-red-100 hover:border-red-200 transition"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
-      </div>
-    </div>
-  </div>
-);
-
-// ── Skeleton Card ─────────────────────────────────────────────────────────────
-const SkeletonCard = () => (
-  <div className="bg-white border border-[#e2e5eb] rounded-2xl overflow-hidden animate-pulse">
-    <div className="h-0.5 bg-[#e2e5eb]" />
-    <div className="p-4">
-      <div className="flex items-start gap-3 mb-4">
-        <div className="w-9 h-9 bg-[#f0f1f3] rounded-xl shrink-0" />
-        <div className="flex-1 space-y-2 pt-0.5">
-          <div className="h-3.5 bg-[#f0f1f3] rounded-md w-3/5" />
-          <div className="h-2.5 bg-[#f0f1f3] rounded-md w-1/4" />
-        </div>
-        <div className="w-16 h-6 bg-[#f0f1f3] rounded-full shrink-0" />
-      </div>
-      <div className="space-y-2 mb-4">
-        <div className="h-2.5 bg-[#f0f1f3] rounded-md w-2/5" />
-        <div className="h-2.5 bg-[#f0f1f3] rounded-md w-3/5" />
-        <div className="h-2.5 bg-[#f0f1f3] rounded-md w-2/5" />
-      </div>
-      <div className="grid grid-cols-3 gap-px bg-[#e2e5eb] rounded-xl overflow-hidden mb-4">
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="bg-[#f7f8fa] py-3 space-y-1.5">
-            <div className="h-2 bg-[#f0f1f3] rounded mx-auto w-3/4" />
-            <div className="h-3 bg-[#f0f1f3] rounded mx-auto w-1/2" />
-          </div>
-        ))}
-      </div>
-      <div className="flex gap-1.5">
-        <div className="flex-1 h-8 bg-[#f0f1f3] rounded-lg" />
-        <div className="flex-1 h-8 bg-[#f0f1f3] rounded-lg" />
-        <div className="w-9 h-8 bg-[#f0f1f3] rounded-lg" />
-      </div>
-    </div>
-  </div>
-);
-
-// ── Stat Chip ─────────────────────────────────────────────────────────────────
-const StatChip = ({ icon: Icon, label, value, color }) => {
+const StatCard = ({ icon: Icon, label, value, sub, color }) => {
   const colors = {
-    slate: "bg-[#f0f1f3] border-[#e2e5eb] text-[#3a3d45]",
-    emerald: "bg-emerald-50 border-emerald-200 text-emerald-700",
-    rose: "bg-rose-50 border-rose-200 text-rose-600",
+    teal: { bg: "bg-teal-50", border: "border-teal-100", icon: "text-teal-500", val: "text-teal-700" },
+    emerald: { bg: "bg-emerald-50", border: "border-emerald-100", icon: "text-emerald-500", val: "text-emerald-700" },
+    slate: { bg: "bg-slate-50", border: "border-slate-200", icon: "text-slate-400", val: "text-slate-700" },
+    amber: { bg: "bg-amber-50", border: "border-amber-100", icon: "text-amber-500", val: "text-amber-700" },
   };
+  const c = colors[color] ?? colors.slate;
   return (
-    <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border ${colors[color]}`}>
-      <Icon className="w-3.5 h-3.5 opacity-60" />
-      <span className="text-sm font-black tracking-tight">{value}</span>
-      <span className="text-xs font-medium opacity-60">{label}</span>
+    <div className={`flex items-center gap-3 px-4 py-3.5 rounded-xl border ${c.bg} ${c.border}`}>
+      <div className={`w-8 h-8 rounded-lg bg-white border ${c.border} flex items-center justify-center shrink-0`}>
+        <Icon className={`w-4 h-4 ${c.icon}`} />
+      </div>
+      <div className="min-w-0">
+        <p className={`text-lg font-black leading-none ${c.val}`}>{value}</p>
+        <p className="text-[11px] text-slate-400 mt-0.5">{label}</p>
+        {sub && <p className="text-[10px] text-slate-300 mt-0.5">{sub}</p>}
+      </div>
     </div>
   );
 };
 
-// ── Pagination ────────────────────────────────────────────────────────────────
+const LabRow = ({ lab }) => (
+  <div className="group flex items-center gap-4 px-4 py-3 rounded-xl border border-slate-100 bg-white hover:border-teal-200 hover:bg-teal-50/20 transition-all">
+    <div
+      className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border ${lab.isActive ? "bg-teal-50 border-teal-200" : "bg-slate-50 border-slate-200"}`}
+    >
+      <FlaskConical className={`w-4 h-4 ${lab.isActive ? "text-teal-600" : "text-slate-400"}`} />
+    </div>
+    <div className="flex-1 min-w-0">
+      <p className="text-sm font-bold text-slate-700 truncate leading-tight">{lab.name}</p>
+      <div className="flex items-center flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
+        <span className="flex items-center gap-1">
+          <Hash className="w-2.5 h-2.5 text-slate-300 shrink-0" />
+          <span className="text-[11px] font-mono text-slate-400">{lab.labID}</span>
+        </span>
+        {lab.contact?.primary && (
+          <span className="flex items-center gap-1 text-[11px] text-slate-400">
+            <Phone className="w-2.5 h-2.5 text-slate-300 shrink-0" />
+            {lab.contact.primary}
+          </span>
+        )}
+        {lab.contact?.publicEmail && (
+          <span className="flex items-center gap-1 text-[11px] text-slate-400 truncate">
+            <Mail className="w-2.5 h-2.5 text-slate-300 shrink-0" />
+            {lab.contact.publicEmail}
+          </span>
+        )}
+        {(lab.contact?.address || lab.contact?.district) && (
+          <span className="flex items-center gap-1 text-[11px] text-slate-400 truncate">
+            <MapPin className="w-2.5 h-2.5 text-slate-300 shrink-0" />
+            {[lab.contact.address, lab.contact.district, lab.contact.zone].filter(Boolean).join(", ")}
+          </span>
+        )}
+      </div>
+    </div>
+    <div className="hidden lg:flex items-center gap-1 shrink-0">
+      {[
+        [`৳${lab.billing?.perInvoiceFee ?? 0}`, "Invoice"],
+        [`৳${lab.billing?.monthlyFee ?? 0}`, "Monthly"],
+        [`৳${lab.billing?.commission ?? 0}`, "Commission"], // ← ৳ not %
+      ].map(([v, l]) => (
+        <div
+          key={l}
+          className="flex flex-col items-center px-3 py-1 rounded-lg bg-slate-50 border border-slate-100 min-w-[72px]"
+        >
+          <span className="text-[10px] font-bold text-teal-600">{v}</span>
+          <span className="text-[9px] text-slate-300 uppercase tracking-wide">{l}</span>
+        </div>
+      ))}
+    </div>
+    <div className="shrink-0 ml-auto">
+      <StatusBadge active={lab.isActive} />
+    </div>
+  </div>
+);
+
+const SkeletonRow = () => (
+  <div className="flex items-center gap-4 px-4 py-3 rounded-xl border border-slate-100 bg-white animate-pulse">
+    <div className="w-8 h-8 bg-slate-100 rounded-lg shrink-0" />
+    <div className="w-48 space-y-1.5 shrink-0">
+      <div className="h-3 bg-slate-100 rounded w-3/4" />
+      <div className="h-2.5 bg-slate-100 rounded w-1/3" />
+    </div>
+    <div className="flex gap-4 flex-1">
+      <div className="h-2.5 bg-slate-100 rounded w-24" />
+      <div className="h-2.5 bg-slate-100 rounded w-32" />
+    </div>
+    <div className="hidden lg:flex gap-1">
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="w-[52px] h-8 bg-slate-100 rounded-lg" />
+      ))}
+    </div>
+    <div className="w-16 h-6 bg-slate-100 rounded-full ml-auto shrink-0" />
+  </div>
+);
+
 const Pagination = ({ page, totalPages, total, onPageChange }) => {
   if (totalPages <= 1) return null;
   const from = (page - 1) * LIMIT + 1;
   const to = Math.min(page * LIMIT, total);
-
   return (
-    <div className="flex items-center justify-between mt-8 pt-5 border-t border-[#e8eaed]">
-      <p className="text-xs text-[#8a909e]">
+    <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-100">
+      <p className="text-xs text-slate-400">
         Showing{" "}
-        <span className="font-bold text-[#1a1c20]">
+        <span className="font-bold text-slate-600">
           {from}–{to}
         </span>{" "}
-        of <span className="font-bold text-[#1a1c20]">{total}</span> labs
+        of <span className="font-bold text-slate-600">{total}</span> labs
       </p>
       <div className="flex items-center gap-1">
         <button
           onClick={() => onPageChange(page - 1)}
           disabled={page === 1}
-          className="w-8 h-8 flex items-center justify-center rounded-lg border border-[#d0d4dc] text-[#6a707e] hover:bg-[#f0f1f3] disabled:opacity-30 disabled:cursor-not-allowed transition"
+          className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition"
         >
           <ChevronLeft className="w-3.5 h-3.5" />
         </button>
@@ -532,10 +523,8 @@ const Pagination = ({ page, totalPages, total, onPageChange }) => {
           <button
             key={p}
             onClick={() => onPageChange(p)}
-            className={`w-8 h-8 rounded-lg text-xs font-bold transition ${
-              p === page
-                ? "bg-[#1a1c20] text-white shadow-sm"
-                : "border border-[#d0d4dc] text-[#6a707e] hover:bg-[#f0f1f3]"
+            className={`w-7 h-7 rounded-lg text-xs font-bold transition ${
+              p === page ? "bg-teal-600 text-white" : "border border-slate-200 text-slate-500 hover:bg-slate-50"
             }`}
           >
             {p}
@@ -544,7 +533,7 @@ const Pagination = ({ page, totalPages, total, onPageChange }) => {
         <button
           onClick={() => onPageChange(page + 1)}
           disabled={page === totalPages}
-          className="w-8 h-8 flex items-center justify-center rounded-lg border border-[#d0d4dc] text-[#6a707e] hover:bg-[#f0f1f3] disabled:opacity-30 disabled:cursor-not-allowed transition"
+          className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition"
         >
           <ChevronRight className="w-3.5 h-3.5" />
         </button>
@@ -553,20 +542,36 @@ const Pagination = ({ page, totalPages, total, onPageChange }) => {
   );
 };
 
-// ── Main ──────────────────────────────────────────────────────────────────────
 const Labs = () => {
   const [labs, setLabs] = useState([]);
+  const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(true);
   const [searchLoading, setSearchLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
-  const [formModal, setFormModal] = useState({ open: false, mode: "create", initial: null });
+  const [modalOpen, setModalOpen] = useState(false);
   const [popup, setPopup] = useState({ open: false, type: "success", message: "", onConfirm: null });
   const debounceRef = useRef(null);
 
-  const fetchLabs = useCallback(async (p, q, opts = {}) => {
+  const showPopup = (type, message, onConfirm = null) => setPopup({ open: true, type, message, onConfirm });
+  const closePopup = () => setPopup((p) => ({ ...p, open: false, onConfirm: null }));
+
+  const fetchStats = async () => {
+    setStatsLoading(true);
+    try {
+      const r = await labService.getStats();
+      setStats(r.data);
+    } catch {
+      // non-critical — fail silently
+    } finally {
+      setStatsLoading(false);
+    }
+  };
+
+  const fetchLabs = async (p, q, opts = {}) => {
     opts.isSearch ? setSearchLoading(true) : setLoading(true);
     try {
       const res = await labService.getLabs({ page: p, limit: LIMIT, labID: q.trim() });
@@ -580,11 +585,12 @@ const Labs = () => {
       setLoading(false);
       setSearchLoading(false);
     }
-  }, []);
+  };
 
   useEffect(() => {
+    fetchStats();
     fetchLabs(1, "");
-  }, [fetchLabs]);
+  }, []);
 
   const handlePageChange = (p) => {
     setPage(p);
@@ -606,9 +612,6 @@ const Labs = () => {
     fetchLabs(1, "");
   };
 
-  const showPopup = (type, message, onConfirm = null) => setPopup({ open: true, type, message, onConfirm });
-  const closePopup = () => setPopup((p) => ({ ...p, open: false, onConfirm: null }));
-
   const handleCreate = async (form) => {
     try {
       await labService.createLab({
@@ -623,6 +626,7 @@ const Labs = () => {
         },
       });
       showPopup("success", "Lab registered successfully!");
+      fetchStats();
       handleClearSearch();
     } catch (err) {
       showPopup("error", err?.response?.data?.message || "Failed to create lab.");
@@ -630,91 +634,51 @@ const Labs = () => {
     }
   };
 
-  const handleEdit = async (form) => {
-    const id = formModal.initial._id;
-    try {
-      await Promise.all([
-        labService.updateLab(id, { name: form.name }),
-        labService.updateLabContact(id, form.contact),
-        labService.updateLabBilling(id, {
-          perInvoiceFee: Number(form.billing.perInvoiceFee),
-          monthlyFee: Number(form.billing.monthlyFee),
-          commission: Number(form.billing.commission),
-        }),
-      ]);
-      showPopup("success", "Lab updated successfully!");
-      fetchLabs(page, search);
-    } catch (err) {
-      showPopup("error", err?.response?.data?.message || "Failed to update lab.");
-      throw err;
-    }
-  };
-
-  const handleToggleStatus = (lab) =>
-    showPopup("warning", `${lab.isActive ? "Deactivate" : "Activate"} "${lab.name}"?`, async () => {
-      try {
-        lab.isActive ? await labService.deactivateLab(lab._id) : await labService.activateLab(lab._id);
-        showPopup("success", `Lab ${lab.isActive ? "deactivated" : "activated"}!`);
-        fetchLabs(page, search);
-      } catch {
-        showPopup("error", "Failed to update status.");
-      }
-    });
-
-  const handleDelete = (lab) =>
-    showPopup("warning", `Delete "${lab.name}"? This cannot be undone.`, async () => {
-      try {
-        await labService.deleteLab(lab._id);
-        showPopup("success", "Lab deleted!");
-        const newPage = labs.length === 1 && page > 1 ? page - 1 : page;
-        setPage(newPage);
-        fetchLabs(newPage, search);
-      } catch {
-        showPopup("error", "Failed to delete lab.");
-      }
-    });
-
-  const activeCount = labs.filter((l) => l.isActive).length;
   const isSearchMode = search.trim().length > 0;
 
   return (
-    <div className="px-4 sm:px-6 lg:px-8 py-8 max-w-full overflow-hidden">
-      {/* ── Header ── */}
-      <div className="flex flex-wrap items-start justify-between gap-4 mb-7">
-        <div>
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 bg-[#1a1c20] rounded-2xl flex items-center justify-center shadow-md shadow-black/10">
-              <FlaskConical className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-xl font-black text-[#1a1c20] tracking-tight leading-none">Laboratory Management</h1>
-              <p className="text-xs text-[#8a909e] mt-0.5">Manage and monitor all registered labs</p>
-            </div>
+    <div className="px-4 sm:px-6 lg:px-8 py-8 max-w-5xl mx-auto">
+      <div className="flex items-center justify-between gap-4 mb-6">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 bg-teal-50 border border-teal-200 rounded-xl flex items-center justify-center shrink-0">
+            <FlaskConical className="w-5 h-5 text-teal-600" />
           </div>
-          <div className="flex flex-wrap gap-2 ml-0.5">
-            <StatChip icon={Layers} label="Total" value={total} color="slate" />
-            <StatChip icon={Activity} label="Active" value={activeCount} color="emerald" />
-            <StatChip icon={TrendingUp} label="Inactive" value={total - activeCount} color="rose" />
+          <div>
+            <h1 className="text-lg font-black text-slate-800 tracking-tight leading-none">Laboratories</h1>
+            <p className="text-[11px] text-slate-400 mt-0.5">Registered labs and network overview</p>
           </div>
         </div>
-
-        <button
-          onClick={() => setFormModal({ open: true, mode: "create", initial: null })}
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#1a1c20] hover:bg-[#252830] text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-black/10 shrink-0"
-        >
+        <Btn teal onClick={() => setModalOpen(true)}>
           <Plus className="w-3.5 h-3.5" />
           Register Lab
-        </button>
+        </Btn>
       </div>
 
-      {/* ── Search ── */}
-      <div className="flex flex-wrap items-center gap-3 mb-6">
-        <div className="relative flex-1 max-w-sm">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+        <StatCard icon={Layers} label="Total labs" value={statsLoading ? "—" : (stats?.total ?? 0)} color="teal" />
+        <StatCard icon={Activity} label="Active" value={statsLoading ? "—" : (stats?.active ?? 0)} color="emerald" />
+        <StatCard
+          icon={TrendingUp}
+          label="Inactive"
+          value={statsLoading ? "—" : (stats?.inactive ?? 0)}
+          color="slate"
+        />
+        <StatCard
+          icon={CreditCard}
+          label="Monthly revenue"
+          color="amber"
+          value={statsLoading ? "—" : `৳${(stats?.totalMonthly ?? 0).toLocaleString()}`}
+          sub={statsLoading ? undefined : `৳${(stats?.totalInvoice ?? 0).toLocaleString()} invoice`}
+        />
+      </div>
+
+      <div className="flex items-center gap-3 mb-4">
+        <div className="relative flex-1">
           <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
             {searchLoading ? (
-              <RefreshCw className="w-3.5 h-3.5 text-[#6a707e] animate-spin" />
+              <RefreshCw className="w-3.5 h-3.5 text-teal-500 animate-spin" />
             ) : (
-              <Search className="w-3.5 h-3.5 text-[#8a909e]" />
+              <Search className="w-3.5 h-3.5 text-slate-400" />
             )}
           </div>
           <input
@@ -722,92 +686,62 @@ const Labs = () => {
             placeholder="Search by Lab ID…"
             value={search}
             onChange={(e) => handleSearch(e.target.value)}
-            className="w-full pl-9 pr-9 py-2.5 rounded-xl border border-[#d0d4dc] bg-white text-sm text-[#1a1c20] placeholder-[#b0b6c2] focus:outline-none focus:ring-2 focus:ring-[#1a1c20]/10 focus:border-[#1a1c20] transition-all shadow-sm"
+            className="w-full pl-9 pr-9 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-800 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-400/20 focus:border-teal-400 transition-all"
           />
           {search && (
             <button
               onClick={handleClearSearch}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded-md text-[#8a909e] hover:text-[#1a1c20] hover:bg-[#f0f1f3] transition"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded text-slate-400 hover:text-slate-600 transition"
             >
-              <X className="w-3 h-3" />
+              <X className="w-3.5 h-3.5" />
             </button>
           )}
         </div>
-
         {isSearchMode && !searchLoading && (
-          <div className="flex items-center gap-2 px-3 py-2 bg-[#f0f1f3] border border-[#e2e5eb] rounded-xl">
-            <span className="text-xs text-[#6a707e] font-medium">
-              {total === 0 ? "No results for" : `${total} result${total !== 1 ? "s" : ""} for`}
-            </span>
-            <span className="text-xs font-bold text-[#1a1c20] bg-white border border-[#d0d4dc] px-2 py-0.5 rounded-lg">
-              {search}
-            </span>
-            <button onClick={handleClearSearch} className="text-[#8a909e] hover:text-[#1a1c20] transition ml-1">
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-500 shrink-0">
+            {total === 0 ? "No results for" : `${total} result${total !== 1 ? "s" : ""} for`}
+            <span className="font-bold text-slate-700">"{search}"</span>
+            <button onClick={handleClearSearch} className="ml-0.5 text-slate-400 hover:text-slate-600 transition">
               <X className="w-3 h-3" />
             </button>
           </div>
         )}
       </div>
 
-      {/* ── Grid ── */}
-      {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <SkeletonCard key={i} />
-          ))}
-        </div>
-      ) : labs.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-24 text-center">
-          <div className="w-16 h-16 bg-[#f7f8fa] border-2 border-dashed border-[#d0d4dc] rounded-2xl flex items-center justify-center mb-5">
-            <FlaskConical className="w-7 h-7 text-[#c0c5d0]" />
+      <div className="space-y-1.5">
+        {loading ? (
+          Array.from({ length: 8 }).map((_, i) => <SkeletonRow key={i} />)
+        ) : labs.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <div className="w-11 h-11 bg-slate-50 border-2 border-dashed border-slate-200 rounded-xl flex items-center justify-center mb-3">
+              <FlaskConical className="w-5 h-5 text-slate-300" />
+            </div>
+            <p className="text-sm font-bold text-slate-500 mb-1">
+              {isSearchMode ? `No labs match "${search}"` : "No labs registered yet"}
+            </p>
+            <p className="text-xs text-slate-400 mb-5 max-w-xs">
+              {isSearchMode ? "Try a different Lab ID or clear the search." : "Register your first lab to get started."}
+            </p>
+            {isSearchMode ? (
+              <Btn onClick={handleClearSearch}>
+                <X className="w-3.5 h-3.5" />
+                Clear Search
+              </Btn>
+            ) : (
+              <Btn teal onClick={() => setModalOpen(true)}>
+                <Plus className="w-3.5 h-3.5" />
+                Register First Lab
+              </Btn>
+            )}
           </div>
-          <p className="text-sm font-bold text-[#3a3d45] mb-1.5">
-            {isSearchMode ? `No labs match "${search}"` : "No labs registered yet"}
-          </p>
-          <p className="text-xs text-[#8a909e] mb-6 max-w-xs">
-            {isSearchMode
-              ? "Try a different Lab ID or clear the search to see all labs."
-              : "Register your first lab to start managing your laboratory network."}
-          </p>
-          {isSearchMode ? (
-            <button
-              onClick={handleClearSearch}
-              className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-[#3a3d45] bg-white border border-[#d0d4dc] rounded-xl hover:bg-[#f7f8fa] transition"
-            >
-              <X className="w-3.5 h-3.5" /> Clear Search
-            </button>
-          ) : (
-            <button
-              onClick={() => setFormModal({ open: true, mode: "create", initial: null })}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#1a1c20] hover:bg-[#252830] text-white text-xs font-bold rounded-xl transition shadow-sm"
-            >
-              <Plus className="w-3.5 h-3.5" /> Register First Lab
-            </button>
-          )}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-          {labs.map((lab) => (
-            <LabCard
-              key={lab._id}
-              lab={lab}
-              onEdit={(l) => setFormModal({ open: true, mode: "edit", initial: l })}
-              onDelete={handleDelete}
-              onToggleStatus={handleToggleStatus}
-            />
-          ))}
-        </div>
-      )}
+        ) : (
+          labs.map((lab) => <LabRow key={lab._id} lab={lab} />)
+        )}
+      </div>
 
       <Pagination page={page} totalPages={totalPages} total={total} onPageChange={handlePageChange} />
 
-      <LabModal
-        isOpen={formModal.open}
-        onClose={() => setFormModal((f) => ({ ...f, open: false }))}
-        onSubmit={formModal.mode === "create" ? handleCreate : handleEdit}
-        initial={formModal.initial}
-        mode={formModal.mode}
-      />
+      <LabModal isOpen={modalOpen} onClose={() => setModalOpen(false)} onSubmit={handleCreate} />
 
       {popup.open && (
         <Popup
