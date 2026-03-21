@@ -357,7 +357,8 @@ const TestCard = ({ test, onEdit, onDelete }) => {
         {online ? <Wifi size={9} /> : <WifiOff size={9} />}
         {online ? "Online" : "Offline"}
       </span>
-      <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+      {/* Always visible on mobile, hover-only on lg+ */}
+      <div className="flex items-center gap-0.5 shrink-0 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
         <button
           onClick={() => onEdit(test)}
           className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
