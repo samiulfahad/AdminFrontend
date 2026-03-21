@@ -13,7 +13,7 @@ const Layout = ({ children }) => {
       </div>
 
       <div className="flex-1 flex flex-col min-h-screen lg:ml-60 print:ml-0">
-        <main className="flex-1 pt-14 lg:pt-0 print:pt-0 bg-slate-50">
+        <main className="flex-1 pt-20 md:pt-14 lg:pt-0 print:pt-0 bg-slate-50">
           <div className="max-w-7xl mx-auto print:max-w-none">{children}</div>
         </main>
 

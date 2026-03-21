@@ -51,7 +51,7 @@ const MobileMenu = () => {
 
         {/* Navbar */}
         <nav
-          className={`fixed top-0 left-0 right-0 py-12 z-50 flex items-center justify-between px-[18px] h-14 border-b border-slate-100 transition-all duration-300
+          className={`fixed top-0 left-0 right-0 py-10 z-50 flex items-center justify-between px-[18px] h-14 border-b border-slate-100 transition-all duration-300
           ${scrolled ? "bg-white/95 backdrop-blur-xl shadow-[0_4px_24px_rgba(99,102,241,0.07)]" : "bg-white"}
           ${hidden ? "-translate-y-full" : "translate-y-0"}`}
         >
@@ -70,7 +70,7 @@ const MobileMenu = () => {
           <button
             onClick={() => setIsMenuOpen(!isMenuOpen)}
             aria-label="Toggle menu"
-            className={`w-9 h-9 flex items-center justify-center rounded-xl border transition-all duration-200 cursor-pointer
+            className={`w-12 h-12 flex items-center justify-center rounded-xl border transition-all duration-200 cursor-pointer
               ${isMenuOpen ? "bg-indigo-50 border-indigo-200" : "bg-slate-50 border-slate-200 hover:bg-slate-100"}`}
           >
             {isMenuOpen ? <X size={15} className="text-indigo-500" /> : <Menu size={15} className="text-slate-500" />}
