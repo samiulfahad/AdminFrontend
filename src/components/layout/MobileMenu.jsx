@@ -1,43 +1,41 @@
 import { useState, useEffect } from "react";
 import { NavLink, Link } from "react-router-dom";
-import { LogOut, Menu, X, ChevronRight } from "lucide-react";
+import { LogOut, Menu, X, ChevronRight, Zap } from "lucide-react";
 import menu from "./menu";
 
 const MobileMenu = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const [lastScroll, setLastScroll] = useState(0);
   const [scrollDirection, setScrollDirection] = useState("");
 
   useEffect(() => {
     const handleScroll = () => {
-      const currentScroll = window.pageYOffset;
-      if (currentScroll <= 0) {
+      const cur = window.pageYOffset;
+      setScrolled(cur > 10);
+      if (cur <= 0) {
         setScrollDirection("");
         return;
       }
-      if (currentScroll > lastScroll && scrollDirection !== "down") setScrollDirection("down");
-      else if (currentScroll < lastScroll && scrollDirection === "down") setScrollDirection("up");
-      setLastScroll(currentScroll);
+      setScrollDirection(cur > lastScroll ? "down" : "up");
+      setLastScroll(cur);
     };
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [lastScroll, scrollDirection]);
-
-  const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
-  const closeMenu = () => setIsMenuOpen(false);
+  }, [lastScroll]);
 
   useEffect(() => {
-    const handleEscape = (e) => {
-      if (e.key === "Escape" && isMenuOpen) setIsMenuOpen(false);
+    const fn = (e) => {
+      if (e.key === "Escape") setIsMenuOpen(false);
     };
-    document.addEventListener("keydown", handleEscape);
-    return () => document.removeEventListener("keydown", handleEscape);
-  }, [isMenuOpen]);
+    document.addEventListener("keydown", fn);
+    return () => document.removeEventListener("keydown", fn);
+  }, []);
 
   useEffect(() => {
-    document.body.style.overflow = isMenuOpen ? "hidden" : "unset";
+    document.body.style.overflow = isMenuOpen ? "hidden" : "";
     return () => {
-      document.body.style.overflow = "unset";
+      document.body.style.overflow = "";
     };
   }, [isMenuOpen]);
 
@@ -46,314 +44,124 @@ const MobileMenu = () => {
   return (
     <>
       <div className="lg:hidden">
-        {/* Teal accent bar */}
+        {/* Top indigo stripe */}
         <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 3,
-            zIndex: 51,
-            background: "linear-gradient(90deg, #0d9488, #14b8a6 55%, #5eead4)",
-            transition: "transform 0.3s ease",
-            transform: hidden ? "translateY(-200%)" : "translateY(0)",
-          }}
+          className={`fixed top-0 left-0 right-0 h-[3px] z-[51] bg-gradient-to-r from-indigo-500 via-indigo-400 to-indigo-300 transition-transform duration-300 ${hidden ? "-translate-y-full" : "translate-y-0"}`}
         />
 
+        {/* Navbar */}
         <nav
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            zIndex: 50,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "0 16px",
-            height: 52,
-            background: "#ffffff",
-            borderBottom: "1px solid #e1e8ef",
-            boxShadow: "0 1px 10px rgba(15,40,55,0.07)",
-            transition: "transform 0.3s ease",
-            transform: hidden ? "translateY(-100%)" : "translateY(0)",
-            fontFamily: "'Geist', 'DM Sans', sans-serif",
-          }}
+          className={`fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-[18px] h-14 border-b border-slate-100 transition-all duration-300
+          ${scrolled ? "bg-white/95 backdrop-blur-xl shadow-[0_4px_24px_rgba(99,102,241,0.07)]" : "bg-white"}
+          ${hidden ? "-translate-y-full" : "translate-y-0"}`}
         >
-          <Link to="/" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 10 }}>
-            <div
-              style={{
-                width: 30,
-                height: 30,
-                background: "linear-gradient(135deg, #0d9488, #0f766e)",
-                borderRadius: 8,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                boxShadow: "0 3px 10px rgba(13,148,136,0.32)",
-              }}
-            >
-              <span style={{ color: "#fff", fontWeight: 800, fontSize: 10 }}>LP</span>
+          <Link to="/" className="no-underline flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-[9px] bg-gradient-to-br from-indigo-500 to-indigo-400 flex items-center justify-center shadow-md shadow-indigo-200">
+              <Zap size={14} className="text-white" />
             </div>
             <div>
-              <div style={{ color: "#0f2537", fontWeight: 700, fontSize: 13, letterSpacing: "-0.4px", lineHeight: 1 }}>
-                LabPilot<span style={{ color: "#94a3b8", fontWeight: 300 }}>Pro</span>
-              </div>
-              <div
-                style={{
-                  fontSize: 8.5,
-                  color: "#94a3b8",
-                  fontWeight: 600,
-                  letterSpacing: "0.07em",
-                  textTransform: "uppercase",
-                  marginTop: 3,
-                }}
-              >
-                Health Mgmt
-              </div>
+              <p className="text-[13.5px] font-black text-slate-900 tracking-tight leading-none">
+                LabPilot<span className="text-indigo-500 font-medium">Pro</span>
+              </p>
+              <p className="text-[8px] font-semibold text-slate-400 uppercase tracking-widest mt-0.5">Health Mgmt</p>
             </div>
           </Link>
 
           <button
-            onClick={toggleMenu}
-            style={{
-              width: 34,
-              height: 34,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              borderRadius: 9,
-              background: "#f0f4f7",
-              border: "1px solid #e1e8ef",
-              cursor: "pointer",
-            }}
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
             aria-label="Toggle menu"
+            className={`w-9 h-9 flex items-center justify-center rounded-xl border transition-all duration-200 cursor-pointer
+              ${isMenuOpen ? "bg-indigo-50 border-indigo-200" : "bg-slate-50 border-slate-200 hover:bg-slate-100"}`}
           >
-            {isMenuOpen ? (
-              <X style={{ width: 14, height: 14, color: "#64829a" }} />
-            ) : (
-              <Menu style={{ width: 14, height: 14, color: "#64829a" }} />
-            )}
+            {isMenuOpen ? <X size={15} className="text-indigo-500" /> : <Menu size={15} className="text-slate-500" />}
           </button>
         </nav>
-        <div style={{ height: 52 }} />
+
+        {/* Spacer */}
+        <div className="h-14" />
       </div>
 
       {/* Overlay */}
       {isMenuOpen && (
         <div
-          className="lg:hidden"
-          onClick={closeMenu}
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 40,
-            background: "rgba(15,37,55,0.3)",
-            backdropFilter: "blur(4px)",
-          }}
+          className="lg:hidden fixed inset-0 z-40 bg-slate-900/20 backdrop-blur-sm animate-[overlayIn_0.2s_ease]"
+          onClick={() => setIsMenuOpen(false)}
         />
       )}
 
       {/* Drawer */}
       <div
-        className="lg:hidden"
-        style={{
-          position: "fixed",
-          top: 0,
-          right: 0,
-          height: "100%",
-          width: 284,
-          maxWidth: "85vw",
-          background: "linear-gradient(180deg, #ffffff 0%, #f8fafb 100%)",
-          borderLeft: "1px solid #e1e8ef",
-          zIndex: 50,
-          boxShadow: "-14px 0 50px rgba(15,40,55,0.12)",
-          transform: isMenuOpen ? "translateX(0)" : "translateX(100%)",
-          transition: "transform 0.32s cubic-bezier(0.16, 1, 0.3, 1)",
-          display: "flex",
-          flexDirection: "column",
-          fontFamily: "'Geist', 'DM Sans', sans-serif",
-        }}
+        className={`lg:hidden fixed top-0 right-0 bottom-0 z-50 w-72 max-w-[86vw] flex flex-col bg-white border-l border-slate-100 shadow-[-12px_0_50px_rgba(15,23,42,0.08)] transition-transform duration-[360ms] ease-[cubic-bezier(0.16,1,0.3,1)]
+        ${isMenuOpen ? "translate-x-0" : "translate-x-[105%]"}`}
       >
-        {/* Teal top accent */}
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 3,
-            background: "linear-gradient(90deg, #0d9488, #14b8a6 55%, #5eead4)",
-          }}
-        />
+        {/* Top stripe */}
+        <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-indigo-500 via-indigo-400 to-indigo-300" />
 
-        {/* Teal ambient glow */}
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            right: 0,
-            width: 140,
-            height: 140,
-            background: "radial-gradient(circle at 100% 0%, rgba(13,148,136,0.07) 0%, transparent 70%)",
-            pointerEvents: "none",
-          }}
-        />
-
-        {/* Header */}
-        <div style={{ flexShrink: 0, padding: "24px 18px 16px", borderBottom: "1px solid #eaf0f5" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
-              <div
-                style={{
-                  width: 38,
-                  height: 38,
-                  background: "linear-gradient(135deg, #0d9488, #0f766e)",
-                  borderRadius: 10,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  boxShadow: "0 4px 14px rgba(13,148,136,0.35)",
-                  position: "relative",
-                  overflow: "hidden",
-                }}
-              >
-                <div
-                  style={{
-                    position: "absolute",
-                    top: -5,
-                    right: -5,
-                    width: 16,
-                    height: 16,
-                    borderRadius: "50%",
-                    background: "rgba(255,255,255,0.12)",
-                  }}
-                />
-                <span style={{ color: "#fff", fontWeight: 800, fontSize: 12, position: "relative", zIndex: 1 }}>
-                  LP
-                </span>
-              </div>
-              <div>
-                <div
-                  style={{ color: "#0f2537", fontWeight: 700, fontSize: 13.5, letterSpacing: "-0.4px", lineHeight: 1 }}
-                >
-                  LabPilot<span style={{ color: "#94a3b8", fontWeight: 300 }}>Pro</span>
-                </div>
-                <div
-                  style={{
-                    fontSize: 9,
-                    color: "#94a3b8",
-                    fontWeight: 600,
-                    letterSpacing: "0.08em",
-                    textTransform: "uppercase",
-                    marginTop: 4,
-                  }}
-                >
-                  Professional Edition
-                </div>
-              </div>
+        {/* Drawer header */}
+        <div className="shrink-0 flex items-center justify-between px-5 pt-7 pb-[18px] border-b border-slate-50">
+          <div className="flex items-center gap-3">
+            <div className="w-[42px] h-[42px] rounded-[13px] bg-gradient-to-br from-indigo-500 to-indigo-400 flex items-center justify-center shadow-lg shadow-indigo-200">
+              <Zap size={17} className="text-white" />
             </div>
-            <button
-              onClick={closeMenu}
-              style={{
-                width: 30,
-                height: 30,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                borderRadius: 8,
-                background: "#f0f4f7",
-                border: "1px solid #e1e8ef",
-                cursor: "pointer",
-              }}
-            >
-              <X style={{ width: 13, height: 13, color: "#64829a" }} />
-            </button>
+            <div>
+              <p className="text-[15px] font-black text-slate-900 tracking-tight leading-none">
+                LabPilot<span className="text-indigo-500 font-medium">Pro</span>
+              </p>
+              <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest mt-1">
+                Professional Edition
+              </p>
+            </div>
           </div>
+          <button
+            onClick={() => setIsMenuOpen(false)}
+            className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-50 border border-slate-200 cursor-pointer hover:bg-slate-100 transition"
+          >
+            <X size={13} className="text-slate-400" />
+          </button>
         </div>
 
-        {/* Menu Items */}
-        <div style={{ flex: 1, padding: "12px 10px", overflowY: "auto" }}>
-          <p
-            style={{
-              fontSize: 9.5,
-              fontWeight: 700,
-              color: "#c8d6e0",
-              letterSpacing: "0.14em",
-              textTransform: "uppercase",
-              padding: "0 10px",
-              marginBottom: 8,
-            }}
-          >
-            Main Menu
-          </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            {menu.map((item) => {
+        {/* Nav items */}
+        <div className="flex-1 overflow-y-auto px-3 py-3.5">
+          <p className="text-[9px] font-bold text-slate-300 uppercase tracking-[0.14em] px-2.5 mb-2">Menu</p>
+          <div className="flex flex-col gap-0.5">
+            {menu.map((item, i) => {
               const Icon = item.icon;
               return (
                 <NavLink
                   key={item.path}
                   to={item.path}
                   end={item.path === "/"}
-                  onClick={closeMenu}
-                  style={{ textDecoration: "none" }}
+                  onClick={() => setIsMenuOpen(false)}
+                  className="no-underline"
+                  style={{ animationDelay: `${i * 0.04}s` }}
                 >
                   {({ isActive }) => (
                     <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 11,
-                        padding: "9px 11px",
-                        borderRadius: 10,
-                        position: "relative",
-                        background: isActive ? "rgba(13,148,136,0.07)" : "transparent",
-                        border: isActive ? "1px solid rgba(13,148,136,0.18)" : "1px solid transparent",
-                      }}
+                      className={`relative flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all
+                      ${isActive ? "bg-indigo-50 border-indigo-200" : "border-transparent"}`}
                     >
+                      {/* Active left bar */}
                       {isActive && (
-                        <div
-                          style={{
-                            position: "absolute",
-                            left: 0,
-                            top: "22%",
-                            bottom: "22%",
-                            width: 3,
-                            background: "linear-gradient(180deg, #0d9488, #14b8a6)",
-                            borderRadius: "0 3px 3px 0",
-                          }}
-                        />
+                        <div className="absolute left-0 top-[22%] bottom-[22%] w-[3px] bg-gradient-to-b from-indigo-500 to-indigo-400 rounded-r-full" />
                       )}
+
+                      {/* Icon */}
                       <div
-                        style={{
-                          width: 32,
-                          height: 32,
-                          borderRadius: 8,
-                          flexShrink: 0,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          background: isActive ? "rgba(13,148,136,0.12)" : "#f0f4f7",
-                          border: isActive ? "1px solid rgba(13,148,136,0.22)" : "1px solid #e4ecf1",
-                        }}
+                        className={`w-[34px] h-[34px] rounded-[9px] shrink-0 flex items-center justify-center border
+                        ${isActive ? "bg-indigo-100 border-indigo-200" : "bg-slate-50 border-slate-200"}`}
                       >
-                        <Icon style={{ width: 14, height: 14, color: isActive ? "#0d9488" : "#8fafc4" }} />
+                        <Icon size={14} className={isActive ? "text-indigo-500" : "text-slate-400"} />
                       </div>
+
+                      {/* Label */}
                       <span
-                        style={{
-                          fontSize: 13,
-                          flex: 1,
-                          letterSpacing: "-0.15px",
-                          fontWeight: isActive ? 600 : 500,
-                          color: isActive ? "#0f2537" : "#64829a",
-                        }}
+                        className={`flex-1 text-[13.5px] tracking-[-0.2px]
+                        ${isActive ? "font-bold text-indigo-900" : "font-medium text-slate-500"}`}
                       >
                         {item.label}
                       </span>
-                      <ChevronRight
-                        style={{ width: 13, height: 13, color: isActive ? "#0d9488" : "#d4e0e9", flexShrink: 0 }}
-                      />
+
+                      <ChevronRight size={13} className={isActive ? "text-indigo-400" : "text-slate-200"} />
                     </div>
                   )}
                 </NavLink>
@@ -362,43 +170,22 @@ const MobileMenu = () => {
           </div>
         </div>
 
-        {/* Footer */}
-        <div style={{ flexShrink: 0, borderTop: "1px solid #eaf0f5" }}>
-          <div style={{ padding: "8px 10px 12px" }}>
-            <button
-              onClick={closeMenu}
-              style={{
-                width: "100%",
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                padding: "8px 11px",
-                borderRadius: 9,
-                background: "transparent",
-                border: "1px solid transparent",
-                cursor: "pointer",
-              }}
-            >
-              <div
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 8,
-                  background: "#f0f4f7",
-                  border: "1px solid #e4ecf1",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexShrink: 0,
-                }}
-              >
-                <LogOut style={{ width: 13, height: 13, color: "#8fafc4" }} />
-              </div>
-              <span style={{ fontSize: 13, fontWeight: 500, color: "#64829a" }}>Sign Out</span>
-            </button>
-          </div>
+        {/* Sign out */}
+        <div className="shrink-0 border-t border-slate-50 px-3 pt-2 pb-3.5">
+          <button className="group w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border border-transparent hover:bg-red-50 hover:border-red-100 transition-all cursor-pointer bg-transparent">
+            <div className="w-[34px] h-[34px] rounded-[9px] bg-red-50 border border-red-100 flex items-center justify-center shrink-0">
+              <LogOut size={13} className="text-red-400" />
+            </div>
+            <span className="text-[13px] font-medium text-slate-400 group-hover:text-red-500 transition-colors">
+              Sign Out
+            </span>
+          </button>
         </div>
       </div>
+
+      <style>{`
+        @keyframes overlayIn { from { opacity: 0; } to { opacity: 1; } }
+      `}</style>
     </>
   );
 };

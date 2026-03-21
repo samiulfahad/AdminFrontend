@@ -1,12 +1,11 @@
-import { Home, Factory, LocateIcon, Settings, TestTube2Icon } from "lucide-react";
+import { LayoutDashboard, FlaskConical, SlidersHorizontal, BookOpen, MapPin } from "lucide-react";
 
 const menu = [
-  { label: "Home", path: "/", icon: Home },
-  { label: "Labs", path: "/labs", icon: Factory },
-  { label: "Lab Management", path: "/lab-management", icon: Settings },
-  { label: "Test Catalog", path: "/test-catalog", icon: TestTube2Icon },
-  { label: "Test Management", path: "/test-management", icon: Settings },
-  { label: "Zones", path: "/zones", icon: LocateIcon },
+  { label: "Home", path: "/", icon: LayoutDashboard },
+  { label: "Labs", path: "/labs", icon: FlaskConical },
+  { label: "Lab Management", path: "/lab-management", icon: SlidersHorizontal },
+  { label: "Test Catalog", path: "/test-catalog", icon: BookOpen },
+  { label: "Zones", path: "/zones", icon: MapPin },
 ];
 
 export default menu;

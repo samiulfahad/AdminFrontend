@@ -43,73 +43,68 @@ const EMPTY_LAB = {
   billing: { perInvoiceFee: "", monthlyFee: "", commission: "" },
 };
 
-const Input = ({ label, ...props }) => (
+/* ─── Shared primitives ──────────────────────────────────── */
+
+const TextInput = ({ label, ...props }) => (
   <div>
     {label && (
-      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">{label}</label>
+      <label className="block text-[10.5px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">{label}</label>
     )}
     <input
-      className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-400/20 focus:border-teal-400 focus:bg-white transition-all placeholder-slate-300 text-slate-800"
+      className="w-full px-3 py-2.5 text-[13.5px] rounded-xl border border-slate-200 bg-slate-50 text-slate-800 placeholder-slate-300 outline-none transition-all focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-400/10"
       {...props}
     />
   </div>
 );
 
-const Btn = ({ teal, children, className = "", ...props }) => (
-  <button
-    className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border transition-all ${
-      teal
-        ? "text-teal-600 border-teal-300 hover:bg-teal-50 hover:border-teal-400"
-        : "text-slate-500 border-slate-200 hover:bg-slate-50 hover:border-slate-300"
-    } ${className}`}
-    {...props}
-  >
-    {children}
-  </button>
-);
-
-const StatusBadge = ({ active }) => (
-  <span
-    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border select-none ${
-      active ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-slate-100 text-slate-400 border-slate-200"
-    }`}
-  >
-    <span
-      className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 ${active ? "bg-emerald-600" : "bg-slate-300"}`}
+const SelectInput = ({ label, children, ...props }) => (
+  <div>
+    {label && (
+      <label className="block text-[10.5px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">{label}</label>
+    )}
+    <select
+      className="w-full px-3 py-2.5 text-[13.5px] rounded-xl border border-slate-200 bg-slate-50 text-slate-800 outline-none transition-all focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-400/10"
+      {...props}
     >
-      {active ? (
-        <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
-      ) : (
-        <X className="w-2.5 h-2.5 text-white" strokeWidth={2.5} />
-      )}
-    </span>
-    {active ? "Active" : "Inactive"}
-  </span>
+      {children}
+    </select>
+  </div>
 );
 
 const SwitchToggle = ({ active, onChange }) => (
   <button
     type="button"
     onClick={() => onChange(!active)}
-    className="inline-flex items-center gap-2 cursor-pointer bg-transparent border-none p-0"
+    className="flex items-center gap-2 bg-transparent border-none cursor-pointer p-0"
   >
     <span
-      className={`relative inline-block w-[34px] h-5 rounded-full transition-colors duration-200 ${active ? "bg-emerald-600" : "bg-slate-300"}`}
+      className={`relative inline-block w-9 h-5 rounded-full transition-colors duration-200 ${active ? "bg-indigo-500" : "bg-slate-200"}`}
     >
       <span
-        className={`absolute top-[3px] w-3.5 h-3.5 rounded-full bg-white transition-all duration-200 ${active ? "left-[17px]" : "left-[3px]"}`}
+        className={`absolute top-[3px] w-3.5 h-3.5 rounded-full bg-white shadow-sm transition-all duration-200 ${active ? "left-[19px]" : "left-[3px]"}`}
       />
     </span>
-    <span className={`text-xs font-semibold transition-colors ${active ? "text-emerald-700" : "text-slate-400"}`}>
+    <span className={`text-xs font-semibold ${active ? "text-indigo-600" : "text-slate-400"}`}>
       {active ? "Active" : "Inactive"}
     </span>
   </button>
 );
 
+const StatusBadge = ({ active }) => (
+  <span
+    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border select-none ${active ? "bg-indigo-50 text-indigo-600 border-indigo-200" : "bg-slate-100 text-slate-400 border-slate-200"}`}
+  >
+    <span className={`w-1.5 h-1.5 rounded-full ${active ? "bg-indigo-500" : "bg-slate-300"}`} />
+    {active ? "Active" : "Inactive"}
+  </span>
+);
+
+/* ─── Lab Modal ──────────────────────────────────────────── */
+
 const LAB_TABS = [
-  { id: "info", label: "Info", icon: Building2, sub: "Basic details and status" },
-  { id: "contact", label: "Contact", icon: Phone, sub: "Phone, email and location" },
-  { id: "billing", label: "Billing", icon: CreditCard, sub: "Fees and commission" },
+  { id: "info", label: "Info", icon: Building2, sub: "Basic details" },
+  { id: "contact", label: "Contact", icon: Phone, sub: "Phone & location" },
+  { id: "billing", label: "Billing", icon: CreditCard, sub: "Fees & commission" },
 ];
 
 const LabModal = ({ isOpen, onClose, onSubmit }) => {
@@ -133,14 +128,7 @@ const LabModal = ({ isOpen, onClose, onSubmit }) => {
   const setB = (k) => (e) => setForm((f) => ({ ...f, billing: { ...f.billing, [k]: e.target.value } }));
 
   const tabIdx = LAB_TABS.findIndex((t) => t.id === tab);
-  const current = LAB_TABS[tabIdx];
   const isLast = tabIdx === LAB_TABS.length - 1;
-  const goNext = () => {
-    if (!isLast) setTab(LAB_TABS[tabIdx + 1].id);
-  };
-  const goBack = () => {
-    if (tabIdx > 0) setTab(LAB_TABS[tabIdx - 1].id);
-  };
 
   const handleRegister = async () => {
     if (loading) return;
@@ -154,20 +142,33 @@ const LabModal = ({ isOpen, onClose, onSubmit }) => {
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="lg">
-      <div className="flex min-h-[420px]">
-        {/* Sidebar */}
-        <div className="w-44 shrink-0 flex flex-col border-r border-slate-100 bg-slate-50/60 rounded-tl-xl rounded-bl-xl">
-          <div className="flex items-center gap-2.5 px-4 py-4 border-b border-slate-100">
-            <div className="w-7 h-7 rounded-lg bg-teal-50 border border-teal-200 flex items-center justify-center shrink-0">
-              <FlaskConical className="w-3.5 h-3.5 text-teal-600" />
+    <Modal isOpen={isOpen} onClose={onClose} size="md">
+      <div className="flex flex-col min-h-full">
+        {/* ── Sticky header ── */}
+        <div className="sticky top-0 z-10 bg-white border-b border-slate-100">
+          {/* Title row */}
+          <div className="flex items-center justify-between px-5 py-4">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-400 flex items-center justify-center shadow-md shadow-indigo-200 shrink-0">
+                <FlaskConical size={16} className="text-white" />
+              </div>
+              <div>
+                <p className="text-sm font-black text-slate-800 tracking-tight leading-none">Register Lab</p>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Step {tabIdx + 1} of {LAB_TABS.length} — {LAB_TABS[tabIdx].sub}
+                </p>
+              </div>
             </div>
-            <div className="min-w-0">
-              <p className="text-xs font-bold text-slate-700 leading-none">Register Lab</p>
-              <p className="text-[10px] text-slate-400 mt-0.5">3 sections</p>
-            </div>
+            <button
+              onClick={onClose}
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 border border-transparent hover:border-slate-200 transition"
+            >
+              <X size={14} />
+            </button>
           </div>
-          <nav className="flex flex-col gap-1 p-3 flex-1">
+
+          {/* Tab pills */}
+          <div className="flex gap-1.5 px-5 pb-3">
             {LAB_TABS.map(({ id, label, icon: Icon }, i) => {
               const isActive = tab === id;
               const isComplete = i < tabIdx;
@@ -176,224 +177,184 @@ const LabModal = ({ isOpen, onClose, onSubmit }) => {
                   key={id}
                   type="button"
                   onClick={() => setTab(id)}
-                  className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left transition-all ${
-                    isActive ? "bg-teal-50 border border-teal-200" : "hover:bg-slate-100 border border-transparent"
-                  }`}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl border-none text-xs font-semibold transition-all cursor-pointer
+                    ${isActive ? "bg-indigo-50 text-indigo-700" : isComplete ? "bg-emerald-50 text-emerald-700" : "bg-slate-50 text-slate-400"}`}
                 >
-                  <div
-                    className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 transition-colors ${
-                      isActive ? "bg-teal-600" : isComplete ? "bg-emerald-500" : "bg-slate-200"
-                    }`}
-                  >
-                    {isComplete ? (
-                      <Check className="w-3 h-3 text-white" strokeWidth={3} />
-                    ) : (
-                      <Icon className={`w-3 h-3 ${isActive ? "text-white" : "text-slate-400"}`} />
-                    )}
-                  </div>
                   <span
-                    className={`text-xs font-semibold ${isActive ? "text-teal-700" : isComplete ? "text-slate-600" : "text-slate-400"}`}
+                    className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 transition-colors
+                    ${isActive ? "bg-indigo-500" : isComplete ? "bg-emerald-500" : "bg-slate-200"}`}
                   >
-                    {label}
+                    <Icon size={11} className="text-white" />
                   </span>
+                  <span className="font-semibold">{label}</span>
                 </button>
               );
             })}
-          </nav>
-          <div className="p-4 border-t border-slate-100">
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[10px] text-slate-400">Progress</span>
-              <span className="text-[10px] font-bold text-slate-500">{tabIdx + 1}/3</span>
-            </div>
-            <div className="h-1 bg-slate-200 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-teal-500 rounded-full transition-all duration-300"
-                style={{ width: `${((tabIdx + 1) / 3) * 100}%` }}
+          </div>
+        </div>
+
+        {/* ── Form body — all panels rendered, show/hide via display ── */}
+        <div className="flex-1 overflow-y-auto">
+          {/* INFO */}
+          <div className={`${tab === "info" ? "flex" : "hidden"} flex-col gap-4 p-5`}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <TextInput label="Lab Name *" value={form.name} onChange={set("name")} placeholder="City Diagnostic" />
+              <TextInput
+                label="Lab ID (5 digits) *"
+                value={form.labID}
+                onChange={(e) => setForm((f) => ({ ...f, labID: e.target.value.replace(/\D/g, "").slice(0, 5) }))}
+                placeholder="12345"
+                maxLength={5}
               />
+            </div>
+            <div className="flex items-center justify-between px-4 py-3.5 rounded-xl border border-slate-100 bg-slate-50">
+              <div>
+                <p className="text-[13px] font-semibold text-slate-700 leading-none">Lab Status</p>
+                <p className="text-[11px] text-slate-400 mt-1">Toggle to activate or deactivate this lab</p>
+              </div>
+              <SwitchToggle active={form.isActive} onChange={(v) => setForm((f) => ({ ...f, isActive: v }))} />
+            </div>
+          </div>
+
+          {/* CONTACT */}
+          <div className={`${tab === "contact" ? "flex" : "hidden"} flex-col gap-3 p-5`}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <TextInput
+                label="Primary Phone"
+                value={form.contact.primary}
+                onChange={setC("primary")}
+                placeholder="01700000000"
+              />
+              <TextInput
+                label="Secondary Phone"
+                value={form.contact.secondary}
+                onChange={setC("secondary")}
+                placeholder="01800000000"
+              />
+              <TextInput
+                label="Public Email"
+                type="email"
+                value={form.contact.publicEmail}
+                onChange={setC("publicEmail")}
+                placeholder="lab@example.com"
+              />
+              <TextInput
+                label="Private Email"
+                type="email"
+                value={form.contact.privateEmail}
+                onChange={setC("privateEmail")}
+                placeholder="private@example.com"
+              />
+              <TextInput
+                label="District"
+                value={form.contact.district}
+                onChange={setC("district")}
+                placeholder="Dhaka"
+              />
+              <SelectInput
+                label="Zone"
+                value={form.contact.zoneId}
+                onChange={(e) => {
+                  const z = zones.find((z) => z._id === e.target.value);
+                  setForm((f) => ({ ...f, contact: { ...f.contact, zone: z?.name ?? "", zoneId: e.target.value } }));
+                }}
+              >
+                <option value="">— Select zone —</option>
+                {zones.map((z) => (
+                  <option key={z._id} value={z._id}>
+                    {z.name}
+                  </option>
+                ))}
+              </SelectInput>
+            </div>
+            <TextInput
+              label="Address"
+              value={form.contact.address}
+              onChange={setC("address")}
+              placeholder="Full address"
+            />
+          </div>
+
+          {/* BILLING */}
+          <div className={`${tab === "billing" ? "flex" : "hidden"} flex-col gap-4 p-5`}>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <TextInput
+                label="Invoice Fee (৳)"
+                type="number"
+                value={form.billing.perInvoiceFee}
+                onChange={setB("perInvoiceFee")}
+                placeholder="0"
+              />
+              <TextInput
+                label="Monthly Fee (৳)"
+                type="number"
+                value={form.billing.monthlyFee}
+                onChange={setB("monthlyFee")}
+                placeholder="0"
+              />
+              <TextInput
+                label="Commission (৳)"
+                type="number"
+                value={form.billing.commission}
+                onChange={setB("commission")}
+                placeholder="0"
+              />
+            </div>
+            <div className="grid grid-cols-3 divide-x divide-slate-100 border border-slate-100 rounded-xl overflow-hidden">
+              {[
+                ["Invoice", `৳${form.billing.perInvoiceFee || 0}`, "bg-indigo-50", "text-indigo-600"],
+                ["Monthly", `৳${form.billing.monthlyFee || 0}`, "bg-emerald-50", "text-emerald-600"],
+                ["Commission", `৳${form.billing.commission || 0}`, "bg-amber-50", "text-amber-600"],
+              ].map(([l, v, bg, color]) => (
+                <div key={l} className={`${bg} text-center py-4`}>
+                  <p className="text-[9.5px] font-bold text-slate-400 uppercase tracking-widest">{l}</p>
+                  <p className={`text-xl font-black mt-1 tracking-tight ${color}`}>{v}</p>
+                </div>
+              ))}
             </div>
           </div>
         </div>
 
-        {/* Main panel */}
-        <div className="flex flex-col flex-1 min-w-0">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-            <div>
-              <p className="text-sm font-bold text-slate-800 tracking-tight">{current.label}</p>
-              <p className="text-[11px] text-slate-400 mt-0.5">{current.sub}</p>
-            </div>
+        {/* ── Sticky footer ── */}
+        <div className="sticky bottom-0 z-10 flex items-center justify-between px-5 py-3.5 bg-slate-50 border-t border-slate-100">
+          <button
+            type="button"
+            onClick={() => tabIdx > 0 && setTab(LAB_TABS[tabIdx - 1].id)}
+            className={`flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-slate-600 transition bg-transparent border-none cursor-pointer ${tabIdx === 0 ? "invisible" : ""}`}
+          >
+            <ChevronLeft size={15} /> Back
+          </button>
+
+          <div className="flex gap-2">
             <button
               type="button"
               onClick={onClose}
-              className="w-7 h-7 flex items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 transition"
+              className="px-4 py-2 text-xs font-semibold text-slate-500 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition"
             >
-              <X className="w-4 h-4" />
+              Cancel
             </button>
-          </div>
 
-          <div className="flex-1 px-5 py-5 overflow-y-auto">
-            {/* Info tab */}
-            {tab === "info" && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <Input label="Lab Name *" value={form.name} onChange={set("name")} placeholder="City Diagnostic" />
-                  <Input
-                    label="Lab ID (5 digits) *"
-                    value={form.labID}
-                    onChange={(e) => setForm((f) => ({ ...f, labID: e.target.value.replace(/\D/g, "").slice(0, 5) }))}
-                    placeholder="12345"
-                    maxLength={5}
-                  />
-                </div>
-                <div className="flex items-center justify-between px-3 py-2.5 rounded-lg border border-slate-200 bg-slate-50">
-                  <span className="text-[11px] font-semibold text-slate-400">Status</span>
-                  <SwitchToggle active={form.isActive} onChange={(v) => setForm((f) => ({ ...f, isActive: v }))} />
-                </div>
-              </div>
+            {isLast ? (
+              <button
+                type="button"
+                onClick={handleRegister}
+                disabled={loading}
+                className="flex items-center gap-2 px-5 py-2 text-xs font-bold text-white bg-gradient-to-br from-indigo-500 to-indigo-400 rounded-lg shadow-md shadow-indigo-200 hover:from-indigo-600 hover:to-indigo-500 disabled:opacity-60 transition-all"
+              >
+                {loading && (
+                  <div className="w-3.5 h-3.5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                )}
+                Register Lab
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setTab(LAB_TABS[tabIdx + 1].id)}
+                className="flex items-center gap-1.5 px-5 py-2 text-xs font-bold text-white bg-gradient-to-br from-indigo-500 to-indigo-400 rounded-lg shadow-md shadow-indigo-200 hover:from-indigo-600 hover:to-indigo-500 transition-all"
+              >
+                Next <ChevronRight size={14} />
+              </button>
             )}
-
-            {/* Contact tab */}
-            {tab === "contact" && (
-              <div className="grid grid-cols-2 gap-4">
-                <Input
-                  label="Primary Phone"
-                  value={form.contact.primary}
-                  onChange={setC("primary")}
-                  placeholder="01700000000"
-                />
-                <Input
-                  label="Secondary Phone"
-                  value={form.contact.secondary}
-                  onChange={setC("secondary")}
-                  placeholder="01800000000"
-                />
-                <Input
-                  label="Public Email"
-                  type="email"
-                  value={form.contact.publicEmail}
-                  onChange={setC("publicEmail")}
-                  placeholder="lab@example.com"
-                />
-                <Input
-                  label="Private Email"
-                  type="email"
-                  value={form.contact.privateEmail}
-                  onChange={setC("privateEmail")}
-                  placeholder="private@example.com"
-                />
-                <Input label="District" value={form.contact.district} onChange={setC("district")} placeholder="Dhaka" />
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
-                    Zone
-                  </label>
-                  <select
-                    value={form.contact.zoneId}
-                    onChange={(e) => {
-                      const z = zones.find((z) => z._id === e.target.value);
-                      setForm((f) => ({
-                        ...f,
-                        contact: { ...f.contact, zone: z?.name ?? "", zoneId: e.target.value },
-                      }));
-                    }}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-400/20 focus:border-teal-400 focus:bg-white transition-all text-slate-800"
-                  >
-                    <option value="">— Select zone —</option>
-                    {zones.map((z) => (
-                      <option key={z._id} value={z._id}>
-                        {z.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="col-span-2">
-                  <Input
-                    label="Address"
-                    value={form.contact.address}
-                    onChange={setC("address")}
-                    placeholder="Full address"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Billing tab */}
-            {tab === "billing" && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-3 gap-4">
-                  <Input
-                    label="Invoice Fee (৳)"
-                    type="number"
-                    value={form.billing.perInvoiceFee}
-                    onChange={setB("perInvoiceFee")}
-                    placeholder="0"
-                  />
-                  <Input
-                    label="Monthly Fee (৳)"
-                    type="number"
-                    value={form.billing.monthlyFee}
-                    onChange={setB("monthlyFee")}
-                    placeholder="0"
-                  />
-                  <Input
-                    label="Commission (৳)"
-                    type="number"
-                    value={form.billing.commission}
-                    onChange={setB("commission")}
-                    placeholder="0"
-                  />
-                </div>
-                <div className="grid grid-cols-3 divide-x divide-slate-100 border border-slate-100 rounded-lg overflow-hidden">
-                  {[
-                    ["Invoice", `৳${form.billing.perInvoiceFee || 0}`],
-                    ["Monthly", `৳${form.billing.monthlyFee || 0}`],
-                    ["Commission", `৳${form.billing.commission || 0}`], // ← ৳ not %
-                  ].map(([l, v]) => (
-                    <div key={l} className="bg-slate-50 text-center py-3">
-                      <p className="text-[9px] text-slate-400 font-semibold uppercase tracking-widest">{l}</p>
-                      <p className="text-lg font-black text-teal-600 mt-0.5 tracking-tight">{v}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Footer */}
-          <div className="flex items-center justify-between px-5 py-3 border-t border-slate-100 bg-slate-50/50">
-            <button
-              type="button"
-              onClick={goBack}
-              className={`flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-slate-600 transition ${tabIdx === 0 ? "invisible" : ""}`}
-            >
-              <ChevronLeft className="w-3.5 h-3.5" />
-              Back
-            </button>
-            <div className="flex gap-2">
-              <Btn type="button" onClick={onClose}>
-                Cancel
-              </Btn>
-              {isLast ? (
-                <button
-                  type="button"
-                  onClick={handleRegister}
-                  disabled={loading}
-                  className="flex items-center gap-2 px-4 py-1.5 text-xs font-semibold text-teal-600 border border-teal-300 rounded-md hover:bg-teal-50 disabled:opacity-50 transition-all"
-                >
-                  {loading && (
-                    <div className="w-3.5 h-3.5 border-2 border-teal-200 border-t-teal-500 rounded-full animate-spin" />
-                  )}
-                  Register Lab
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={goNext}
-                  className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold text-teal-600 border border-teal-300 rounded-md hover:bg-teal-50 transition-all"
-                >
-                  Next
-                  <ChevronRight className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
           </div>
         </div>
       </div>
@@ -401,131 +362,142 @@ const LabModal = ({ isOpen, onClose, onSubmit }) => {
   );
 };
 
-const StatCard = ({ icon: Icon, label, value, sub, color }) => {
-  const colors = {
-    teal: { bg: "bg-teal-50", border: "border-teal-100", icon: "text-teal-500", val: "text-teal-700" },
-    emerald: { bg: "bg-emerald-50", border: "border-emerald-100", icon: "text-emerald-500", val: "text-emerald-700" },
-    slate: { bg: "bg-slate-50", border: "border-slate-200", icon: "text-slate-400", val: "text-slate-700" },
-    amber: { bg: "bg-amber-50", border: "border-amber-100", icon: "text-amber-500", val: "text-amber-700" },
-  };
-  const c = colors[color] ?? colors.slate;
-  return (
-    <div className={`flex items-center gap-3 px-4 py-3.5 rounded-xl border ${c.bg} ${c.border}`}>
-      <div className={`w-8 h-8 rounded-lg bg-white border ${c.border} flex items-center justify-center shrink-0`}>
-        <Icon className={`w-4 h-4 ${c.icon}`} />
-      </div>
-      <div className="min-w-0">
-        <p className={`text-lg font-black leading-none ${c.val}`}>{value}</p>
-        <p className="text-[11px] text-slate-400 mt-0.5">{label}</p>
-        {sub && <p className="text-[10px] text-slate-300 mt-0.5">{sub}</p>}
-      </div>
-    </div>
-  );
+/* ─── Stat Card ──────────────────────────────────────────── */
+
+const STAT_VARIANTS = {
+  indigo:
+    "bg-indigo-50  border-indigo-100  [&_.icon]:bg-indigo-100  [&_.icon]:border-indigo-200  [&_.icon-el]:text-indigo-500  [&_.val]:text-indigo-700",
+  green:
+    "bg-emerald-50 border-emerald-100 [&_.icon]:bg-emerald-100 [&_.icon]:border-emerald-200 [&_.icon-el]:text-emerald-500 [&_.val]:text-emerald-700",
+  slate:
+    "bg-slate-50   border-slate-200   [&_.icon]:bg-slate-100   [&_.icon]:border-slate-200   [&_.icon-el]:text-slate-400   [&_.val]:text-slate-700",
+  amber:
+    "bg-amber-50   border-amber-100   [&_.icon]:bg-amber-100   [&_.icon]:border-amber-200   [&_.icon-el]:text-amber-500   [&_.val]:text-amber-700",
 };
 
-const LabRow = ({ lab }) => (
-  <div className="group flex items-center gap-4 px-4 py-3 rounded-xl border border-slate-100 bg-white hover:border-teal-200 hover:bg-teal-50/20 transition-all">
-    <div
-      className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border ${lab.isActive ? "bg-teal-50 border-teal-200" : "bg-slate-50 border-slate-200"}`}
-    >
-      <FlaskConical className={`w-4 h-4 ${lab.isActive ? "text-teal-600" : "text-slate-400"}`} />
+const StatCard = ({ icon: Icon, label, value, sub, color = "slate" }) => (
+  <div className={`flex items-center gap-3 px-4 py-3.5 rounded-2xl border ${STAT_VARIANTS[color]}`}>
+    <div className="icon w-10 h-10 rounded-xl border flex items-center justify-center shrink-0">
+      <Icon size={17} className="icon-el" />
     </div>
+    <div className="min-w-0">
+      <p className="val text-xl font-black leading-none tracking-tight">{value}</p>
+      <p className="text-[11px] text-slate-400 mt-1">{label}</p>
+      {sub && <p className="text-[10px] text-slate-300 mt-0.5">{sub}</p>}
+    </div>
+  </div>
+);
+
+/* ─── Lab Row ────────────────────────────────────────────── */
+
+const LabRow = ({ lab, index }) => (
+  <div
+    className="group flex items-center gap-3 px-4 py-3 rounded-2xl border border-slate-100 bg-white hover:border-indigo-200 hover:shadow-sm transition-all"
+    style={{ animationDelay: `${index * 0.03}s` }}
+  >
+    <div
+      className={`w-9 h-9 rounded-xl shrink-0 flex items-center justify-center border ${lab.isActive ? "bg-indigo-50 border-indigo-200" : "bg-slate-50 border-slate-200"}`}
+    >
+      <FlaskConical size={15} className={lab.isActive ? "text-indigo-500" : "text-slate-400"} />
+    </div>
+
     <div className="flex-1 min-w-0">
-      <p className="text-sm font-bold text-slate-700 truncate leading-tight">{lab.name}</p>
-      <div className="flex items-center flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
-        <span className="flex items-center gap-1">
-          <Hash className="w-2.5 h-2.5 text-slate-300 shrink-0" />
-          <span className="text-[11px] font-mono text-slate-400">{lab.labID}</span>
+      <p className="text-[13.5px] font-bold text-slate-800 leading-snug mb-1">{lab.name}</p>
+      <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+        <span className="flex items-center gap-1 text-[11px] text-slate-400 font-mono">
+          <Hash size={10} className="text-slate-300" />
+          {lab.labID}
         </span>
         {lab.contact?.primary && (
           <span className="flex items-center gap-1 text-[11px] text-slate-400">
-            <Phone className="w-2.5 h-2.5 text-slate-300 shrink-0" />
+            <Phone size={10} className="text-slate-300" />
             {lab.contact.primary}
           </span>
         )}
         {lab.contact?.publicEmail && (
           <span className="flex items-center gap-1 text-[11px] text-slate-400 truncate">
-            <Mail className="w-2.5 h-2.5 text-slate-300 shrink-0" />
+            <Mail size={10} className="text-slate-300 shrink-0" />
             {lab.contact.publicEmail}
           </span>
         )}
         {(lab.contact?.address || lab.contact?.district) && (
-          <span className="flex items-center gap-1 text-[11px] text-slate-400 truncate">
-            <MapPin className="w-2.5 h-2.5 text-slate-300 shrink-0" />
+          <span className="flex items-center gap-1 text-[11px] text-slate-400">
+            <MapPin size={10} className="text-slate-300 shrink-0" />
             {[lab.contact.address, lab.contact.district, lab.contact.zone].filter(Boolean).join(", ")}
           </span>
         )}
       </div>
     </div>
-    <div className="hidden lg:flex items-center gap-1 shrink-0">
+
+    {/* Billing chips — desktop only */}
+    <div className="hidden lg:flex items-center gap-2 shrink-0">
       {[
         [`৳${lab.billing?.perInvoiceFee ?? 0}`, "Invoice"],
         [`৳${lab.billing?.monthlyFee ?? 0}`, "Monthly"],
-        [`৳${lab.billing?.commission ?? 0}`, "Commission"], // ← ৳ not %
+        [`৳${lab.billing?.commission ?? 0}`, "Commission"],
       ].map(([v, l]) => (
         <div
           key={l}
-          className="flex flex-col items-center px-3 py-1 rounded-lg bg-slate-50 border border-slate-100 min-w-[72px]"
+          className="flex flex-col items-center px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-100 min-w-[68px]"
         >
-          <span className="text-[10px] font-bold text-teal-600">{v}</span>
-          <span className="text-[9px] text-slate-300 uppercase tracking-wide">{l}</span>
+          <span className="text-[11px] font-bold text-indigo-500">{v}</span>
+          <span className="text-[9px] text-slate-300 uppercase tracking-wide mt-0.5">{l}</span>
         </div>
       ))}
     </div>
-    <div className="shrink-0 ml-auto">
+
+    <div className="shrink-0">
       <StatusBadge active={lab.isActive} />
     </div>
   </div>
 );
 
+/* ─── Skeleton ───────────────────────────────────────────── */
+
 const SkeletonRow = () => (
-  <div className="flex items-center gap-4 px-4 py-3 rounded-xl border border-slate-100 bg-white animate-pulse">
-    <div className="w-8 h-8 bg-slate-100 rounded-lg shrink-0" />
-    <div className="w-48 space-y-1.5 shrink-0">
-      <div className="h-3 bg-slate-100 rounded w-3/4" />
-      <div className="h-2.5 bg-slate-100 rounded w-1/3" />
+  <div className="flex items-center gap-3 px-4 py-3 rounded-2xl border border-slate-100 bg-white animate-pulse">
+    <div className="w-9 h-9 bg-slate-100 rounded-xl shrink-0" />
+    <div className="flex-1 space-y-2">
+      <div className="h-3 bg-slate-100 rounded w-2/5" />
+      <div className="h-2.5 bg-slate-50 rounded w-3/5" />
     </div>
-    <div className="flex gap-4 flex-1">
-      <div className="h-2.5 bg-slate-100 rounded w-24" />
-      <div className="h-2.5 bg-slate-100 rounded w-32" />
-    </div>
-    <div className="hidden lg:flex gap-1">
+    <div className="hidden lg:flex gap-2">
       {[1, 2, 3].map((i) => (
-        <div key={i} className="w-[52px] h-8 bg-slate-100 rounded-lg" />
+        <div key={i} className="w-[68px] h-9 bg-slate-50 rounded-lg" />
       ))}
     </div>
-    <div className="w-16 h-6 bg-slate-100 rounded-full ml-auto shrink-0" />
+    <div className="w-16 h-6 bg-slate-100 rounded-full shrink-0" />
   </div>
 );
+
+/* ─── Pagination ─────────────────────────────────────────── */
 
 const Pagination = ({ page, totalPages, total, onPageChange }) => {
   if (totalPages <= 1) return null;
   const from = (page - 1) * LIMIT + 1;
   const to = Math.min(page * LIMIT, total);
   return (
-    <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-100">
+    <div className="flex items-center justify-between mt-5 pt-4 border-t border-slate-100">
       <p className="text-xs text-slate-400">
         Showing{" "}
-        <span className="font-bold text-slate-600">
+        <strong className="text-slate-600">
           {from}–{to}
-        </span>{" "}
-        of <span className="font-bold text-slate-600">{total}</span> labs
+        </strong>{" "}
+        of <strong className="text-slate-600">{total}</strong> labs
       </p>
-      <div className="flex items-center gap-1">
+      <div className="flex gap-1">
         <button
           onClick={() => onPageChange(page - 1)}
           disabled={page === 1}
-          className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition"
+          className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-400 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition"
         >
-          <ChevronLeft className="w-3.5 h-3.5" />
+          <ChevronLeft size={14} />
         </button>
         {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
           <button
             key={p}
             onClick={() => onPageChange(p)}
-            className={`w-7 h-7 rounded-lg text-xs font-bold transition ${
-              p === page ? "bg-teal-600 text-white" : "border border-slate-200 text-slate-500 hover:bg-slate-50"
-            }`}
+            className={`w-8 h-8 rounded-lg text-xs font-bold transition ${p === page ? "bg-gradient-to-br from-indigo-500 to-indigo-400 text-white shadow-md shadow-indigo-200 border-none" : "border border-slate-200 bg-white text-slate-500 hover:bg-slate-50"}`}
           >
             {p}
           </button>
@@ -533,14 +505,16 @@ const Pagination = ({ page, totalPages, total, onPageChange }) => {
         <button
           onClick={() => onPageChange(page + 1)}
           disabled={page === totalPages}
-          className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition"
+          className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-400 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition"
         >
-          <ChevronRight className="w-3.5 h-3.5" />
+          <ChevronRight size={14} />
         </button>
       </div>
     </div>
   );
 };
+
+/* ─── Main Page ──────────────────────────────────────────── */
 
 const Labs = () => {
   const [labs, setLabs] = useState([]);
@@ -565,7 +539,6 @@ const Labs = () => {
       const r = await labService.getStats();
       setStats(r.data);
     } catch {
-      // non-critical — fail silently
     } finally {
       setStatsLoading(false);
     }
@@ -596,7 +569,11 @@ const Labs = () => {
     setPage(p);
     fetchLabs(p, search);
   };
-
+  const handleClearSearch = () => {
+    setSearch("");
+    setPage(1);
+    fetchLabs(1, "");
+  };
   const handleSearch = (val) => {
     setSearch(val);
     clearTimeout(debounceRef.current);
@@ -604,12 +581,6 @@ const Labs = () => {
       setPage(1);
       fetchLabs(1, val, { isSearch: true });
     }, 400);
-  };
-
-  const handleClearSearch = () => {
-    setSearch("");
-    setPage(1);
-    fetchLabs(1, "");
   };
 
   const handleCreate = async (form) => {
@@ -637,26 +608,30 @@ const Labs = () => {
   const isSearchMode = search.trim().length > 0;
 
   return (
-    <div className="px-4 sm:px-6 lg:px-8 py-8 max-w-5xl mx-auto">
-      <div className="flex items-center justify-between gap-4 mb-6">
+    <div className="px-4 sm:px-6 lg:px-8 py-6 lg:py-8 max-w-5xl mx-auto">
+      {/* Page header */}
+      <div className="flex items-center justify-between gap-3 mb-6">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-teal-50 border border-teal-200 rounded-xl flex items-center justify-center shrink-0">
-            <FlaskConical className="w-5 h-5 text-teal-600" />
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-400 flex items-center justify-center shadow-md shadow-indigo-200 shrink-0">
+            <FlaskConical size={18} className="text-white" />
           </div>
           <div>
             <h1 className="text-lg font-black text-slate-800 tracking-tight leading-none">Laboratories</h1>
-            <p className="text-[11px] text-slate-400 mt-0.5">Registered labs and network overview</p>
+            <p className="text-[11px] text-slate-400 mt-1">Registered labs and network overview</p>
           </div>
         </div>
-        <Btn teal onClick={() => setModalOpen(true)}>
-          <Plus className="w-3.5 h-3.5" />
-          Register Lab
-        </Btn>
+        <button
+          onClick={() => setModalOpen(true)}
+          className="flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-white bg-gradient-to-br from-indigo-500 to-indigo-400 rounded-xl shadow-md shadow-indigo-200 hover:from-indigo-600 hover:to-indigo-500 transition-all whitespace-nowrap"
+        >
+          <Plus size={14} /> Register Lab
+        </button>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-        <StatCard icon={Layers} label="Total labs" value={statsLoading ? "—" : (stats?.total ?? 0)} color="teal" />
-        <StatCard icon={Activity} label="Active" value={statsLoading ? "—" : (stats?.active ?? 0)} color="emerald" />
+      {/* Stats — 2 col mobile, 4 col desktop */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+        <StatCard icon={Layers} label="Total labs" value={statsLoading ? "—" : (stats?.total ?? 0)} color="indigo" />
+        <StatCard icon={Activity} label="Active" value={statsLoading ? "—" : (stats?.active ?? 0)} color="green" />
         <StatCard
           icon={TrendingUp}
           label="Inactive"
@@ -665,20 +640,21 @@ const Labs = () => {
         />
         <StatCard
           icon={CreditCard}
-          label="Monthly revenue"
-          color="amber"
+          label="Monthly rev."
           value={statsLoading ? "—" : `৳${(stats?.totalMonthly ?? 0).toLocaleString()}`}
           sub={statsLoading ? undefined : `৳${(stats?.totalInvoice ?? 0).toLocaleString()} invoice`}
+          color="amber"
         />
       </div>
 
-      <div className="flex items-center gap-3 mb-4">
+      {/* Search bar */}
+      <div className="flex items-center gap-2.5 mb-4">
         <div className="relative flex-1">
           <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
             {searchLoading ? (
-              <RefreshCw className="w-3.5 h-3.5 text-teal-500 animate-spin" />
+              <RefreshCw size={14} className="text-indigo-500 animate-spin" />
             ) : (
-              <Search className="w-3.5 h-3.5 text-slate-400" />
+              <Search size={14} className="text-slate-400" />
             )}
           </div>
           <input
@@ -686,56 +662,65 @@ const Labs = () => {
             placeholder="Search by Lab ID…"
             value={search}
             onChange={(e) => handleSearch(e.target.value)}
-            className="w-full pl-9 pr-9 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-800 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-400/20 focus:border-teal-400 transition-all"
+            className="w-full pl-9 pr-9 py-2.5 text-[13px] rounded-xl border border-slate-200 bg-white text-slate-800 placeholder-slate-300 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/10 transition-all"
           />
           {search && (
             <button
               onClick={handleClearSearch}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded text-slate-400 hover:text-slate-600 transition"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded-md bg-slate-100 text-slate-400 hover:text-slate-600 transition border-none cursor-pointer"
             >
-              <X className="w-3.5 h-3.5" />
+              <X size={11} />
             </button>
           )}
         </div>
+
         {isSearchMode && !searchLoading && (
-          <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-500 shrink-0">
+          <div className="flex items-center gap-1.5 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[11.5px] text-slate-500 shrink-0">
             {total === 0 ? "No results for" : `${total} result${total !== 1 ? "s" : ""} for`}
-            <span className="font-bold text-slate-700">"{search}"</span>
-            <button onClick={handleClearSearch} className="ml-0.5 text-slate-400 hover:text-slate-600 transition">
-              <X className="w-3 h-3" />
+            <strong className="text-slate-700">"{search}"</strong>
+            <button
+              onClick={handleClearSearch}
+              className="text-slate-400 hover:text-slate-600 transition bg-transparent border-none cursor-pointer flex"
+            >
+              <X size={12} />
             </button>
           </div>
         )}
       </div>
 
-      <div className="space-y-1.5">
+      {/* Lab list */}
+      <div className="flex flex-col gap-1.5">
         {loading ? (
-          Array.from({ length: 8 }).map((_, i) => <SkeletonRow key={i} />)
+          Array.from({ length: 7 }).map((_, i) => <SkeletonRow key={i} />)
         ) : labs.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="w-11 h-11 bg-slate-50 border-2 border-dashed border-slate-200 rounded-xl flex items-center justify-center mb-3">
-              <FlaskConical className="w-5 h-5 text-slate-300" />
+          <div className="flex flex-col items-center justify-center py-16 text-center bg-white rounded-2xl border border-dashed border-slate-200">
+            <div className="w-12 h-12 rounded-2xl bg-slate-50 border-2 border-dashed border-slate-200 flex items-center justify-center mb-3">
+              <FlaskConical size={20} className="text-slate-300" />
             </div>
             <p className="text-sm font-bold text-slate-500 mb-1">
               {isSearchMode ? `No labs match "${search}"` : "No labs registered yet"}
             </p>
-            <p className="text-xs text-slate-400 mb-5 max-w-xs">
+            <p className="text-xs text-slate-400 mb-5 max-w-[260px]">
               {isSearchMode ? "Try a different Lab ID or clear the search." : "Register your first lab to get started."}
             </p>
             {isSearchMode ? (
-              <Btn onClick={handleClearSearch}>
-                <X className="w-3.5 h-3.5" />
-                Clear Search
-              </Btn>
+              <button
+                onClick={handleClearSearch}
+                className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-slate-500 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition"
+              >
+                <X size={13} /> Clear Search
+              </button>
             ) : (
-              <Btn teal onClick={() => setModalOpen(true)}>
-                <Plus className="w-3.5 h-3.5" />
-                Register First Lab
-              </Btn>
+              <button
+                onClick={() => setModalOpen(true)}
+                className="flex items-center gap-2 px-5 py-2.5 text-xs font-bold text-white bg-gradient-to-br from-indigo-500 to-indigo-400 rounded-xl shadow-md shadow-indigo-200 hover:from-indigo-600 hover:to-indigo-500 transition-all"
+              >
+                <Plus size={14} /> Register First Lab
+              </button>
             )}
           </div>
         ) : (
-          labs.map((lab) => <LabRow key={lab._id} lab={lab} />)
+          labs.map((lab, i) => <LabRow key={lab._id} lab={lab} index={i} />)
         )}
       </div>
 

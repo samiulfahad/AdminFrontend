@@ -1,9 +1,10 @@
 import DesktopMenu from "./DesktopMenu";
 import MobileMenu from "./MobileMenu";
+import { Zap } from "lucide-react";
 
 const Layout = ({ children }) => {
   return (
-    <div className="flex min-h-screen" style={{ background: "#eef3f7", fontFamily: "'Geist', 'DM Sans', sans-serif" }}>
+    <div className="flex min-h-screen bg-slate-50">
       <div className="print:hidden">
         <MobileMenu />
       </div>
@@ -11,45 +12,23 @@ const Layout = ({ children }) => {
         <DesktopMenu />
       </div>
 
-      <div className="flex-1 flex flex-col min-h-screen lg:ml-64 print:ml-0">
-        <main className="flex-1 pt-[52px] lg:pt-0 print:pt-0" style={{ background: "#eef3f7" }}>
+      <div className="flex-1 flex flex-col min-h-screen lg:ml-60 print:ml-0">
+        <main className="flex-1 pt-14 lg:pt-0 print:pt-0 bg-slate-50">
           <div className="max-w-7xl mx-auto print:max-w-none">{children}</div>
         </main>
 
-        <footer className="print:hidden" style={{ borderTop: "1px solid #dde6ee", background: "#fff" }}>
-          <div
-            style={{
-              maxWidth: "80rem",
-              margin: "0 auto",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              padding: "14px 32px",
-              flexWrap: "wrap",
-              gap: 8,
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div
-                style={{
-                  width: 18,
-                  height: 18,
-                  background: "linear-gradient(135deg, #0d9488, #0f766e)",
-                  borderRadius: 5,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  boxShadow: "0 2px 6px rgba(13,148,136,0.3)",
-                }}
-              >
-                <span style={{ fontSize: 7.5, fontWeight: 800, color: "#fff" }}>LP</span>
+        <footer className="print:hidden bg-white border-t border-slate-100">
+          <div className="max-w-7xl mx-auto flex items-center justify-between flex-wrap gap-2 px-7 py-3.5">
+            <div className="flex items-center gap-2">
+              <div className="w-5 h-5 rounded-md bg-gradient-to-br from-indigo-500 to-indigo-400 flex items-center justify-center shadow-sm shadow-indigo-200">
+                <Zap size={10} className="text-white" />
               </div>
-              <span style={{ fontSize: 11.5, color: "#8fafc4" }}>
+              <span className="text-[11.5px] text-slate-400">
                 © {new Date().getFullYear()} LabPilot Pro — All rights reserved
               </span>
             </div>
-            <span style={{ fontSize: 11.5, color: "#94a3b8" }}>
-              Designed & Developed by <span style={{ color: "#0d9488", fontWeight: 600 }}>Samiul Fahad</span>
+            <span className="text-[11.5px] text-slate-400">
+              Designed &amp; Developed by <span className="text-indigo-500 font-bold">Samiul Fahad</span>
             </span>
           </div>
         </footer>
