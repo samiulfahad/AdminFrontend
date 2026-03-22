@@ -18,7 +18,7 @@ import Modal from "../../components/modal";
 import Popup from "../../components/popup";
 import testService from "../../api/testService";
 import categoryService from "../../api/categoryService";
-import testSchemaService from "../../api/testSchemaService";
+import schemaService from "../../api/schemaService";
 
 /* ─── Shared Primitives ──────────────────────────────────── */
 
@@ -105,7 +105,7 @@ const SchemaPicker = ({ testId, currentSchemaId, onSelect }) => {
     if (!testId) return;
     setLoading(true);
     setError(false);
-    testSchemaService
+    schemaService
       .getByTest(testId)
       .then((r) => setSchemas(Array.isArray(r.data) ? r.data : []))
       .catch(() => setError(true))
