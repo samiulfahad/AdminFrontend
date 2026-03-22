@@ -106,7 +106,7 @@ const SchemaPicker = ({ testId, currentSchemaId, onSelect }) => {
     setLoading(true);
     setError(false);
     schemaService
-      .getByTest(testId)
+      .getByTestId(testId)
       .then((r) => setSchemas(Array.isArray(r.data) ? r.data : []))
       .catch(() => setError(true))
       .finally(() => setLoading(false));

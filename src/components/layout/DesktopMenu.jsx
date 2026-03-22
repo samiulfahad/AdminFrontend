@@ -24,7 +24,7 @@ const DesktopMenu = () => {
       </div>
 
       {/* Nav items */}
-      <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden px-2.5 py-4">
+      <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden px-2.5 py-2">
         <div className="flex flex-col gap-0.5">
           {menu.map((item) => {
             const Icon = item.icon;
@@ -32,7 +32,7 @@ const DesktopMenu = () => {
               <NavLink key={item.path} to={item.path} end={item.path === "/"} className="no-underline">
                 {({ isActive }) => (
                   <div
-                    className={`group relative flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-all duration-150
+                    className={`group relative flex items-center gap-3 px-3 py-2 rounded-xl cursor-pointer transition-all duration-150
                     ${
                       isActive
                         ? "bg-indigo-50 border border-indigo-200"
@@ -86,7 +86,7 @@ const DesktopMenu = () => {
             <LogOut size={13} className="text-red-400" />
           </div>
           <span className="text-[13px] font-medium text-slate-400 group-hover:text-red-500 transition-colors duration-150">
-            Sign Out
+            Log Out
           </span>
         </button>
       </div>
