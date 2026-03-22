@@ -7,7 +7,7 @@ import SearchAndSelect from "../../components/html/searchAndSelect";
 import LoadingScreen from "../../components/loadingPage";
 import Schema from "./Schema";
 
-const SchemaList = () => {
+const SchemaEngine = () => {
   const [schemas, setSchemas] = useState([]);
   const [loading, setLoading] = useState(false);
   const [popup, setPopup] = useState({});
@@ -122,8 +122,8 @@ const SchemaList = () => {
       // If your backend handles this differently, adjust accordingly
       await Promise.all(
         schemas.map((schema) =>
-          schema._id !== popup._id && schema.isActive ? schemaService.deactivate(schema._id) : Promise.resolve()
-        )
+          schema._id !== popup._id && schema.isActive ? schemaService.deactivate(schema._id) : Promise.resolve(),
+        ),
       );
       // Then activate the selected schema
       await schemaService.activate(popup._id);
@@ -132,7 +132,7 @@ const SchemaList = () => {
         prev.map((schema) => ({
           ...schema,
           isActive: schema._id === popup._id,
-        }))
+        })),
       );
       setPopup({ type: "success", message: "Schema set as default successfully" });
     } catch (error) {
@@ -341,4 +341,4 @@ const SchemaList = () => {
   );
 };
 
-export default SchemaList;
+export default SchemaEngine;
