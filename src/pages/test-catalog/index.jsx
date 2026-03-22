@@ -420,7 +420,6 @@ const TestCatalog = () => {
 
   const catIds = new Set(categories.map((c) => c._id));
 
-  // Filter tests based on active category + search
   const baseTests =
     activeCatId === "__all__"
       ? tests
@@ -435,7 +434,6 @@ const TestCatalog = () => {
   const totalOffline = tests.length - totalOnline;
   const uncategorized = tests.filter((t) => !t.categoryId || !catIds.has(t.categoryId));
 
-  // Category pill helpers
   const countFor = (catId) => tests.filter((t) => t.categoryId === catId).length;
   const activeCat = categories.find((c) => c._id === activeCatId);
 
@@ -532,7 +530,6 @@ const TestCatalog = () => {
             icon: Tag,
             label: "Categories",
             value: loading ? "—" : categories.length,
-            color: "indigo",
             bg: "bg-indigo-50",
             border: "border-indigo-100",
             iconCls: "bg-indigo-100 border-indigo-200 text-indigo-500",
@@ -542,7 +539,6 @@ const TestCatalog = () => {
             icon: Layers,
             label: "Total Tests",
             value: loading ? "—" : tests.length,
-            color: "violet",
             bg: "bg-violet-50",
             border: "border-violet-100",
             iconCls: "bg-violet-100 border-violet-200 text-violet-500",
@@ -552,7 +548,6 @@ const TestCatalog = () => {
             icon: Wifi,
             label: "Online",
             value: loading ? "—" : totalOnline,
-            color: "emerald",
             bg: "bg-emerald-50",
             border: "border-emerald-100",
             iconCls: "bg-emerald-100 border-emerald-200 text-emerald-500",
@@ -562,7 +557,6 @@ const TestCatalog = () => {
             icon: WifiOff,
             label: "Offline",
             value: loading ? "—" : totalOffline,
-            color: "slate",
             bg: "bg-slate-50",
             border: "border-slate-200",
             iconCls: "bg-slate-100 border-slate-200 text-slate-400",
@@ -581,7 +575,7 @@ const TestCatalog = () => {
         ))}
       </div>
 
-      {/* Empty state — no data at all */}
+      {/* Empty state */}
       {!loading && categories.length === 0 && tests.length === 0 && (
         <div className="flex flex-col items-center justify-center py-24 text-center bg-white rounded-2xl border border-dashed border-slate-200">
           <div className="w-14 h-14 rounded-2xl bg-slate-50 border-2 border-dashed border-slate-200 flex items-center justify-center mb-3">
@@ -640,7 +634,6 @@ const TestCatalog = () => {
                   </span>
                 </button>
 
-                {/* Divider */}
                 {loading && (
                   <div className="space-y-0.5 py-1">
                     {[1, 2, 3, 4].map((i) => (
@@ -678,7 +671,8 @@ const TestCatalog = () => {
                             {count}
                           </span>
                         </button>
-                        <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                        {/* Always visible on mobile, hover-only on lg+ */}
+                        <div className="flex gap-0.5 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity shrink-0">
                           <button
                             onClick={() => setCatM({ open: true, mode: "edit", initial: cat })}
                             className="w-5 h-5 flex items-center justify-center rounded-md text-slate-400 hover:bg-white hover:text-slate-600 transition"
@@ -747,7 +741,6 @@ const TestCatalog = () => {
                   </span>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  {/* Inline search */}
                   <div className="relative">
                     <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
                       <Search size={12} className="text-slate-400" />

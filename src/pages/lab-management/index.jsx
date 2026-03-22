@@ -92,27 +92,27 @@ const StatusBadge = ({ active, onClick }) => (
       ${onClick ? "cursor-pointer" : "cursor-default"}
       ${
         active
-          ? "bg-indigo-50 text-indigo-600 border-indigo-200 hover:bg-red-50 hover:text-red-500 hover:border-red-200"
-          : "bg-slate-100 text-slate-400 border-slate-200 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200"
+          ? `bg-indigo-50 text-indigo-600 border-indigo-200 ${onClick ? "hover:bg-red-50 hover:text-red-500 hover:border-red-200" : ""}`
+          : `bg-slate-100 text-slate-400 border-slate-200 ${onClick ? "hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200" : ""}`
       }`}
   >
     <span
-      className={`w-1.5 h-1.5 rounded-full transition-colors ${active ? "bg-indigo-500 group-hover:bg-red-400" : "bg-slate-300 group-hover:bg-emerald-500"}`}
+      className={`w-1.5 h-1.5 rounded-full ${active ? `bg-indigo-500 ${onClick ? "group-hover:bg-red-400" : ""}` : `bg-slate-300 ${onClick ? "group-hover:bg-emerald-500" : ""}`}`}
     />
-    <span className="group-hover:hidden">{active ? "Active" : "Inactive"}</span>
+    <span className={onClick ? "group-hover:hidden" : ""}>{active ? "Active" : "Inactive"}</span>
     {onClick && <span className="hidden group-hover:inline">{active ? "Deactivate" : "Activate"}</span>}
   </span>
 );
 
 const Btn = ({ indigo, sm, children, className = "", ...props }) => (
   <button
-    className={`flex items-center gap-1.5 font-semibold rounded-lg border transition-all
-      ${sm ? "px-2.5 py-1.5 text-[11px]" : "px-3.5 py-2 text-xs"}
+    className={`flex items-center gap-1.5 font-bold rounded-xl border transition-all duration-150 tracking-tight bg-transparent
+      ${sm ? "px-3 py-1.5 text-[11px]" : "px-4 py-2 text-xs"}
       ${
         indigo
-          ? "bg-gradient-to-br from-indigo-500 to-indigo-400 text-white border-transparent shadow-md shadow-indigo-200 hover:shadow-lg hover:shadow-indigo-200 hover:from-indigo-600 hover:to-indigo-500"
-          : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50 hover:border-slate-300"
-      } ${className}`}
+          ? "text-indigo-600 border-indigo-400 hover:bg-indigo-50 hover:border-indigo-500 active:scale-[0.97]"
+          : "text-slate-600 border-slate-300 hover:bg-slate-50 hover:border-slate-400 hover:text-slate-700 active:scale-[0.97]"
+      } disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none ${className}`}
     {...props}
   >
     {children}
@@ -141,19 +141,19 @@ const MHead = ({ icon: Icon, title, sub, onClose }) => (
   </div>
 );
 
-const MFoot = ({ onClose, loading, label }) => (
+const MFoot = ({ onClose, loading, label, disabled }) => (
   <div className="sticky bottom-0 z-10 flex justify-end gap-2 px-5 py-3.5 bg-slate-50 border-t border-slate-100">
     <button
       type="button"
       onClick={onClose}
-      className="px-4 py-2 text-xs font-semibold text-slate-500 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition"
+      className="px-4 py-2 text-xs font-bold text-slate-500 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all active:scale-[0.97]"
     >
       Cancel
     </button>
     <button
       type="submit"
-      disabled={loading}
-      className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-white bg-gradient-to-br from-indigo-500 to-indigo-400 rounded-lg shadow-md shadow-indigo-200 hover:from-indigo-600 hover:to-indigo-500 disabled:opacity-60 transition-all"
+      disabled={loading || disabled}
+      className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-white bg-indigo-500 border border-indigo-500 rounded-xl shadow-sm shadow-indigo-200 hover:bg-indigo-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-[0.97]"
     >
       {loading && <div className="w-3.5 h-3.5 rounded-full border-2 border-white/30 border-t-white animate-spin" />}
       {label}
@@ -347,6 +347,7 @@ const BillingModal = ({ isOpen, onClose, lab, onSave }) => {
   );
 };
 
+// ── Create Support Admin Modal ─────────────────────────────────────────────────
 const SupportModal = ({ isOpen, onClose, onSave }) => {
   const [pw, setPw] = useState("");
   const [show, setShow] = useState(false);
@@ -402,14 +403,80 @@ const SupportModal = ({ isOpen, onClose, onSave }) => {
   );
 };
 
-const AdminModal = ({ isOpen, onClose, onSave, initial, mode }) => {
-  const EMPTY = { name: "", phone: "", email: "", isActive: true };
-  const [form, setForm] = useState(EMPTY);
+// ── Change Support Admin Password Modal ────────────────────────────────────────
+const SupportPasswordModal = ({ isOpen, onClose, onSave }) => {
+  const [pw, setPw] = useState("");
+  const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (isOpen) setForm(initial ?? EMPTY);
+    if (isOpen) {
+      setPw("");
+      setShow(false);
+    }
+  }, [isOpen]);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await onSave(pw);
+      onClose();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} size="sm">
+      <form onSubmit={submit}>
+        <MHead
+          icon={Key}
+          title="Change Support Password"
+          sub="Updates support admin login password"
+          onClose={onClose}
+        />
+        <div className="px-5 py-4 space-y-3">
+          <div className="relative">
+            <FieldInput
+              label="New Password"
+              type={show ? "text" : "password"}
+              value={pw}
+              onChange={(e) => setPw(e.target.value)}
+              required
+              minLength={6}
+              autoFocus
+              placeholder="Min 6 characters"
+              className="pr-9 tracking-widest"
+            />
+            <button
+              type="button"
+              onClick={() => setShow((s) => !s)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition"
+            >
+              {show ? <EyeOff size={14} /> : <Eye size={14} />}
+            </button>
+          </div>
+        </div>
+        <MFoot onClose={onClose} loading={loading} label="Update Password" disabled={!pw || pw.length < 6} />
+      </form>
+    </Modal>
+  );
+};
+
+const AdminModal = ({ isOpen, onClose, onSave, initial, mode }) => {
+  const EMPTY = { name: "", phone: "", email: "", password: "", isActive: true };
+  const [form, setForm] = useState(EMPTY);
+  const [showPw, setShowPw] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setForm(initial ?? EMPTY);
+      setShowPw(false);
+    }
   }, [isOpen, initial]);
+
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
   const submit = async (e) => {
     e.preventDefault();
@@ -440,33 +507,68 @@ const AdminModal = ({ isOpen, onClose, onSave, initial, mode }) => {
             required={mode === "create"}
             placeholder="Login identity"
           />
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <FieldInput
-              label="Email"
-              type="email"
-              value={form.email || ""}
-              onChange={set("email")}
-              placeholder="Optional"
-            />
-            <div className="flex items-center justify-between px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50">
-              <span className="text-[11px] font-semibold text-slate-400">Status</span>
-              <SwitchToggle active={form.isActive} onChange={(v) => setForm((f) => ({ ...f, isActive: v }))} />
+          <FieldInput
+            label="Email"
+            type="email"
+            value={form.email || ""}
+            onChange={set("email")}
+            placeholder="Optional"
+          />
+          {mode === "create" && (
+            <div className="relative">
+              <FieldInput
+                label="Password"
+                type={showPw ? "text" : "password"}
+                value={form.password || ""}
+                onChange={set("password")}
+                required
+                minLength={6}
+                maxLength={60}
+                placeholder="Min 6 characters"
+                className="pr-9 tracking-widest"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPw((s) => !s)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition"
+              >
+                {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
+              </button>
             </div>
+          )}
+          <div className="flex items-center justify-between px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50">
+            <span className="text-[11px] font-semibold text-slate-400">Status</span>
+            <SwitchToggle active={form.isActive} onChange={(v) => setForm((f) => ({ ...f, isActive: v }))} />
           </div>
         </div>
-        <MFoot onClose={onClose} loading={loading} label={mode === "create" ? "Add Admin" : "Save Changes"} />
+        <MFoot
+          onClose={onClose}
+          loading={loading}
+          label={mode === "create" ? "Add Admin" : "Save Changes"}
+          disabled={
+            mode === "create"
+              ? !form.name.trim() || !form.phone.trim() || !form.password || form.password.length < 6
+              : !form.name.trim()
+          }
+        />
       </form>
     </Modal>
   );
 };
 
 const StaffModal = ({ isOpen, onClose, onSave, initial, mode }) => {
-  const EMPTY = { name: "", phone: "", email: "", permissions: { ...DEFAULT_PERMS }, isActive: true };
+  const EMPTY = { name: "", phone: "", email: "", password: "", permissions: { ...DEFAULT_PERMS }, isActive: true };
   const [form, setForm] = useState(EMPTY);
+  const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (isOpen) setForm(initial ? { ...initial, permissions: { ...DEFAULT_PERMS, ...initial.permissions } } : EMPTY);
+    if (isOpen) {
+      setForm(
+        initial ? { ...initial, password: "", permissions: { ...DEFAULT_PERMS, ...initial.permissions } } : EMPTY,
+      );
+      setShowPw(false);
+    }
   }, [isOpen, initial]);
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -508,10 +610,32 @@ const StaffModal = ({ isOpen, onClose, onSave, initial, mode }) => {
               onChange={set("email")}
               placeholder="Optional"
             />
-            <div className="flex items-center justify-between px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50">
-              <span className="text-[11px] font-semibold text-slate-400">Status</span>
-              <SwitchToggle active={form.isActive} onChange={(v) => setForm((f) => ({ ...f, isActive: v }))} />
-            </div>
+            {mode === "create" && (
+              <div className="relative">
+                <FieldInput
+                  label="Password"
+                  type={showPw ? "text" : "password"}
+                  value={form.password || ""}
+                  onChange={set("password")}
+                  required
+                  minLength={6}
+                  maxLength={60}
+                  placeholder="Min 6 characters"
+                  className="pr-9 tracking-widest"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPw((s) => !s)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition"
+                >
+                  {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
+                </button>
+              </div>
+            )}
+          </div>
+          <div className="flex items-center justify-between px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50">
+            <span className="text-[11px] font-semibold text-slate-400">Status</span>
+            <SwitchToggle active={form.isActive} onChange={(v) => setForm((f) => ({ ...f, isActive: v }))} />
           </div>
           <div>
             <SectionLabel>Permissions</SectionLabel>
@@ -538,7 +662,16 @@ const StaffModal = ({ isOpen, onClose, onSave, initial, mode }) => {
             </div>
           </div>
         </div>
-        <MFoot onClose={onClose} loading={loading} label={mode === "create" ? "Add Staff" : "Save Changes"} />
+        <MFoot
+          onClose={onClose}
+          loading={loading}
+          label={mode === "create" ? "Add Staff" : "Save Changes"}
+          disabled={
+            mode === "create"
+              ? !form.name.trim() || !form.phone.trim() || !form.password || form.password.length < 6
+              : !form.name.trim()
+          }
+        />
       </form>
     </Modal>
   );
@@ -651,11 +784,13 @@ const LabDetailPanel = ({ lab, onLabUpdated, showPopup }) => {
   const [editOpen, setEditOpen] = useState(false);
   const [billingOpen, setBillingOpen] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
+  const [supportPwOpen, setSupportPwOpen] = useState(false);
   const [staffM, setStaffM] = useState({ open: false, mode: "create", initial: null });
   const [adminM, setAdminM] = useState({ open: false, mode: "create", initial: null });
 
   const staffList = allMembers.filter((m) => m.role === ROLES.STAFF);
   const adminList = allMembers.filter((m) => m.role === ROLES.ADMIN || m.role === ROLES.SUPPORT_ADMIN);
+  const hasSupportAdmin = adminList.some((m) => m.role === ROLES.SUPPORT_ADMIN);
 
   const fetchMembers = async () => {
     setMembersLoading(true);
@@ -753,6 +888,15 @@ const LabDetailPanel = ({ lab, onLabUpdated, showPopup }) => {
       throw e;
     }
   };
+  const updateSupportPassword = async (pw) => {
+    try {
+      await staffService.updateSupportPassword(lab._id, { password: pw });
+      showPopup("success", "Support admin password updated!");
+    } catch (e) {
+      showPopup("error", e?.response?.data?.message || "Failed.");
+      throw e;
+    }
+  };
   const toggleMember = (p) =>
     showPopup("warning", `${p.isActive ? "Deactivate" : "Activate"} "${p.name}"?`, async () => {
       try {
@@ -764,15 +908,21 @@ const LabDetailPanel = ({ lab, onLabUpdated, showPopup }) => {
       }
     });
   const deleteMember = (p) =>
-    showPopup("warning", `Delete "${p.name}"?`, async () => {
-      try {
-        await staffService.delete(lab._id, p._id);
-        showPopup("success", "Deleted!");
-        fetchMembers();
-      } catch {
-        showPopup("error", "Failed.");
-      }
-    });
+    showPopup(
+      "warning",
+      p.role === ROLES.SUPPORT_ADMIN
+        ? `Remove support admin for "${lab.name}"? A new one can be created afterwards.`
+        : `Delete "${p.name}"?`,
+      async () => {
+        try {
+          await staffService.delete(lab._id, p._id);
+          showPopup("success", "Deleted!");
+          fetchMembers();
+        } catch {
+          showPopup("error", "Failed.");
+        }
+      },
+    );
 
   return (
     <div className="flex flex-col gap-3">
@@ -803,7 +953,7 @@ const LabDetailPanel = ({ lab, onLabUpdated, showPopup }) => {
             </Btn>
             <Btn onClick={() => setBillingOpen(true)}>
               <CreditCard size={13} />
-              Billing
+              Edit Billing
             </Btn>
           </div>
         </div>
@@ -889,10 +1039,17 @@ const LabDetailPanel = ({ lab, onLabUpdated, showPopup }) => {
                   <UserPlus size={12} />
                   Add Admin
                 </Btn>
-                <Btn sm onClick={() => setSupportOpen(true)}>
-                  <Key size={12} />
-                  Support
-                </Btn>
+                {hasSupportAdmin ? (
+                  <Btn sm onClick={() => setSupportPwOpen(true)}>
+                    <Key size={12} />
+                    Support Password
+                  </Btn>
+                ) : (
+                  <Btn sm onClick={() => setSupportOpen(true)}>
+                    <Key size={12} />
+                    Support
+                  </Btn>
+                )}
               </>
             )}
           </div>
@@ -943,7 +1100,7 @@ const LabDetailPanel = ({ lab, onLabUpdated, showPopup }) => {
                     a.role !== ROLES.SUPPORT_ADMIN ? (p) => setAdminM({ open: true, mode: "edit", initial: p }) : null
                   }
                   onToggle={toggleMember}
-                  onDelete={a.role !== ROLES.SUPPORT_ADMIN ? deleteMember : null}
+                  onDelete={deleteMember}
                 />
               ))
             ))}
@@ -953,6 +1110,11 @@ const LabDetailPanel = ({ lab, onLabUpdated, showPopup }) => {
       <EditLabModal isOpen={editOpen} onClose={() => setEditOpen(false)} lab={lab} onSave={saveLabInfo} />
       <BillingModal isOpen={billingOpen} onClose={() => setBillingOpen(false)} lab={lab} onSave={saveBilling} />
       <SupportModal isOpen={supportOpen} onClose={() => setSupportOpen(false)} onSave={createSupport} />
+      <SupportPasswordModal
+        isOpen={supportPwOpen}
+        onClose={() => setSupportPwOpen(false)}
+        onSave={updateSupportPassword}
+      />
       <StaffModal
         isOpen={staffM.open}
         onClose={() => setStaffM((f) => ({ ...f, open: false }))}
