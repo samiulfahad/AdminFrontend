@@ -770,7 +770,7 @@ function SectionCard({ section, index, total, fieldErrors }) {
   );
 }
 
-import SchemaRenderer from "../schemaRenderer/SchemaRenderer";
+import SchemaRenderer from "../reportUpload/SchemaRenderer";
 import schemaService from "../../api/schemaService";
 import testService from "../../api/testService";
 
@@ -971,30 +971,40 @@ export default function SchemaBuilder() {
         </div>
 
         <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
             <Link
               to="/schema-engine"
               className="p-2 hover:bg-gray-100 rounded-xl transition-colors text-gray-400 hover:text-gray-700 flex-shrink-0"
             >
               <ArrowLeft className="w-5 h-5" />
             </Link>
-            <div>
-              <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                {schema.name || (
-                  <span className="text-gray-400 font-normal italic">{isEditMode ? "Edit Schema" : "New Schema"}</span>
-                )}
+            <div className="flex-1 min-w-0">
+              {/* ── Inline editable schema name ── */}
+              <input
+                value={schema.name}
+                onChange={(e) => setSchemaField("name", e.target.value)}
+                placeholder={isEditMode ? "Edit schema name…" : "New schema name…"}
+                className={`w-full text-xl font-bold text-gray-900 bg-transparent border-b-2 focus:outline-none pb-0.5 transition-colors placeholder-gray-300 ${
+                  errors.name
+                    ? "border-red-400 text-red-600"
+                    : "border-transparent hover:border-gray-200 focus:border-blue-400"
+                }`}
+              />
+              {errors.name && (
+                <p className="text-xs text-red-500 mt-0.5 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  {errors.name}
+                </p>
+              )}
+              <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1.5">
                 {isEditMode && (
-                  <span className="text-xs font-normal px-2 py-0.5 bg-blue-50 text-blue-500 rounded-full border border-blue-100">
+                  <span className="px-1.5 py-0.5 bg-blue-50 text-blue-500 rounded text-xs border border-blue-100">
                     Editing
                   </span>
                 )}
-              </h1>
-              <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1.5">
                 {schema.testId && (
                   <>
                     <span>Test · {tests.find((t) => t._id === schema.testId)?.name || "—"}</span>
-                    <span className="text-gray-300">·</span>
-                    <span className="font-mono text-gray-300">{schema.testId}</span>
                   </>
                 )}
               </p>
@@ -1057,7 +1067,7 @@ export default function SchemaBuilder() {
         <SkeletonLoader />
       ) : (
         <div className="space-y-6">
-          {/* Basic Info Card */}
+          {/* Basic Info Card — name field removed from here, lives in header now */}
           <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
             <div className="flex items-center gap-2 mb-5">
               <div className="p-2 bg-blue-50 rounded-lg">
@@ -1078,41 +1088,22 @@ export default function SchemaBuilder() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-medium text-gray-600 block mb-1.5">
-                    Schema Name <span className="text-red-400">*</span>
-                  </label>
-                  <input
-                    value={schema.name}
-                    onChange={(e) => setSchemaField("name", e.target.value)}
-                    placeholder="e.g. Complete Blood Count"
-                    className={`w-full px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all ${errors.name ? "border-red-400" : "border-gray-200"}`}
-                  />
-                  {errors.name && (
-                    <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3" />
-                      {errors.name}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-gray-600 block mb-1.5">
-                    Description <span className="text-red-400">*</span>
-                  </label>
-                  <input
-                    value={schema.description}
-                    onChange={(e) => setSchemaField("description", e.target.value)}
-                    placeholder="Brief description of this schema"
-                    className={`w-full px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all ${errors.description ? "border-red-400" : "border-gray-200"}`}
-                  />
-                  {errors.description && (
-                    <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3" />
-                      {errors.description}
-                    </p>
-                  )}
-                </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600 block mb-1.5">
+                  Description <span className="text-red-400">*</span>
+                </label>
+                <input
+                  value={schema.description}
+                  onChange={(e) => setSchemaField("description", e.target.value)}
+                  placeholder="Brief description of this schema"
+                  className={`w-full px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all ${errors.description ? "border-red-400" : "border-gray-200"}`}
+                />
+                {errors.description && (
+                  <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    {errors.description}
+                  </p>
+                )}
               </div>
 
               {/* Static Standard Range */}

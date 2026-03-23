@@ -177,20 +177,20 @@ const SchemaEngine = () => {
   return (
     <div className="min-h-screen bg-gray-50/30 py-2">
       {loading && <LoadingScreen />}
-      {/* Popup for delete confirmation */}
-      {popup.type === "confirmation" && popup.action === "delete" && (
+      {/* Popup for delete warning */}
+      {popup.type === "warning" && popup.action === "delete" && (
         <Popup type={popup.type} message={popup.message} onClose={() => setPopup({})} onConfirm={handleDelete} />
       )}
-      {/* Popup for activate confirmation */}
-      {popup.type === "confirmation" && popup.action === "activate" && (
+      {/* Popup for activate warning */}
+      {popup.type === "warning" && popup.action === "activate" && (
         <Popup type={popup.type} message={popup.message} onClose={() => setPopup({})} onConfirm={handleActivate} />
       )}
-      {/* Popup for deactivate confirmation */}
-      {popup.type === "confirmation" && popup.action === "deactivate" && (
+      {/* Popup for deactivate warning */}
+      {popup.type === "warning" && popup.action === "deactivate" && (
         <Popup type={popup.type} message={popup.message} onClose={() => setPopup({})} onConfirm={handleDeactivate} />
       )}
-      {/* Popup for set default confirmation */}
-      {popup.type === "confirmation" && popup.action === "setDefault" && (
+      {/* Popup for set default warning */}
+      {popup.type === "warning" && popup.action === "setDefault" && (
         <Popup type={popup.type} message={popup.message} onClose={() => setPopup({})} onConfirm={handleSetDefault} />
       )}
       {/* Success/Error popup */}
@@ -298,7 +298,7 @@ const SchemaEngine = () => {
                   index={index}
                   onDelete={() =>
                     setPopup({
-                      type: "confirmation",
+                      type: "warning",
                       message: `Do you want to delete the schema "${schema.name}"?`,
                       _id: schema._id,
                       action: "delete",
@@ -306,7 +306,7 @@ const SchemaEngine = () => {
                   }
                   onActivate={() =>
                     setPopup({
-                      type: "confirmation",
+                      type: "warning",
                       message: `Do you want to activate the schema "${schema.name}"?`,
                       _id: schema._id,
                       action: "activate",
@@ -314,7 +314,7 @@ const SchemaEngine = () => {
                   }
                   onDeactivate={() =>
                     setPopup({
-                      type: "confirmation",
+                      type: "warning",
                       message: `Do you want to deactivate the schema "${schema.name}"?`,
                       _id: schema._id,
                       action: "deactivate",
@@ -322,7 +322,7 @@ const SchemaEngine = () => {
                   }
                   onSetDefault={() =>
                     setPopup({
-                      type: "confirmation",
+                      type: "warning",
                       message: `Do you want to set the schema "${schema.name}" as default?`,
                       _id: schema._id,
                       action: "setDefault",

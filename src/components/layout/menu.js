@@ -1,11 +1,19 @@
-import { LayoutDashboard, FlaskConical, SlidersHorizontal, BookOpen, MapPin, WashingMachine } from "lucide-react";
+import {
+  LayoutDashboard,
+  FlaskConical,
+  SlidersHorizontal,
+  BookOpen,
+  MapPin,
+  WashingMachine,
+  UploadCloud,
+} from "lucide-react";
 
 const menu = [
   { label: "Home", path: "/", icon: LayoutDashboard },
   { label: "Labs", path: "/labs", icon: FlaskConical },
   { label: "Lab Management", path: "/lab-management", icon: SlidersHorizontal },
   { label: "Test Catalog", path: "/test-catalog", icon: BookOpen },
-   { label: "Schema Engine", path: "/schema-engine", icon: WashingMachine },
+  { label: "Schema Engine", path: "/schema-engine", icon: WashingMachine },
   { label: "Zones", path: "/zones", icon: MapPin },
 ];
 

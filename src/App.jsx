@@ -8,7 +8,7 @@ import TestCatalog from "./pages/test-catalog";
 import SchemaEngine from "./pages/schemaEngine";
 import SchemaBuilder from "./pages/schemaBuilder";
 import Zones from "./pages/zones";
-
+import ReportUpload from "./pages/reportUpload";
 function App() {
   return (
     <Layout>
@@ -18,7 +18,8 @@ function App() {
         <Route path="/lab-management" element={<LabManagement />} />
         <Route path="/test-catalog" element={<TestCatalog />} />
         <Route path="/schema-engine" element={<SchemaEngine />} />
-        <Route path="/schema-builder" element={<SchemaBuilder />} />
+        <Route path="/schema-builder/:schemaId" element={<SchemaBuilder />} />
+        <Route path="/schema-renderer/:schemaId" element={<ReportUpload />} />
         <Route path="/zones" element={<Zones />} />
       </Routes>
     </Layout>
