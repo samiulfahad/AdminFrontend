@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Eye, Printer, X } from "lucide-react";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom"; // ← useSearchParams instead of useLocation
+import { ArrowLeft, Eye, Printer, LayoutList, X } from "lucide-react";
 import ReportViewer from "./ReportViewer";
 import demoReportService from "../../api/demoReportService";
 
@@ -40,6 +40,7 @@ const STYLES = `
 
   .ur-print-badge { display: flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 20px; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 500; letter-spacing: 0.07em; text-transform: uppercase; flex-shrink: 0; }
   .ur-print-badge.plain { background: rgba(37,99,235,0.18); border: 1px solid rgba(37,99,235,0.35); color: #93c5fd; }
+  .ur-print-badge.pad   { background: rgba(234,88,12,0.18);  border: 1px solid rgba(234,88,12,0.35);  color: #fdba74; }
 
   .ur-loading { display: flex; align-items: center; justify-content: center; padding: 80px 24px; flex-direction: column; gap: 12px; }
   .ur-spinner { width: 28px; height: 28px; border-radius: 50%; border: 2.5px solid rgba(255,255,255,0.08); border-top-color: #60a5fa; animation: ur-spin 0.7s linear infinite; }
@@ -138,6 +139,10 @@ function ErrorState({ message, onClose }) {
 export default function ReportDownload() {
   const { schemaId } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams(); // ← read query params
+
+  const layout = searchParams.get("layout") ?? "PLAIN"; // ← "PLAIN" | "PAD", default PLAIN
+  const isPlain = layout === "PLAIN";
 
   const [report, setReport] = useState(null);
   const [patient, setPatient] = useState(null);
@@ -153,7 +158,7 @@ export default function ReportDownload() {
       return;
     }
     demoReportService
-      .getBySchemaId(schemaId) // GET /demo-report/:schemaId
+      .getBySchemaId(schemaId)
       .then(({ data }) => {
         setReport(data.report);
         setReportName(data.schemaName ?? "Lab Report");
@@ -173,7 +178,7 @@ export default function ReportDownload() {
 
   const handleClose = () => {
     setClosing(true);
-    setTimeout(() => navigate(-1), 250);
+    setTimeout(() => window.close(), 250); // ← close the tab instead of navigate(-1)
   };
 
   useEffect(() => {
@@ -198,10 +203,12 @@ export default function ReportDownload() {
             <h2>View — {reportName}</h2>
             <p>Invoice #{HARDCODED_INVOICE_ID}</p>
           </div>
-          <div className="ur-print-badge plain">
-            <Printer style={{ width: 11, height: 11 }} />
-            Plain A4
+
+          <div className={`ur-print-badge ${isPlain ? "plain" : "pad"}`}>
+            {isPlain ? <Printer style={{ width: 11, height: 11 }} /> : <LayoutList style={{ width: 11, height: 11 }} />}
+            {isPlain ? "Plain A4" : "PAD"}
           </div>
+
           <button className="ur-close-btn" onClick={handleClose} title="Close (Esc)">
             <X style={{ width: 15, height: 15 }} />
           </button>
@@ -231,7 +238,7 @@ export default function ReportDownload() {
                 report={report}
                 patient={patient}
                 reportName={reportName}
-                printType="PLAIN"   // PAD
+                printType={layout}
                 invoiceId={HARDCODED_INVOICE_ID}
               />
             </div>

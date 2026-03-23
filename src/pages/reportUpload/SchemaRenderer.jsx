@@ -14,6 +14,7 @@ import {
   Activity,
   User,
 } from "lucide-react";
+import LoadingScreen from "../../components/loadingPage";
 
 // ─── Global Styles ─────────────────────────────────────────────────────────────
 const STYLES = `
@@ -1087,7 +1088,7 @@ function SchemaRenderer({ schema, onSubmit, loading = false }) {
             </button>
             <button type="button" className="sr2-btn-primary" disabled={loading} onClick={handleSubmit}>
               {loading ? <span className="sr2-spin-dot" /> : <Send style={{ width: 14, height: 14 }} />}
-              {loading ? "Submitting…" : "Submit Report"}
+              {loading ? <LoadingScreen/> : "Submit Report"}
             </button>
           </div>
         </div>

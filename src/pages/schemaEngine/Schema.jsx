@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
-import { Upload, FileText, Pencil, PowerOff, Power, Trash2 } from "lucide-react";
+import { Upload, Pencil, PowerOff, Power, Trash2, Printer, LayoutList } from "lucide-react";
 
-const Btn = ({ icon: Icon, label, onClick, variant = "default", as: Tag = "button", to }) => {
+const Btn = ({ icon: Icon, label, onClick, variant = "default", as: Tag = "button", to, state }) => {
   const base =
     "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap";
   const variants = {
@@ -11,11 +11,13 @@ const Btn = ({ icon: Icon, label, onClick, variant = "default", as: Tag = "butto
     red: "border border-red-200 text-red-600 hover:bg-red-50",
     blue: "border border-blue-200 text-blue-600 hover:bg-blue-50",
     purple: "border border-purple-200 text-purple-600 hover:bg-purple-50",
+    indigo: "border border-indigo-200 text-indigo-700 hover:bg-indigo-50",
+    orange: "border border-orange-200 text-orange-600 hover:bg-orange-50",
   };
 
   if (Tag === Link) {
     return (
-      <Link to={to} className={`${base} ${variants[variant]}`}>
+      <Link to={to} state={state} className={`${base} ${variants[variant]}`}>
         <Icon className="w-3.5 h-3.5" />
         {label}
       </Link>
@@ -53,9 +55,26 @@ const Schema = ({ input, index, onDelete, onActivate, onDeactivate, onSetDefault
 
         {/* Actions */}
         <div className="flex flex-wrap items-center gap-2">
-          <Btn as={Link} to={`/schema-renderer/${input._id}`} icon={Upload} label="Upload" variant="blue" />
+          <Btn
+            icon={Upload}
+            label="Upload"
+            variant="blue"
+            onClick={() => window.open(`/schema-renderer/${input._id}`, "_blank")}
+          />
 
-          <Btn as={Link} to={`/report/${input._id}`} icon={FileText} label="Report" variant="purple" />
+          <Btn
+            icon={Printer}
+            label="Print A4"
+            variant="indigo"
+            onClick={() => window.open(`/report/${input._id}?layout=PLAIN`, "_blank")}
+          />
+
+          <Btn
+            icon={LayoutList}
+            label="Print PAD"
+            variant="orange"
+            onClick={() => window.open(`/report/${input._id}?layout=PAD`, "_blank")}
+          />
 
           <Btn as={Link} to={`/schema-builder/${input._id}`} icon={Pencil} label="Edit" variant="default" />
 
