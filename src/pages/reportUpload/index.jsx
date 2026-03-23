@@ -36,13 +36,13 @@ function ReportUpload() {
     try {
       setSubmitting(true);
       await demoReportService.save({
+        schemaId,
         patientName: payload.patientName ?? "",
-        patientAge: payload.age ?? "",
-        patientGender: payload.gender ?? "",
+        patientAge: payload.patientAge ?? "",
+        patientGender: payload.patientGender ?? "",
         sampleCollectionDate: payload.sampleCollectionDate ?? "",
         reportDate: payload.reportDate ?? "",
-        schemaId,
-        report: payload,
+        report: payload.report, // ← just the section data, not the whole payload
       });
       setPopup({ type: "success", message: "Report submitted successfully" });
     } catch (e) {
@@ -52,7 +52,7 @@ function ReportUpload() {
     }
   };
 
-  if (loading) return <LoadingScreen/> ;
+  if (loading) return <LoadingScreen />;
   if (error) return <p>{error}</p>;
 
   return (

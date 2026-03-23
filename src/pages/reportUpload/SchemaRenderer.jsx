@@ -11,7 +11,6 @@ import {
   AlertTriangle,
   Eye,
   ShieldCheck,
-  Pencil,
   Activity,
   User,
 } from "lucide-react";
@@ -127,10 +126,11 @@ const STYLES = `
   .sr2-patient-input { width: 100%; background: transparent; border: none; outline: none; font-size: 14px; font-weight: 600; color: var(--c-ink); font-family: 'Outfit', sans-serif; }
   .sr2-patient-input::placeholder { color: var(--c-border-2); font-weight: 400; }
 
-  .sr2-section { background: var(--c-surface); border: 1px solid var(--c-border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm); transition: box-shadow 0.2s, border-color 0.2s; }
+  /* ── Section — overflow visible so dropdown can escape ── */
+  .sr2-section { background: var(--c-surface); border: 1px solid var(--c-border); border-radius: var(--radius-lg); overflow: visible; box-shadow: var(--shadow-sm); transition: box-shadow 0.2s, border-color 0.2s; }
   .sr2-section:hover { box-shadow: var(--shadow-md); }
   .sr2-section.has-error { border-color: rgba(220,38,38,0.4); }
-  .sr2-section-head { display: flex; align-items: center; gap: 12px; padding: 14px 18px; background: var(--c-ink); cursor: pointer; border: none; width: 100%; text-align: left; transition: background 0.15s; }
+  .sr2-section-head { display: flex; align-items: center; gap: 12px; padding: 14px 18px; background: var(--c-ink); cursor: pointer; border: none; width: 100%; text-align: left; transition: background 0.15s; border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
   .sr2-section-head:hover { background: var(--c-ink-2); }
   .sr2-section-head.error { background: #7f1d1d; }
   .sr2-section-num { width: 28px; height: 28px; border-radius: var(--radius-sm); background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.7); font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid rgba(255,255,255,0.15); }
@@ -144,7 +144,8 @@ const STYLES = `
   .sr2-chevron { color: rgba(255,255,255,0.3); transition: transform 0.2s ease; flex-shrink: 0; }
   .sr2-chevron.open { transform: rotate(180deg); }
 
-  .sr2-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px 18px; padding: 20px 18px; }
+  /* ── Fields grid — overflow visible so dropdown can escape ── */
+  .sr2-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px 18px; padding: 20px 18px; overflow: visible; }
 
   .sr2-field-wrap { position: relative; background: var(--c-surface); border: 1.5px solid var(--c-border); border-radius: var(--radius-md); transition: border-color 0.15s, box-shadow 0.15s; }
   .sr2-field-wrap:focus-within { border-color: var(--c-blue); box-shadow: 0 0 0 3px var(--c-blue-glow); }
@@ -189,7 +190,8 @@ const STYLES = `
   .sr2-dd-btn.open, .sr2-dd-btn:focus { border-color: var(--c-blue); box-shadow: 0 0 0 3px var(--c-blue-glow); outline: none; }
   .sr2-dd-label { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 12px; font-weight: 600; color: var(--c-ink-4); text-transform: uppercase; letter-spacing: 0.05em; pointer-events: none; transition: all 0.15s ease; background: transparent; line-height: 1; white-space: nowrap; }
   .sr2-dd-wrap.floated .sr2-dd-label { top: 0; transform: translateY(-50%); font-size: 9px; color: var(--c-blue); background: var(--c-surface); padding: 0 4px; left: 9px; }
-  .sr2-dd-menu { position: absolute; z-index: 40; top: calc(100% + 4px); left: 0; right: 0; background: var(--c-surface); border: 1.5px solid var(--c-border); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); overflow-y: auto; max-height: 200px; }
+  /* ── Dropdown menu — high z-index to clear sidebar stacking context ── */
+  .sr2-dd-menu { position: absolute; z-index: 9999; top: calc(100% + 4px); left: 0; right: 0; background: var(--c-surface); border: 1.5px solid var(--c-border); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); overflow-y: auto; max-height: 200px; }
   .sr2-dd-item { width: 100%; text-align: left; padding: 11px 14px; font-size: 13.5px; font-weight: 400; color: var(--c-ink-3); background: none; border: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; transition: background 0.1s; min-height: 42px; }
   .sr2-dd-item:hover    { background: var(--c-surface-2); color: var(--c-ink); }
   .sr2-dd-item.selected { background: var(--c-ink); color: #fff; font-weight: 600; }
@@ -252,6 +254,9 @@ function StyleInjector() {
       el.textContent = STYLES;
       document.head.appendChild(el);
     }
+    // Always update styles to pick up any changes
+    const el = document.getElementById(id);
+    if (el) el.textContent = STYLES;
   }, []);
   return null;
 }
@@ -372,7 +377,6 @@ function PatientForm({ patient, onChange }) {
         <span className="sr2-patient-form-head-label">Patient Info</span>
       </div>
       <div className="sr2-patient-form-body">
-        {/* Row 1 */}
         <div className="sr2-patient-input-cell" style={{ gridColumn: "1 / 2" }}>
           <label className="sr2-patient-input-label">Patient Name</label>
           <input
@@ -423,7 +427,6 @@ function PatientForm({ patient, onChange }) {
             })}
           </div>
         </div>
-        {/* Row 2 */}
         <div className="sr2-patient-input-cell" style={{ borderTop: "1px solid var(--c-border)" }}>
           <label className="sr2-patient-input-label">Sample Collection Date</label>
           <input
@@ -560,6 +563,17 @@ function RadioField({ field, options = [], value, onChange, error }) {
 function DropdownField({ field, options = [], value, onChange, error }) {
   const [open, setOpen] = useState(false);
   const floated = !!value;
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e) => {
+      if (!e.target.closest(".sr2-dd-wrap")) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
   return (
     <div>
       <div className={`sr2-dd-wrap ${floated ? "floated" : ""}`}>
@@ -605,7 +619,6 @@ function DropdownField({ field, options = [], value, onChange, error }) {
 
 function CheckboxField({ field, options = [], value = [], onChange, error }) {
   const toggle = (opt) => onChange(value.includes(opt) ? value.filter((v) => v !== opt) : [...value, opt]);
-  JSON.stringify([...(value || [])].sort()) !== JSON.stringify([]);
   return (
     <div>
       <div style={{ marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
@@ -667,7 +680,7 @@ function TextareaField({ field, value, onChange, error }) {
   const floated = !!(value && value.length > 0);
   return (
     <div>
-      <div className={`sr2-ta-wrap ${error ? "err" : ""} ${floated ? "floated" : ""} `}>
+      <div className={`sr2-ta-wrap ${error ? "err" : ""} ${floated ? "floated" : ""}`}>
         <span className="sr2-ta-label">
           {field.name}
           {field.required && <span className="sr2-req" />}
@@ -694,7 +707,7 @@ function TextInputField({ field, value, onChange, error }) {
   const floated = !!(value && value.length > 0);
   return (
     <div>
-      <div className={`sr2-ti-wrap ${error ? "err" : ""} ${floated ? "floated" : ""} `}>
+      <div className={`sr2-ti-wrap ${error ? "err" : ""} ${floated ? "floated" : ""}`}>
         <span className="sr2-ti-label">
           {field.name}
           {field.required && <span className="sr2-req" />}
@@ -834,14 +847,15 @@ function buildPayload(schema, values, patient) {
     });
     if (Object.keys(sd).length > 0) report[sec.name] = { ...sd, __showTitle: sec.showTitleInReport !== false };
   });
+
   return {
-    ...report,
-    name: schema.name,
+    schemaId: schema._id,
     patientName: patient.patientName,
-    age: patient.age,
-    gender: patient.gender,
+    patientAge: patient.age,
+    patientGender: patient.gender,
     sampleCollectionDate: patient.sampleCollectionDate,
     reportDate: patient.reportDate,
+    report,
   };
 }
 
