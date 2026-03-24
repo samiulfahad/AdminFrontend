@@ -29,24 +29,35 @@ import {
 } from "lucide-react";
 
 // ─── Zustand Store ────────────────────────────────────────────────────────────
+const INITIAL_SCHEMA = {
+  name: "",
+  description: "",
+  testId: "",
+  isActive: true,
+  hasStaticStandardRange: false,
+  staticStandardRange: "",
+  sections: [{ id: Date.now(), name: "Section A", showTitleInReport: true, fields: [] }],
+};
+
 const useSchemaStore = create((set, get) => ({
   tests: [],
   loadingTests: true,
-  schema: {
-    name: "",
-    description: "",
-    testId: "",
-    isActive: true,
-    hasStaticStandardRange: false,
-    staticStandardRange: "",
-    sections: [{ id: Date.now(), name: "Section A", showTitleInReport: true, fields: [] }],
-  },
+  schema: INITIAL_SCHEMA,
   errors: {},
   fieldErrors: {},
 
   setTests: (tests) => set({ tests, loadingTests: false }),
   setLoadingTests: (v) => set({ loadingTests: v }),
   setSchema: (schema) => set({ schema }),
+  resetSchema: () =>
+    set({
+      schema: {
+        ...INITIAL_SCHEMA,
+        sections: [{ id: Date.now(), name: "Section A", showTitleInReport: true, fields: [] }],
+      },
+      errors: {},
+      fieldErrors: {},
+    }),
   setSchemaField: (key, value) =>
     set((s) => ({ schema: { ...s.schema, [key]: value }, errors: { ...s.errors, [key]: undefined } })),
   setErrors: (errors) => set({ errors }),
@@ -815,6 +826,7 @@ export default function SchemaBuilder() {
     setTests,
     setLoadingTests,
     setSchema,
+    resetSchema,
     setSchemaField,
     addSection,
     setErrors,
@@ -825,7 +837,7 @@ export default function SchemaBuilder() {
   const { schemaId } = useParams();
   const isEditMode = Boolean(schemaId);
 
-  const [loadingSchema, setLoadingSchema] = useState(isEditMode);
+  const [loadingSchema, setLoadingSchema] = useState(false);
   const [loadError, setLoadError] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -837,6 +849,14 @@ export default function SchemaBuilder() {
     setTimeout(() => setToast(null), 3500);
   };
 
+  // ── Reset store when mounting in create mode ──
+  useEffect(() => {
+    if (!isEditMode) {
+      resetSchema();
+    }
+  }, [isEditMode]);
+
+  // ── Load tests ──
   useEffect(() => {
     const loadTests = async () => {
       setLoadingTests(true);
@@ -851,6 +871,7 @@ export default function SchemaBuilder() {
     loadTests();
   }, []);
 
+  // ── Load schema in edit mode ──
   useEffect(() => {
     if (!isEditMode) return;
     const loadSchema = async () => {
@@ -915,7 +936,7 @@ export default function SchemaBuilder() {
         const response = await schemaService.create(payload);
         showToast("success", "Schema saved successfully");
         const newId = response?.data?._id;
-        if (newId) navigate(`/schema/${newId}`, { replace: true });
+        if (newId) navigate(`/schema-builder/${newId}`, { replace: true });
       }
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
@@ -1067,7 +1088,7 @@ export default function SchemaBuilder() {
         <SkeletonLoader />
       ) : (
         <div className="space-y-6">
-          {/* Basic Info Card — name field removed from here, lives in header now */}
+          {/* Basic Info Card */}
           <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
             <div className="flex items-center gap-2 mb-5">
               <div className="p-2 bg-blue-50 rounded-lg">

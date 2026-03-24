@@ -19,6 +19,7 @@ function App() {
         <Route path="/lab-management" element={<LabManagement />} />
         <Route path="/test-catalog" element={<TestCatalog />} />
         <Route path="/schema-engine" element={<SchemaEngine />} />
+        <Route path="/schema-builder" element={<SchemaBuilder />} />
         <Route path="/schema-builder/:schemaId" element={<SchemaBuilder />} />
         <Route path="/schema-renderer/:schemaId" element={<ReportUpload />} />
         <Route path="/report/:schemaId" element={<ReportDownload />} />
