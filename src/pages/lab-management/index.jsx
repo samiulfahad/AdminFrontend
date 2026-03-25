@@ -50,7 +50,6 @@ const DEFAULT_PERMS = {
 };
 
 // ── Shared Primitives ──────────────────────────────────────────────────────────
-
 const FieldInput = ({ label, required, className = "", ...props }) => (
   <div className="flex items-center rounded-xl border border-slate-200 bg-slate-50 overflow-hidden focus-within:border-indigo-400 focus-within:bg-white focus-within:ring-2 focus-within:ring-indigo-400/10 transition-all">
     {label && (
@@ -120,7 +119,6 @@ const Btn = ({ indigo, sm, children, className = "", ...props }) => (
 );
 
 // ── Modal Primitives ───────────────────────────────────────────────────────────
-
 const MHead = ({ icon: Icon, title, sub, onClose }) => (
   <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-4 bg-white border-b border-slate-100">
     <div className="flex items-center gap-3">
@@ -166,7 +164,6 @@ const SectionLabel = ({ children }) => (
 );
 
 // ── Modals ────────────────────────────────────────────────────────────────────
-
 const EditLabModal = ({ isOpen, onClose, lab, onSave }) => {
   const EMPTY = {
     name: "",
@@ -221,7 +218,7 @@ const EditLabModal = ({ isOpen, onClose, lab, onSave }) => {
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="md">
       <form onSubmit={submit}>
-        <MHead icon={Pencil} title="Edit Lab Info" sub={lab?.labID} onClose={onClose} />
+        <MHead icon={Pencil} title="Edit Lab Info" sub={lab?.labKey} onClose={onClose} />
         <div className="px-5 py-4 space-y-3">
           <FieldInput
             label="Lab Name"
@@ -347,7 +344,6 @@ const BillingModal = ({ isOpen, onClose, lab, onSave }) => {
   );
 };
 
-// ── Create Support Admin Modal ─────────────────────────────────────────────────
 const SupportModal = ({ isOpen, onClose, onSave }) => {
   const [pw, setPw] = useState("");
   const [show, setShow] = useState(false);
@@ -403,7 +399,6 @@ const SupportModal = ({ isOpen, onClose, onSave }) => {
   );
 };
 
-// ── Change Support Admin Password Modal ────────────────────────────────────────
 const SupportPasswordModal = ({ isOpen, onClose, onSave }) => {
   const [pw, setPw] = useState("");
   const [show, setShow] = useState(false);
@@ -645,11 +640,7 @@ const StaffModal = ({ isOpen, onClose, onSave, initial, mode }) => {
                   key={key}
                   type="button"
                   onClick={() => togglePerm(key)}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-semibold transition-all ${
-                    form.permissions[key]
-                      ? "bg-indigo-50 text-indigo-700 border-indigo-200"
-                      : "bg-white text-slate-400 border-slate-200 hover:border-indigo-200 hover:text-slate-600"
-                  }`}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-semibold transition-all ${form.permissions[key] ? "bg-indigo-50 text-indigo-700 border-indigo-200" : "bg-white text-slate-400 border-slate-200 hover:border-indigo-200 hover:text-slate-600"}`}
                 >
                   <div
                     className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border transition-all ${form.permissions[key] ? "bg-indigo-500 border-indigo-500" : "border-slate-300"}`}
@@ -707,7 +698,7 @@ const PersonRow = ({ person, onEdit, onToggle, onDelete, showPerms }) => (
             {person.phone}
           </span>
         )}
-        {person.email && person.email !== "supportadmin@system" && (
+        {person.email && (
           <span className="flex items-center gap-1 text-[11px] text-slate-400 truncate">
             <Mail size={10} className="text-slate-300 shrink-0" />
             {person.email}
@@ -818,6 +809,7 @@ const LabDetailPanel = ({ lab, onLabUpdated, showPopup }) => {
       throw e;
     }
   };
+
   const saveBilling = async (b) => {
     try {
       await labService.updateLabBilling(lab._id, b);
@@ -828,6 +820,7 @@ const LabDetailPanel = ({ lab, onLabUpdated, showPopup }) => {
       throw e;
     }
   };
+
   const toggleLab = () =>
     showPopup("warning", `${lab.isActive ? "Deactivate" : "Activate"} "${lab.name}"?`, async () => {
       try {
@@ -838,6 +831,7 @@ const LabDetailPanel = ({ lab, onLabUpdated, showPopup }) => {
         showPopup("error", "Failed.");
       }
     });
+
   const createStaff = async (f) => {
     try {
       await staffService.createMember(lab._id, f);
@@ -848,6 +842,7 @@ const LabDetailPanel = ({ lab, onLabUpdated, showPopup }) => {
       throw e;
     }
   };
+
   const updateStaff = async (f) => {
     try {
       await staffService.update(lab._id, staffM.initial._id, f);
@@ -858,6 +853,7 @@ const LabDetailPanel = ({ lab, onLabUpdated, showPopup }) => {
       throw e;
     }
   };
+
   const createAdmin = async (f) => {
     try {
       await staffService.createAdmin(lab._id, f);
@@ -868,9 +864,12 @@ const LabDetailPanel = ({ lab, onLabUpdated, showPopup }) => {
       throw e;
     }
   };
+
   const updateAdmin = async (f) => {
+    // eslint-disable-next-line no-unused-vars
+    const { permissions, ...payload } = f;
     try {
-      await staffService.update(lab._id, adminM.initial._id, f);
+      await staffService.update(lab._id, adminM.initial._id, payload);
       showPopup("success", "Updated!");
       fetchMembers();
     } catch (e) {
@@ -878,6 +877,7 @@ const LabDetailPanel = ({ lab, onLabUpdated, showPopup }) => {
       throw e;
     }
   };
+
   const createSupport = async (pw) => {
     try {
       await staffService.createSupport(lab._id, { password: pw });
@@ -888,6 +888,7 @@ const LabDetailPanel = ({ lab, onLabUpdated, showPopup }) => {
       throw e;
     }
   };
+
   const updateSupportPassword = async (pw) => {
     try {
       await staffService.updateSupportPassword(lab._id, { password: pw });
@@ -897,6 +898,7 @@ const LabDetailPanel = ({ lab, onLabUpdated, showPopup }) => {
       throw e;
     }
   };
+
   const toggleMember = (p) =>
     showPopup("warning", `${p.isActive ? "Deactivate" : "Activate"} "${p.name}"?`, async () => {
       try {
@@ -907,6 +909,7 @@ const LabDetailPanel = ({ lab, onLabUpdated, showPopup }) => {
         showPopup("error", "Failed.");
       }
     });
+
   const deleteMember = (p) =>
     showPopup(
       "warning",
@@ -915,7 +918,9 @@ const LabDetailPanel = ({ lab, onLabUpdated, showPopup }) => {
         : `Delete "${p.name}"?`,
       async () => {
         try {
-          await staffService.delete(lab._id, p._id);
+          p.role === ROLES.SUPPORT_ADMIN
+            ? await staffService.deleteSupport(lab._id)
+            : await staffService.delete(lab._id, p._id);
           showPopup("success", "Deleted!");
           fetchMembers();
         } catch {
@@ -942,7 +947,7 @@ const LabDetailPanel = ({ lab, onLabUpdated, showPopup }) => {
               </div>
               <span className="flex items-center gap-1 text-xs font-mono text-slate-400">
                 <Hash size={10} className="text-slate-300" />
-                {lab.labID}
+                {lab.labKey}
               </span>
             </div>
           </div>
@@ -1155,7 +1160,7 @@ const LabManagement = () => {
     setLoading(true);
     setSearched(true);
     try {
-      const r = await labService.getLabs({ page: 1, limit: 20, labID: q.trim() });
+      const r = await labService.getLabs({ page: 1, limit: 20, labKey: q.trim() });
       const d = r.data;
       setResults(Array.isArray(d) ? d : (d.data ?? []));
     } catch {
@@ -1177,7 +1182,7 @@ const LabManagement = () => {
       const r = await labService.getLabById(selected._id);
       setSelected(r.data);
       if (query.trim()) {
-        const r2 = await labService.getLabs({ page: 1, limit: 20, labID: query.trim() });
+        const r2 = await labService.getLabs({ page: 1, limit: 20, labKey: query.trim() });
         const d = r2.data;
         setResults(Array.isArray(d) ? d : (d.data ?? []));
       }
@@ -1186,7 +1191,6 @@ const LabManagement = () => {
 
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-6 lg:py-8 max-w-4xl mx-auto">
-      {/* Page header */}
       <div className="flex items-center gap-3 mb-6">
         <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-indigo-400 rounded-xl flex items-center justify-center shrink-0 shadow-md shadow-indigo-200">
           <UserCog size={18} className="text-white" />
@@ -1197,7 +1201,6 @@ const LabManagement = () => {
         </div>
       </div>
 
-      {/* Search card */}
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden mb-4">
         <div
           className={`flex items-center gap-3 px-4 py-3 ${results.length > 0 || searched ? "border-b border-slate-100" : ""}`}
@@ -1282,7 +1285,7 @@ const LabManagement = () => {
                       {lab.name}
                     </p>
                     <p className={`text-[11px] font-mono ${isSelected ? "text-indigo-400" : "text-slate-400"}`}>
-                      #{lab.labID}
+                      #{lab.labKey}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">

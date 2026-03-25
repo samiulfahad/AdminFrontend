@@ -2,9 +2,9 @@ import api from "./baseAPI";
 
 const labService = {
   getStats:         ()                                            => api.get("/labs/stats"),
-  getLabs:          ({ page = 1, limit = 10, labID = "" } = {}) => {
+  getLabs:          ({ page = 1, limit = 10, labKey = "" } = {}) => {
     const params = { page, limit };
-    if (labID) params.labID = labID;
+    if (labKey) params.labKey = labKey;
     return api.get("/labs/all", { params });
   },
   getLabById:       (id)           => api.get(`/labs/${id}`),

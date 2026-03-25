@@ -28,7 +28,7 @@ const LIMIT = 20;
 
 const EMPTY_LAB = {
   name: "",
-  labID: "",
+  labKey: "",
   isActive: true,
   contact: {
     primary: "",
@@ -201,8 +201,8 @@ const LabModal = ({ isOpen, onClose, onSubmit }) => {
               <TextInput label="Lab Name *" value={form.name} onChange={set("name")} placeholder="City Diagnostic" />
               <TextInput
                 label="Lab ID (5 digits) *"
-                value={form.labID}
-                onChange={(e) => setForm((f) => ({ ...f, labID: e.target.value.replace(/\D/g, "").slice(0, 5) }))}
+                value={form.labKey}
+                onChange={(e) => setForm((f) => ({ ...f, labKey: e.target.value.replace(/\D/g, "").slice(0, 5) }))}
                 placeholder="12345"
                 maxLength={5}
               />
@@ -406,7 +406,7 @@ const LabRow = ({ lab, index }) => (
       <div className="flex flex-wrap gap-x-3 gap-y-0.5">
         <span className="flex items-center gap-1 text-[11px] text-slate-400 font-mono">
           <Hash size={10} className="text-slate-300" />
-          {lab.labID}
+          {lab.labKey}
         </span>
         {lab.contact?.primary && (
           <span className="flex items-center gap-1 text-[11px] text-slate-400">
@@ -547,7 +547,7 @@ const Labs = () => {
   const fetchLabs = async (p, q, opts = {}) => {
     opts.isSearch ? setSearchLoading(true) : setLoading(true);
     try {
-      const res = await labService.getLabs({ page: p, limit: LIMIT, labID: q.trim() });
+      const res = await labService.getLabs({ page: p, limit: LIMIT, labKey: q.trim() });
       const d = res.data;
       setLabs(Array.isArray(d) ? d : (d.data ?? []));
       setTotal(Array.isArray(d) ? d.length : (d.total ?? 0));
@@ -587,7 +587,7 @@ const Labs = () => {
     try {
       await labService.createLab({
         name: form.name,
-        labID: form.labID,
+        labKey: form.labKey,
         contact: form.contact,
         isActive: form.isActive,
         billing: {
