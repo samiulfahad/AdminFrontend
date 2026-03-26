@@ -27,6 +27,7 @@ import Modal from "../../components/modal";
 import Popup from "../../components/popup";
 import labService from "../../api/labService";
 import staffService from "../../api/staffService";
+import zoneService from "../../api/zoneService"; // <-- new import
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 const ROLES = { ADMIN: "admin", STAFF: "staff", SUPPORT_ADMIN: "supportAdmin" };
@@ -62,6 +63,24 @@ const FieldInput = ({ label, required, className = "", ...props }) => (
       className={`flex-1 px-3 py-2.5 text-[13px] bg-transparent text-slate-800 placeholder-slate-300 focus:outline-none font-[inherit] ${className}`}
       {...props}
     />
+  </div>
+);
+
+// New SelectInput for zones
+const SelectInput = ({ label, required, className = "", children, ...props }) => (
+  <div className="flex items-center rounded-xl border border-slate-200 bg-slate-50 overflow-hidden focus-within:border-indigo-400 focus-within:bg-white focus-within:ring-2 focus-within:ring-indigo-400/10 transition-all">
+    {label && (
+      <span className="px-3 text-[11px] font-semibold text-slate-400 whitespace-nowrap border-r border-slate-200 bg-slate-100 self-stretch flex items-center min-w-[100px]">
+        {label}
+        {required && <span className="text-red-400 ml-0.5">*</span>}
+      </span>
+    )}
+    <select
+      className={`flex-1 px-3 py-2.5 text-[13px] bg-transparent text-slate-800 focus:outline-none font-[inherit] ${className}`}
+      {...props}
+    >
+      {children}
+    </select>
   </div>
 );
 
@@ -164,51 +183,77 @@ const SectionLabel = ({ children }) => (
 );
 
 // ── Modals ────────────────────────────────────────────────────────────────────
+// UPDATED EditLabModal – matches registration layout
 const EditLabModal = ({ isOpen, onClose, lab, onSave }) => {
   const EMPTY = {
     name: "",
-    primary: "",
-    secondary: "",
-    publicEmail: "",
-    privateEmail: "",
-    address: "",
-    district: "",
-    zone: "",
+    labKey: "",
+    isActive: true,
+    contact: {
+      primary: "",
+      secondary: "",
+      publicEmail: "",
+      privateEmail: "",
+      address: "",
+      district: "",
+      zone: "",
+      zoneId: "",
+    },
   };
   const [form, setForm] = useState(EMPTY);
   const [loading, setLoading] = useState(false);
+  const [zones, setZones] = useState([]);
 
   useEffect(() => {
-    if (isOpen && lab)
+    if (!isOpen) return;
+    // fetch zones for dropdown
+    zoneService
+      .getZones()
+      .then((r) => setZones(Array.isArray(r.data) ? r.data : (r.data?.data ?? [])))
+      .catch(() => setZones([]));
+
+    if (lab) {
       setForm({
         name: lab.name ?? "",
-        primary: lab.contact?.primary ?? "",
-        secondary: lab.contact?.secondary ?? "",
-        publicEmail: lab.contact?.publicEmail ?? "",
-        privateEmail: lab.contact?.privateEmail ?? "",
-        address: lab.contact?.address ?? "",
-        district: lab.contact?.district ?? "",
-        zone: lab.contact?.zone ?? "",
+        labKey: lab.labKey ?? "",
+        isActive: lab.isActive ?? true,
+        contact: {
+          primary: lab.contact?.primary ?? "",
+          secondary: lab.contact?.secondary ?? "",
+          publicEmail: lab.contact?.publicEmail ?? "",
+          privateEmail: lab.contact?.privateEmail ?? "",
+          address: lab.contact?.address ?? "",
+          district: lab.contact?.district ?? "",
+          zone: lab.contact?.zone ?? "",
+          zoneId: lab.contact?.zoneId ?? "",
+        },
       });
+    }
   }, [isOpen, lab]);
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const setC = (k) => (e) => setForm((f) => ({ ...f, contact: { ...f.contact, [k]: e.target.value } }));
+
+  const handleZoneChange = (e) => {
+    const zoneId = e.target.value;
+    const zone = zones.find((z) => z._id === zoneId);
+    setForm((f) => ({
+      ...f,
+      contact: {
+        ...f.contact,
+        zoneId,
+        zone: zone?.name ?? "",
+      },
+    }));
+  };
+
   const submit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      await onSave({
-        name: form.name,
-        contact: {
-          primary: form.primary,
-          secondary: form.secondary,
-          publicEmail: form.publicEmail,
-          privateEmail: form.privateEmail,
-          address: form.address,
-          district: form.district,
-          zone: form.zone,
-        },
-      });
+      // remove labKey because it's not updatable
+      const { labKey, ...payload } = form;
+      await onSave(payload);
       onClose();
     } finally {
       setLoading(false);
@@ -219,50 +264,82 @@ const EditLabModal = ({ isOpen, onClose, lab, onSave }) => {
     <Modal isOpen={isOpen} onClose={onClose} size="md">
       <form onSubmit={submit}>
         <MHead icon={Pencil} title="Edit Lab Info" sub={lab?.labKey} onClose={onClose} />
-        <div className="px-5 py-4 space-y-3">
-          <FieldInput
-            label="Lab Name"
-            value={form.name}
-            onChange={set("name")}
-            required
-            placeholder="e.g. Dhaka Diagnostic"
-          />
+        <div className="px-5 py-4 space-y-4">
+          {/* Lab name & key */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <FieldInput
+              label="Lab Name"
+              value={form.name}
+              onChange={set("name")}
+              required
+              placeholder="e.g. Dhaka Diagnostic"
+            />
+            <FieldInput label="Lab ID" value={form.labKey} disabled className="bg-slate-100 text-slate-500" />
+          </div>
+
+          {/* Status toggle */}
+          <div className="flex items-center justify-between px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50">
+            <span className="text-[11px] font-semibold text-slate-400">Status</span>
+            <SwitchToggle active={form.isActive} onChange={(v) => setForm((f) => ({ ...f, isActive: v }))} />
+          </div>
+
+          {/* Contact section */}
           <SectionLabel>Contact</SectionLabel>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            <FieldInput label="Primary" type="tel" value={form.primary} onChange={set("primary")} placeholder="+880…" />
+            <FieldInput
+              label="Primary"
+              type="tel"
+              value={form.contact.primary}
+              onChange={setC("primary")}
+              placeholder="+880…"
+            />
             <FieldInput
               label="Secondary"
               type="tel"
-              value={form.secondary}
-              onChange={set("secondary")}
+              value={form.contact.secondary}
+              onChange={setC("secondary")}
               placeholder="Optional"
             />
             <FieldInput
               label="Public Email"
               type="email"
-              value={form.publicEmail}
-              onChange={set("publicEmail")}
+              value={form.contact.publicEmail}
+              onChange={setC("publicEmail")}
               placeholder="Shown publicly"
             />
             <FieldInput
               label="Private Email"
               type="email"
-              value={form.privateEmail}
-              onChange={set("privateEmail")}
+              value={form.contact.privateEmail}
+              onChange={setC("privateEmail")}
               placeholder="Internal only"
             />
           </div>
+
+          {/* Address section */}
           <SectionLabel>Address</SectionLabel>
           <div className="space-y-2.5">
             <FieldInput
-              label="Street"
-              value={form.address}
-              onChange={set("address")}
+              label="Full Address"
+              value={form.contact.address}
+              onChange={setC("address")}
               placeholder="Full street address"
             />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              <FieldInput label="District" value={form.district} onChange={set("district")} placeholder="e.g. Dhaka" />
-              <FieldInput label="Zone" value={form.zone} onChange={set("zone")} placeholder="e.g. North" />
+              <FieldInput
+                label="District"
+                value={form.contact.district}
+                onChange={setC("district")}
+                placeholder="e.g. Dhaka"
+              />
+              <SelectInput label="Zone" value={form.contact.zoneId} onChange={handleZoneChange}>
+                <option value="">— Select zone —</option>
+                {zones.map((z) => (
+                  <option key={z._id} value={z._id}>
+                    {z.name}
+                  </option>
+                ))}
+              </SelectInput>
             </div>
           </div>
         </div>
@@ -272,6 +349,7 @@ const EditLabModal = ({ isOpen, onClose, lab, onSave }) => {
   );
 };
 
+// The rest of the modals (BillingModal, SupportModal, etc.) remain unchanged
 const BillingModal = ({ isOpen, onClose, lab, onSave }) => {
   const [form, setForm] = useState({ perInvoiceFee: "", monthlyFee: "", commission: "" });
   const [loading, setLoading] = useState(false);
