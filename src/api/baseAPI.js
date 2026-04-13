@@ -6,7 +6,7 @@ const railway = "adminbackend-production-df9b.up.railway.app/api/v1"
 const local = "http://127.0.0.1:5000/api/v1";
 
 const api = axios.create({
-  baseURL: local,
+  baseURL: railway,
   timeout: 10000,
 });
 
