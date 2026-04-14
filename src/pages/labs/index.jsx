@@ -80,10 +80,12 @@ const EMPTY_STAFF = {
 const TextInput = ({ label, ...props }) => (
   <div>
     {label && (
-      <label className="block text-[10.5px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">{label}</label>
+      <label className="block text-[10.5px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5">
+        {label}
+      </label>
     )}
     <input
-      className="w-full px-3 py-2.5 text-[13.5px] rounded-xl border border-slate-200 bg-slate-50 text-slate-800 placeholder-slate-300 outline-none transition-all focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-400/10"
+      className="w-full px-3 py-2.5 text-[13.5px] rounded-xl border border-slate-200 bg-white text-slate-800 placeholder-slate-300 outline-none transition-all focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/10"
       {...props}
     />
   </div>
@@ -94,12 +96,14 @@ const PasswordInput = ({ label, ...props }) => {
   return (
     <div>
       {label && (
-        <label className="block text-[10.5px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">{label}</label>
+        <label className="block text-[10.5px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5">
+          {label}
+        </label>
       )}
       <div className="relative">
         <input
           type={show ? "text" : "password"}
-          className="w-full px-3 py-2.5 pr-10 text-[13.5px] rounded-xl border border-slate-200 bg-slate-50 text-slate-800 placeholder-slate-300 outline-none transition-all focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-400/10"
+          className="w-full px-3 py-2.5 pr-10 text-[13.5px] rounded-xl border border-slate-200 bg-white text-slate-800 placeholder-slate-300 outline-none transition-all focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/10"
           {...props}
         />
         <button
@@ -117,10 +121,12 @@ const PasswordInput = ({ label, ...props }) => {
 const SelectInput = ({ label, children, ...props }) => (
   <div>
     {label && (
-      <label className="block text-[10.5px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">{label}</label>
+      <label className="block text-[10.5px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5">
+        {label}
+      </label>
     )}
     <select
-      className="w-full px-3 py-2.5 text-[13.5px] rounded-xl border border-slate-200 bg-slate-50 text-slate-800 outline-none transition-all focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-400/10"
+      className="w-full px-3 py-2.5 text-[13.5px] rounded-xl border border-slate-200 bg-white text-slate-800 outline-none transition-all focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/10"
       {...props}
     >
       {children}
@@ -149,9 +155,11 @@ const SwitchToggle = ({ active, onChange }) => (
 
 const StatusBadge = ({ active }) => (
   <span
-    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border select-none ${active ? "bg-indigo-50 text-indigo-600 border-indigo-200" : "bg-slate-100 text-slate-400 border-slate-200"}`}
+    className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-semibold border select-none ${
+      active ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-slate-100 text-slate-400 border-slate-200"
+    }`}
   >
-    <span className={`w-1.5 h-1.5 rounded-full ${active ? "bg-indigo-500" : "bg-slate-300"}`} />
+    <span className={`w-1.5 h-1.5 rounded-full ${active ? "bg-emerald-500" : "bg-slate-300"}`} />
     {active ? "Active" : "Inactive"}
   </span>
 );
@@ -179,12 +187,12 @@ const LAB_TYPE_META = {
   diagnostic: {
     label: "Diagnostic",
     icon: FlaskConical,
-    color: "bg-indigo-50 text-indigo-500 border-indigo-200",
+    color: "bg-indigo-50 text-indigo-600 border-indigo-200",
   },
   hospital: {
     label: "Hospital",
     icon: Building2,
-    color: "bg-rose-50 text-rose-500 border-rose-200",
+    color: "bg-rose-50 text-rose-600 border-rose-200",
   },
 };
 
@@ -195,7 +203,7 @@ const LabTypeBadge = ({ type }) => {
   const Icon = meta.icon;
   return (
     <span
-      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9.5px] font-bold border ${meta.color}`}
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold border ${meta.color}`}
     >
       <Icon size={9} />
       {meta.label}
@@ -212,7 +220,7 @@ const LabViewModal = ({ isOpen, onClose, lab }) => {
     <div>
       <div className="flex items-center gap-2 mb-3">
         <Icon size={12} className="text-slate-400" />
-        <p className="text-[10.5px] font-bold text-slate-400 uppercase tracking-widest">{title}</p>
+        <p className="text-[10.5px] font-semibold text-slate-400 uppercase tracking-widest">{title}</p>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 px-4 py-3.5 rounded-xl border border-slate-100 bg-slate-50">
         {children}
@@ -231,25 +239,22 @@ const LabViewModal = ({ isOpen, onClose, lab }) => {
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="md">
       <div className="flex flex-col">
-        {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
           <div className="flex items-center gap-3">
             <div
-              className={`w-9 h-9 rounded-xl flex items-center justify-center shadow-md shrink-0 ${
-                lab.type === "hospital"
-                  ? "bg-gradient-to-br from-rose-500 to-rose-400 shadow-rose-200"
-                  : "bg-gradient-to-br from-indigo-500 to-indigo-400 shadow-indigo-200"
+              className={`w-9 h-9 rounded-xl flex items-center justify-center shadow-sm shrink-0 border ${
+                lab.type === "hospital" ? "bg-rose-50 border-rose-200" : "bg-indigo-50 border-indigo-200"
               }`}
             >
               {lab.type === "hospital" ? (
-                <Building2 size={16} className="text-white" />
+                <Building2 size={16} className="text-rose-500" />
               ) : (
-                <FlaskConical size={16} className="text-white" />
+                <FlaskConical size={16} className="text-indigo-500" />
               )}
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <p className="text-sm font-black text-slate-800 tracking-tight leading-none">{lab.name}</p>
+                <p className="text-sm font-bold text-slate-800 tracking-tight leading-none">{lab.name}</p>
                 <LabTypeBadge type={lab.type} />
               </div>
               <div className="flex items-center gap-3 mt-1">
@@ -263,15 +268,13 @@ const LabViewModal = ({ isOpen, onClose, lab }) => {
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 border border-transparent hover:border-slate-200 transition"
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 border border-slate-200 transition"
           >
             <X size={14} />
           </button>
         </div>
 
-        {/* Body */}
         <div className="flex flex-col gap-4 p-5 overflow-y-auto max-h-[70vh]">
-          {/* Basic Info */}
           <Section icon={Building2} title="Basic Info">
             <Field label="Lab Name" value={lab.name} />
             <Field label="Lab ID" value={lab.labKey} />
@@ -282,7 +285,6 @@ const LabViewModal = ({ isOpen, onClose, lab }) => {
             <Field label="Registration No." value={lab.registrationNumber} />
           </Section>
 
-          {/* Contact */}
           <Section icon={Phone} title="Contact">
             <Field label="Primary Phone" value={lab.contact?.primary} />
             <Field label="Secondary Phone" value={lab.contact?.secondary} />
@@ -293,7 +295,6 @@ const LabViewModal = ({ isOpen, onClose, lab }) => {
             <Field label="Address" value={lab.contact?.address} full />
           </Section>
 
-          {/* Billing */}
           <Section icon={CreditCard} title="Billing">
             <div className="sm:col-span-2">
               <div className="grid grid-cols-3 divide-x divide-slate-100 border border-slate-100 rounded-xl overflow-hidden">
@@ -303,8 +304,8 @@ const LabViewModal = ({ isOpen, onClose, lab }) => {
                   ["Commission", `৳${lab.billing?.commission ?? 0}`, "bg-amber-50", "text-amber-600"],
                 ].map(([l, v, bg, color]) => (
                   <div key={l} className={`${bg} text-center py-4`}>
-                    <p className="text-[9.5px] font-bold text-slate-400 uppercase tracking-widest">{l}</p>
-                    <p className={`text-xl font-black mt-1 tracking-tight ${color}`}>{v}</p>
+                    <p className="text-[9.5px] font-semibold text-slate-400 uppercase tracking-widest">{l}</p>
+                    <p className={`text-xl font-bold mt-1 tracking-tight ${color}`}>{v}</p>
                   </div>
                 ))}
               </div>
@@ -312,7 +313,6 @@ const LabViewModal = ({ isOpen, onClose, lab }) => {
           </Section>
         </div>
 
-        {/* Footer */}
         <div className="flex items-center justify-end gap-2 px-5 py-3.5 bg-slate-50 border-t border-slate-100">
           <button
             type="button"
@@ -403,11 +403,10 @@ const LabModal = ({ isOpen, onClose, onSubmit, editLab = null }) => {
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="md">
       <div className="flex flex-col min-h-full">
-        {/* Sticky header */}
         <div className="sticky top-0 z-10 bg-white border-b border-slate-100">
           <div className="flex items-center justify-between px-5 py-4">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-400 flex items-center justify-center shadow-md shadow-indigo-200 shrink-0">
+              <div className="w-9 h-9 rounded-xl bg-indigo-500 flex items-center justify-center shrink-0">
                 {isEdit ? (
                   <Pencil size={15} className="text-white" />
                 ) : (
@@ -415,7 +414,7 @@ const LabModal = ({ isOpen, onClose, onSubmit, editLab = null }) => {
                 )}
               </div>
               <div>
-                <p className="text-sm font-black text-slate-800 tracking-tight leading-none">
+                <p className="text-sm font-bold text-slate-800 tracking-tight leading-none">
                   {isEdit ? `Edit — ${editLab.name}` : "Register Lab"}
                 </p>
                 <p className="text-[11px] text-slate-400 mt-1">
@@ -425,7 +424,7 @@ const LabModal = ({ isOpen, onClose, onSubmit, editLab = null }) => {
             </div>
             <button
               onClick={onClose}
-              className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 border border-transparent hover:border-slate-200 transition"
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 border border-slate-200 transition"
             >
               <X size={14} />
             </button>
@@ -456,7 +455,6 @@ const LabModal = ({ isOpen, onClose, onSubmit, editLab = null }) => {
           </div>
         </div>
 
-        {/* Form body */}
         <div className="flex-1 overflow-y-auto">
           {/* INFO */}
           <div className={`${tab === "info" ? "flex" : "hidden"} flex-col gap-4 p-5`}>
@@ -478,9 +476,8 @@ const LabModal = ({ isOpen, onClose, onSubmit, editLab = null }) => {
               </p>
             )}
 
-            {/* Lab Type */}
             <div>
-              <label className="block text-[10.5px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+              <label className="block text-[10.5px] font-semibold text-slate-400 uppercase tracking-widest mb-2">
                 Lab Type <span className="normal-case font-normal text-slate-300">(optional)</span>
               </label>
               <div className="grid grid-cols-2 gap-2">
@@ -495,8 +492,8 @@ const LabModal = ({ isOpen, onClose, onSubmit, editLab = null }) => {
                         ${
                           isSelected
                             ? value === "hospital"
-                              ? "bg-rose-50 border-rose-300 text-rose-700 shadow-sm"
-                              : "bg-indigo-50 border-indigo-300 text-indigo-700 shadow-sm"
+                              ? "bg-rose-50 border-rose-300 text-rose-700"
+                              : "bg-indigo-50 border-indigo-300 text-indigo-700"
                             : "bg-white border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-500"
                         }`}
                     >
@@ -513,7 +510,6 @@ const LabModal = ({ isOpen, onClose, onSubmit, editLab = null }) => {
               </div>
             </div>
 
-            {/* Registration Number */}
             <TextInput
               label="Registration Number"
               value={form.registrationNumber}
@@ -570,7 +566,10 @@ const LabModal = ({ isOpen, onClose, onSubmit, editLab = null }) => {
                 value={form.contact.zoneId}
                 onChange={(e) => {
                   const z = zones.find((z) => z._id === e.target.value);
-                  setForm((f) => ({ ...f, contact: { ...f.contact, zone: z?.name ?? "", zoneId: e.target.value } }));
+                  setForm((f) => ({
+                    ...f,
+                    contact: { ...f.contact, zone: z?.name ?? "", zoneId: e.target.value },
+                  }));
                 }}
               >
                 <option value="">— Select zone —</option>
@@ -621,15 +620,14 @@ const LabModal = ({ isOpen, onClose, onSubmit, editLab = null }) => {
                 ["Commission", `৳${form.billing.commission || 0}`, "bg-amber-50", "text-amber-600"],
               ].map(([l, v, bg, color]) => (
                 <div key={l} className={`${bg} text-center py-4`}>
-                  <p className="text-[9.5px] font-bold text-slate-400 uppercase tracking-widest">{l}</p>
-                  <p className={`text-xl font-black mt-1 tracking-tight ${color}`}>{v}</p>
+                  <p className="text-[9.5px] font-semibold text-slate-400 uppercase tracking-widest">{l}</p>
+                  <p className={`text-xl font-bold mt-1 tracking-tight ${color}`}>{v}</p>
                 </div>
               ))}
             </div>
           </div>
         </div>
 
-        {/* Sticky footer */}
         <div className="sticky bottom-0 z-10 flex items-center justify-between px-5 py-3.5 bg-slate-50 border-t border-slate-100">
           <button
             type="button"
@@ -653,7 +651,7 @@ const LabModal = ({ isOpen, onClose, onSubmit, editLab = null }) => {
                 type="button"
                 onClick={handleSubmit}
                 disabled={loading}
-                className="flex items-center gap-2 px-5 py-2 text-xs font-bold text-white bg-gradient-to-br from-indigo-500 to-indigo-400 rounded-lg shadow-md shadow-indigo-200 hover:from-indigo-600 hover:to-indigo-500 disabled:opacity-60 transition-all"
+                className="flex items-center gap-2 px-5 py-2 text-xs font-bold text-white bg-indigo-500 rounded-lg hover:bg-indigo-600 disabled:opacity-60 transition-all"
               >
                 {loading && (
                   <div className="w-3.5 h-3.5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
@@ -664,7 +662,7 @@ const LabModal = ({ isOpen, onClose, onSubmit, editLab = null }) => {
               <button
                 type="button"
                 onClick={() => setTab(LAB_TABS[tabIdx + 1].id)}
-                className="flex items-center gap-1.5 px-5 py-2 text-xs font-bold text-white bg-gradient-to-br from-indigo-500 to-indigo-400 rounded-lg shadow-md shadow-indigo-200 hover:from-indigo-600 hover:to-indigo-500 transition-all"
+                className="flex items-center gap-1.5 px-5 py-2 text-xs font-bold text-white bg-indigo-500 rounded-lg hover:bg-indigo-600 transition-all"
               >
                 Next <ChevronRight size={14} />
               </button>
@@ -723,7 +721,10 @@ const StaffModal = ({ isOpen, onClose, onSubmit, editStaff = null, labId }) => {
   const allPerms = Object.values(form.permissions).every(Boolean);
   const toggleAll = () => {
     const next = !allPerms;
-    setForm((f) => ({ ...f, permissions: Object.fromEntries(Object.keys(f.permissions).map((k) => [k, next])) }));
+    setForm((f) => ({
+      ...f,
+      permissions: Object.fromEntries(Object.keys(f.permissions).map((k) => [k, next])),
+    }));
   };
 
   const isSupportRole = form.role === "support";
@@ -742,14 +743,13 @@ const StaffModal = ({ isOpen, onClose, onSubmit, editStaff = null, labId }) => {
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="sm">
       <div className="flex flex-col">
-        {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-violet-400 flex items-center justify-center shadow-md shadow-violet-200 shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-violet-500 flex items-center justify-center shrink-0">
               <Users size={15} className="text-white" />
             </div>
             <div>
-              <p className="text-sm font-black text-slate-800 tracking-tight leading-none">
+              <p className="text-sm font-bold text-slate-800 tracking-tight leading-none">
                 {isEdit ? "Edit Staff Member" : "Add Staff Member"}
               </p>
               <p className="text-[11px] text-slate-400 mt-1">{isEdit ? editStaff.name : "Fill in the details below"}</p>
@@ -757,17 +757,16 @@ const StaffModal = ({ isOpen, onClose, onSubmit, editStaff = null, labId }) => {
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 border border-transparent hover:border-slate-200 transition"
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 border border-slate-200 transition"
           >
             <X size={14} />
           </button>
         </div>
 
-        {/* Body */}
         <div className="flex flex-col gap-4 p-5 overflow-y-auto max-h-[60vh]">
           {!isEdit && (
             <div>
-              <label className="block text-[10.5px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+              <label className="block text-[10.5px] font-semibold text-slate-400 uppercase tracking-widest mb-2">
                 Role *
               </label>
               <div className="grid grid-cols-3 gap-2">
@@ -777,7 +776,11 @@ const StaffModal = ({ isOpen, onClose, onSubmit, editStaff = null, labId }) => {
                     type="button"
                     onClick={() => setForm((f) => ({ ...f, role: value }))}
                     className={`flex flex-col items-center gap-1.5 py-2.5 px-2 rounded-xl border text-[11px] font-semibold transition-all cursor-pointer
-                      ${form.role === value ? color + " shadow-sm" : "bg-white border-slate-200 text-slate-400 hover:border-slate-300"}`}
+                      ${
+                        form.role === value
+                          ? color + " shadow-sm"
+                          : "bg-white border-slate-200 text-slate-400 hover:border-slate-300"
+                      }`}
                   >
                     <Icon size={14} />
                     {label}
@@ -837,7 +840,7 @@ const StaffModal = ({ isOpen, onClose, onSubmit, editStaff = null, labId }) => {
               {(form.role === "staff" || (isEdit && editStaff?.role === "staff")) && (
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <label className="block text-[10.5px] font-bold text-slate-400 uppercase tracking-widest">
+                    <label className="block text-[10.5px] font-semibold text-slate-400 uppercase tracking-widest">
                       Permissions
                     </label>
                     <button
@@ -859,7 +862,6 @@ const StaffModal = ({ isOpen, onClose, onSubmit, editStaff = null, labId }) => {
           )}
         </div>
 
-        {/* Footer */}
         <div className="flex items-center justify-end gap-2 px-5 py-3.5 bg-slate-50 border-t border-slate-100">
           <button
             type="button"
@@ -872,7 +874,7 @@ const StaffModal = ({ isOpen, onClose, onSubmit, editStaff = null, labId }) => {
             type="button"
             onClick={handleSubmit}
             disabled={loading}
-            className="flex items-center gap-2 px-5 py-2 text-xs font-bold text-white bg-gradient-to-br from-violet-500 to-violet-400 rounded-lg shadow-md shadow-violet-200 hover:from-violet-600 hover:to-violet-500 disabled:opacity-60 transition-all"
+            className="flex items-center gap-2 px-5 py-2 text-xs font-bold text-white bg-violet-500 rounded-lg hover:bg-violet-600 disabled:opacity-60 transition-all"
           >
             {loading && (
               <div className="w-3.5 h-3.5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
@@ -994,11 +996,11 @@ const StaffPanel = ({ lab, onClose, showPopup }) => {
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-white">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-violet-400 flex items-center justify-center shadow-md shadow-violet-200 shrink-0">
+          <div className="w-9 h-9 rounded-xl bg-violet-500 flex items-center justify-center shrink-0">
             <Users size={15} className="text-white" />
           </div>
           <div>
-            <p className="text-sm font-black text-slate-800 tracking-tight leading-none">Staff — {lab.name}</p>
+            <p className="text-sm font-bold text-slate-800 tracking-tight leading-none">Staff — {lab.name}</p>
             <p className="text-[11px] text-slate-400 mt-1">
               {staffList.length} member{staffList.length !== 1 ? "s" : ""}
             </p>
@@ -1007,13 +1009,13 @@ const StaffPanel = ({ lab, onClose, showPopup }) => {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setStaffModal({ open: true, edit: null })}
-            className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-white bg-gradient-to-br from-violet-500 to-violet-400 rounded-lg shadow-sm shadow-violet-200 hover:from-violet-600 hover:to-violet-500 transition-all"
+            className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-white bg-violet-500 rounded-lg hover:bg-violet-600 transition-all"
           >
             <Plus size={12} /> Add
           </button>
           <button
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 border border-transparent hover:border-slate-200 transition"
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 border border-slate-200 transition"
           >
             <X size={14} />
           </button>
@@ -1074,14 +1076,14 @@ const StaffPanel = ({ lab, onClose, showPopup }) => {
                 <div className="flex items-center gap-1 shrink-0">
                   <button
                     onClick={() => setStaffModal({ open: true, edit: member })}
-                    className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition border border-transparent hover:border-indigo-200"
+                    className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition border border-slate-200 hover:border-indigo-200"
                     title="Edit"
                   >
                     <Pencil size={12} />
                   </button>
                   <button
                     onClick={() => handleToggleActive(member)}
-                    className={`w-7 h-7 flex items-center justify-center rounded-lg transition border border-transparent
+                    className={`w-7 h-7 flex items-center justify-center rounded-lg transition border border-slate-200
                       ${member.isActive ? "text-slate-400 hover:text-amber-600 hover:bg-amber-50 hover:border-amber-200" : "text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 hover:border-emerald-200"}`}
                     title={member.isActive ? "Deactivate" : "Activate"}
                   >
@@ -1089,7 +1091,7 @@ const StaffPanel = ({ lab, onClose, showPopup }) => {
                   </button>
                   <button
                     onClick={() => handleDelete(member)}
-                    className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition border border-transparent hover:border-rose-200"
+                    className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition border border-slate-200 hover:border-rose-200"
                     title="Delete"
                   >
                     <Trash2 size={12} />
@@ -1140,39 +1142,53 @@ const StaffDrawer = ({ lab, onClose, showPopup }) => {
 
 /* ─── Stat Card ──────────────────────────────────────────── */
 
-const STAT_VARIANTS = {
-  indigo:
-    "bg-indigo-50  border-indigo-100  [&_.icon]:bg-indigo-100  [&_.icon]:border-indigo-200  [&_.icon-el]:text-indigo-500  [&_.val]:text-indigo-700",
-  green:
-    "bg-emerald-50 border-emerald-100 [&_.icon]:bg-emerald-100 [&_.icon]:border-emerald-200 [&_.icon-el]:text-emerald-500 [&_.val]:text-emerald-700",
-  slate:
-    "bg-slate-50   border-slate-200   [&_.icon]:bg-slate-100   [&_.icon]:border-slate-200   [&_.icon-el]:text-slate-400   [&_.val]:text-slate-700",
-  amber:
-    "bg-amber-50   border-amber-100   [&_.icon]:bg-amber-100   [&_.icon]:border-amber-200   [&_.icon-el]:text-amber-500   [&_.val]:text-amber-700",
+const StatCard = ({ icon: Icon, label, value, color = "slate" }) => {
+  const styles = {
+    indigo: {
+      wrap: "bg-white border-slate-100",
+      icon: "bg-indigo-50 border-indigo-100 text-indigo-500",
+      val: "text-slate-800",
+    },
+    green: {
+      wrap: "bg-white border-slate-100",
+      icon: "bg-emerald-50 border-emerald-100 text-emerald-600",
+      val: "text-slate-800",
+    },
+    slate: {
+      wrap: "bg-white border-slate-100",
+      icon: "bg-slate-50 border-slate-200 text-slate-400",
+      val: "text-slate-800",
+    },
+  };
+  const s = styles[color] ?? styles.slate;
+  return (
+    <div className={`flex items-center gap-3 px-4 py-3.5 rounded-xl border ${s.wrap}`}>
+      <div className={`w-9 h-9 rounded-lg border flex items-center justify-center shrink-0 ${s.icon}`}>
+        <Icon size={16} />
+      </div>
+      <div>
+        <p className={`text-xl font-bold leading-none tracking-tight ${s.val}`}>{value}</p>
+        <p className="text-[11px] text-slate-400 mt-1">{label}</p>
+      </div>
+    </div>
+  );
 };
-
-const StatCard = ({ icon: Icon, label, value, sub, color = "slate" }) => (
-  <div className={`flex items-center gap-3 px-4 py-3.5 rounded-2xl border ${STAT_VARIANTS[color]}`}>
-    <div className="icon w-10 h-10 rounded-xl border flex items-center justify-center shrink-0">
-      <Icon size={17} className="icon-el" />
-    </div>
-    <div className="min-w-0">
-      <p className="val text-xl font-black leading-none tracking-tight">{value}</p>
-      <p className="text-[11px] text-slate-400 mt-1">{label}</p>
-      {sub && <p className="text-[10px] text-slate-300 mt-0.5">{sub}</p>}
-    </div>
-  </div>
-);
 
 /* ─── Lab Row ────────────────────────────────────────────── */
 
 const LabRow = ({ lab, index, onView, onEdit, onManageStaff }) => (
   <div
-    className="group flex items-center gap-3 px-4 py-3 rounded-2xl border border-slate-100 bg-white hover:border-indigo-200 hover:shadow-sm transition-all"
+    className="flex items-center gap-3 px-4 py-3 rounded-xl border border-slate-100 bg-white hover:border-slate-200 hover:shadow-sm transition-all"
     style={{ animationDelay: `${index * 0.03}s` }}
   >
     <div
-      className={`w-9 h-9 rounded-xl shrink-0 flex items-center justify-center border ${lab.isActive ? "bg-indigo-50 border-indigo-200" : "bg-slate-50 border-slate-200"}`}
+      className={`w-9 h-9 rounded-xl shrink-0 flex items-center justify-center border ${
+        lab.isActive
+          ? lab.type === "hospital"
+            ? "bg-rose-50 border-rose-200"
+            : "bg-indigo-50 border-indigo-200"
+          : "bg-slate-50 border-slate-200"
+      }`}
     >
       {lab.type === "hospital" ? (
         <Building2 size={15} className={lab.isActive ? "text-rose-500" : "text-slate-400"} />
@@ -1183,8 +1199,9 @@ const LabRow = ({ lab, index, onView, onEdit, onManageStaff }) => (
 
     <div className="flex-1 min-w-0">
       <div className="flex items-center gap-2 mb-1">
-        <p className="text-[13.5px] font-bold text-slate-800 leading-snug">{lab.name}</p>
+        <p className="text-[13.5px] font-semibold text-slate-800 leading-snug">{lab.name}</p>
         <LabTypeBadge type={lab.type} />
+        <StatusBadge active={lab.isActive} />
       </div>
       <div className="flex flex-wrap gap-x-3 gap-y-0.5">
         <span className="flex items-center gap-1 text-[11px] text-slate-400 font-mono">
@@ -1217,36 +1234,31 @@ const LabRow = ({ lab, index, onView, onEdit, onManageStaff }) => (
           key={l}
           className="flex flex-col items-center px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-100 min-w-[68px]"
         >
-          <span className="text-[11px] font-bold text-indigo-500">{v}</span>
-          <span className="text-[9px] text-slate-300 uppercase tracking-wide mt-0.5">{l}</span>
+          <span className="text-[11px] font-semibold text-indigo-500">{v}</span>
+          <span className="text-[9px] text-slate-400 uppercase tracking-wide mt-0.5">{l}</span>
         </div>
       ))}
     </div>
 
-    {/* Status badge */}
-    <div className="shrink-0 hidden sm:block">
-      <StatusBadge active={lab.isActive} />
-    </div>
-
-    {/* Action buttons */}
-    <div className="flex items-center gap-1 shrink-0 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
+    {/* Action buttons — always visible */}
+    <div className="flex items-center gap-1 shrink-0">
       <button
         onClick={() => onView(lab)}
-        className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-sky-600 hover:bg-sky-50 transition border border-slate-200 hover:border-sky-200 lg:border-transparent"
+        className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-sky-600 hover:bg-sky-50 transition border border-slate-200 hover:border-sky-200"
         title="View lab"
       >
         <Info size={12} />
       </button>
       <button
         onClick={() => onEdit(lab)}
-        className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition border border-slate-200 hover:border-indigo-200 lg:border-transparent"
+        className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition border border-slate-200 hover:border-indigo-200"
         title="Edit lab"
       >
         <Pencil size={12} />
       </button>
       <button
         onClick={() => onManageStaff(lab)}
-        className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-violet-600 hover:bg-violet-50 transition border border-slate-200 hover:border-violet-200 lg:border-transparent"
+        className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-violet-600 hover:bg-violet-50 transition border border-slate-200 hover:border-violet-200"
         title="Manage staff"
       >
         <Users size={12} />
@@ -1258,7 +1270,7 @@ const LabRow = ({ lab, index, onView, onEdit, onManageStaff }) => (
 /* ─── Skeleton ───────────────────────────────────────────── */
 
 const SkeletonRow = () => (
-  <div className="flex items-center gap-3 px-4 py-3 rounded-2xl border border-slate-100 bg-white animate-pulse">
+  <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-slate-100 bg-white animate-pulse">
     <div className="w-9 h-9 bg-slate-100 rounded-xl shrink-0" />
     <div className="flex-1 space-y-2">
       <div className="h-3 bg-slate-100 rounded w-2/5" />
@@ -1269,7 +1281,11 @@ const SkeletonRow = () => (
         <div key={i} className="w-[68px] h-9 bg-slate-50 rounded-lg" />
       ))}
     </div>
-    <div className="w-16 h-6 bg-slate-100 rounded-full shrink-0" />
+    <div className="flex gap-1">
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="w-7 h-7 bg-slate-100 rounded-lg" />
+      ))}
+    </div>
   </div>
 );
 
@@ -1300,7 +1316,11 @@ const Pagination = ({ page, totalPages, total, onPageChange }) => {
           <button
             key={p}
             onClick={() => onPageChange(p)}
-            className={`w-8 h-8 rounded-lg text-xs font-bold transition ${p === page ? "bg-gradient-to-br from-indigo-500 to-indigo-400 text-white shadow-md shadow-indigo-200 border-none" : "border border-slate-200 bg-white text-slate-500 hover:bg-slate-50"}`}
+            className={`w-8 h-8 rounded-lg text-xs font-semibold transition ${
+              p === page
+                ? "bg-indigo-500 text-white border-none"
+                : "border border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
+            }`}
           >
             {p}
           </button>
@@ -1449,24 +1469,24 @@ const Labs = () => {
       {/* Page header */}
       <div className="flex items-center justify-between gap-3 mb-6">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-400 flex items-center justify-center shadow-md shadow-indigo-200 shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-indigo-500 flex items-center justify-center shrink-0">
             <FlaskConical size={18} className="text-white" />
           </div>
           <div>
-            <h1 className="text-lg font-black text-slate-800 tracking-tight leading-none">Laboratories</h1>
+            <h1 className="text-lg font-bold text-slate-800 tracking-tight leading-none">Laboratories</h1>
             <p className="text-[11px] text-slate-400 mt-1">Registered labs and network overview</p>
           </div>
         </div>
         <button
           onClick={() => setLabModal({ open: true, edit: null })}
-          className="flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-white bg-gradient-to-br from-indigo-500 to-indigo-400 rounded-xl shadow-md shadow-indigo-200 hover:from-indigo-600 hover:to-indigo-500 transition-all whitespace-nowrap"
+          className="flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-white bg-indigo-500 rounded-xl hover:bg-indigo-600 transition-all whitespace-nowrap"
         >
           <Plus size={14} /> Register Lab
         </button>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+      {/* Stats — 3 cards, no monthly revenue */}
+      <div className="grid grid-cols-3 gap-3 mb-5">
         <StatCard icon={Layers} label="Total labs" value={statsLoading ? "—" : (stats?.total ?? 0)} color="indigo" />
         <StatCard icon={Activity} label="Active" value={statsLoading ? "—" : (stats?.active ?? 0)} color="green" />
         <StatCard
@@ -1474,13 +1494,6 @@ const Labs = () => {
           label="Inactive"
           value={statsLoading ? "—" : (stats?.inactive ?? 0)}
           color="slate"
-        />
-        <StatCard
-          icon={CreditCard}
-          label="Monthly rev."
-          value={statsLoading ? "—" : `৳${(stats?.totalMonthly ?? 0).toLocaleString()}`}
-          sub={statsLoading ? undefined : `৳${(stats?.totalInvoice ?? 0).toLocaleString()} invoice`}
-          color="amber"
         />
       </div>
 
@@ -1550,7 +1563,7 @@ const Labs = () => {
             ) : (
               <button
                 onClick={() => setLabModal({ open: true, edit: null })}
-                className="flex items-center gap-2 px-5 py-2.5 text-xs font-bold text-white bg-gradient-to-br from-indigo-500 to-indigo-400 rounded-xl shadow-md shadow-indigo-200 hover:from-indigo-600 hover:to-indigo-500 transition-all"
+                className="flex items-center gap-2 px-5 py-2.5 text-xs font-bold text-white bg-indigo-500 rounded-xl hover:bg-indigo-600 transition-all"
               >
                 <Plus size={14} /> Register First Lab
               </button>
