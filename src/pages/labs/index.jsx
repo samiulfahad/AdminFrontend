@@ -28,6 +28,7 @@ import {
   Eye,
   EyeOff,
   Lock,
+  Info,
 } from "lucide-react";
 
 import Modal from "../../components/modal";
@@ -199,6 +200,130 @@ const LabTypeBadge = ({ type }) => {
       <Icon size={9} />
       {meta.label}
     </span>
+  );
+};
+
+/* ─── Lab View Modal ─────────────────────────────────────── */
+
+const LabViewModal = ({ isOpen, onClose, lab }) => {
+  if (!lab) return null;
+
+  const Section = ({ icon: Icon, title, children }) => (
+    <div>
+      <div className="flex items-center gap-2 mb-3">
+        <Icon size={12} className="text-slate-400" />
+        <p className="text-[10.5px] font-bold text-slate-400 uppercase tracking-widest">{title}</p>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 px-4 py-3.5 rounded-xl border border-slate-100 bg-slate-50">
+        {children}
+      </div>
+    </div>
+  );
+
+  const Field = ({ label, value, full }) =>
+    value ? (
+      <div className={full ? "sm:col-span-2" : ""}>
+        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-0.5">{label}</p>
+        <p className="text-[13px] text-slate-700 font-medium">{value}</p>
+      </div>
+    ) : null;
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} size="md">
+      <div className="flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+          <div className="flex items-center gap-3">
+            <div
+              className={`w-9 h-9 rounded-xl flex items-center justify-center shadow-md shrink-0 ${
+                lab.type === "hospital"
+                  ? "bg-gradient-to-br from-rose-500 to-rose-400 shadow-rose-200"
+                  : "bg-gradient-to-br from-indigo-500 to-indigo-400 shadow-indigo-200"
+              }`}
+            >
+              {lab.type === "hospital" ? (
+                <Building2 size={16} className="text-white" />
+              ) : (
+                <FlaskConical size={16} className="text-white" />
+              )}
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-black text-slate-800 tracking-tight leading-none">{lab.name}</p>
+                <LabTypeBadge type={lab.type} />
+              </div>
+              <div className="flex items-center gap-3 mt-1">
+                <span className="flex items-center gap-1 text-[11px] text-slate-400 font-mono">
+                  <Hash size={9} className="text-slate-300" />
+                  {lab.labKey}
+                </span>
+                <StatusBadge active={lab.isActive} />
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 border border-transparent hover:border-slate-200 transition"
+          >
+            <X size={14} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex flex-col gap-4 p-5 overflow-y-auto max-h-[70vh]">
+          {/* Basic Info */}
+          <Section icon={Building2} title="Basic Info">
+            <Field label="Lab Name" value={lab.name} />
+            <Field label="Lab ID" value={lab.labKey} />
+            <Field
+              label="Type"
+              value={lab.type === "hospital" ? "Hospital" : lab.type === "diagnostic" ? "Diagnostic Center" : null}
+            />
+            <Field label="Registration No." value={lab.registrationNumber} />
+          </Section>
+
+          {/* Contact */}
+          <Section icon={Phone} title="Contact">
+            <Field label="Primary Phone" value={lab.contact?.primary} />
+            <Field label="Secondary Phone" value={lab.contact?.secondary} />
+            <Field label="Public Email" value={lab.contact?.publicEmail} />
+            <Field label="Private Email" value={lab.contact?.privateEmail} />
+            <Field label="District" value={lab.contact?.district} />
+            <Field label="Zone" value={lab.contact?.zone} />
+            <Field label="Address" value={lab.contact?.address} full />
+          </Section>
+
+          {/* Billing */}
+          <Section icon={CreditCard} title="Billing">
+            <div className="sm:col-span-2">
+              <div className="grid grid-cols-3 divide-x divide-slate-100 border border-slate-100 rounded-xl overflow-hidden">
+                {[
+                  ["Invoice Fee", `৳${lab.billing?.perInvoiceFee ?? 0}`, "bg-indigo-50", "text-indigo-600"],
+                  ["Monthly Fee", `৳${lab.billing?.monthlyFee ?? 0}`, "bg-emerald-50", "text-emerald-600"],
+                  ["Commission", `৳${lab.billing?.commission ?? 0}`, "bg-amber-50", "text-amber-600"],
+                ].map(([l, v, bg, color]) => (
+                  <div key={l} className={`${bg} text-center py-4`}>
+                    <p className="text-[9.5px] font-bold text-slate-400 uppercase tracking-widest">{l}</p>
+                    <p className={`text-xl font-black mt-1 tracking-tight ${color}`}>{v}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Section>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-2 px-5 py-3.5 bg-slate-50 border-t border-slate-100">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-xs font-semibold text-slate-500 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </Modal>
   );
 };
 
@@ -1041,7 +1166,7 @@ const StatCard = ({ icon: Icon, label, value, sub, color = "slate" }) => (
 
 /* ─── Lab Row ────────────────────────────────────────────── */
 
-const LabRow = ({ lab, index, onEdit, onManageStaff }) => (
+const LabRow = ({ lab, index, onView, onEdit, onManageStaff }) => (
   <div
     className="group flex items-center gap-3 px-4 py-3 rounded-2xl border border-slate-100 bg-white hover:border-indigo-200 hover:shadow-sm transition-all"
     style={{ animationDelay: `${index * 0.03}s` }}
@@ -1078,18 +1203,6 @@ const LabRow = ({ lab, index, onEdit, onManageStaff }) => (
             {lab.contact.primary}
           </span>
         )}
-        {lab.contact?.publicEmail && (
-          <span className="flex items-center gap-1 text-[11px] text-slate-400 truncate">
-            <Mail size={10} className="text-slate-300 shrink-0" />
-            {lab.contact.publicEmail}
-          </span>
-        )}
-        {(lab.contact?.address || lab.contact?.district) && (
-          <span className="flex items-center gap-1 text-[11px] text-slate-400">
-            <MapPin size={10} className="text-slate-300 shrink-0" />
-            {[lab.contact.address, lab.contact.district, lab.contact.zone].filter(Boolean).join(", ")}
-          </span>
-        )}
       </div>
     </div>
 
@@ -1110,21 +1223,30 @@ const LabRow = ({ lab, index, onEdit, onManageStaff }) => (
       ))}
     </div>
 
-    <div className="shrink-0">
+    {/* Status badge */}
+    <div className="shrink-0 hidden sm:block">
       <StatusBadge active={lab.isActive} />
     </div>
 
-    <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+    {/* Action buttons */}
+    <div className="flex items-center gap-1 shrink-0 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
+      <button
+        onClick={() => onView(lab)}
+        className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-sky-600 hover:bg-sky-50 transition border border-slate-200 hover:border-sky-200 lg:border-transparent"
+        title="View lab"
+      >
+        <Info size={12} />
+      </button>
       <button
         onClick={() => onEdit(lab)}
-        className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition border border-transparent hover:border-indigo-200"
+        className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition border border-slate-200 hover:border-indigo-200 lg:border-transparent"
         title="Edit lab"
       >
         <Pencil size={12} />
       </button>
       <button
         onClick={() => onManageStaff(lab)}
-        className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-violet-600 hover:bg-violet-50 transition border border-transparent hover:border-violet-200"
+        className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-violet-600 hover:bg-violet-50 transition border border-slate-200 hover:border-violet-200 lg:border-transparent"
         title="Manage staff"
       >
         <Users size={12} />
@@ -1208,6 +1330,7 @@ const Labs = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [labModal, setLabModal] = useState({ open: false, edit: null });
+  const [viewLab, setViewLab] = useState(null);
   const [staffDrawer, setStaffDrawer] = useState(null);
   const [popup, setPopup] = useState({ open: false, type: "success", message: "", onConfirm: null });
   const debounceRef = useRef(null);
@@ -1439,6 +1562,7 @@ const Labs = () => {
               key={lab._id}
               lab={lab}
               index={i}
+              onView={(l) => setViewLab(l)}
               onEdit={(l) => setLabModal({ open: true, edit: l })}
               onManageStaff={(l) => setStaffDrawer(l)}
             />
@@ -1447,6 +1571,8 @@ const Labs = () => {
       </div>
 
       <Pagination page={page} totalPages={totalPages} total={total} onPageChange={handlePageChange} />
+
+      <LabViewModal isOpen={!!viewLab} onClose={() => setViewLab(null)} lab={viewLab} />
 
       <LabModal
         isOpen={labModal.open}
