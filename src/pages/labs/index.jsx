@@ -14,21 +14,35 @@ import {
   Hash,
   Layers,
   RefreshCw,
-  Check,
   TrendingUp,
   Activity,
+  Pencil,
+  Users,
+  ShieldCheck,
+  UserCog,
+  Headset,
+  Trash2,
+  PowerOff,
+  Power,
+  KeyRound,
+  Eye,
+  EyeOff,
+  Lock,
 } from "lucide-react";
 
 import Modal from "../../components/modal";
 import Popup from "../../components/popup";
 import labService from "../../api/labService";
 import zoneService from "../../api/zoneService";
+import staffService from "../../api/staffService";
 
 const LIMIT = 20;
 
 const EMPTY_LAB = {
   name: "",
   labKey: "",
+  type: "",
+  registrationNumber: "",
   isActive: true,
   contact: {
     primary: "",
@@ -41,6 +55,23 @@ const EMPTY_LAB = {
     zoneId: "",
   },
   billing: { perInvoiceFee: "", monthlyFee: "", commission: "" },
+};
+
+const EMPTY_STAFF = {
+  name: "",
+  phone: "",
+  email: "",
+  password: "",
+  role: "staff",
+  isActive: true,
+  permissions: {
+    createInvoice: false,
+    editInvoice: false,
+    deleteInvoice: false,
+    cashmemo: false,
+    uploadReport: false,
+    downloadReport: false,
+  },
 };
 
 /* ─── Shared primitives ──────────────────────────────────── */
@@ -56,6 +87,31 @@ const TextInput = ({ label, ...props }) => (
     />
   </div>
 );
+
+const PasswordInput = ({ label, ...props }) => {
+  const [show, setShow] = useState(false);
+  return (
+    <div>
+      {label && (
+        <label className="block text-[10.5px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">{label}</label>
+      )}
+      <div className="relative">
+        <input
+          type={show ? "text" : "password"}
+          className="w-full px-3 py-2.5 pr-10 text-[13.5px] rounded-xl border border-slate-200 bg-slate-50 text-slate-800 placeholder-slate-300 outline-none transition-all focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-400/10"
+          {...props}
+        />
+        <button
+          type="button"
+          onClick={() => setShow((s) => !s)}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition border-none bg-transparent cursor-pointer"
+        >
+          {show ? <EyeOff size={14} /> : <Eye size={14} />}
+        </button>
+      </div>
+    </div>
+  );
+};
 
 const SelectInput = ({ label, children, ...props }) => (
   <div>
@@ -99,7 +155,54 @@ const StatusBadge = ({ active }) => (
   </span>
 );
 
-/* ─── Lab Modal ──────────────────────────────────────────── */
+const PermissionToggle = ({ label, checked, onChange }) => (
+  <label className="flex items-center gap-2.5 cursor-pointer select-none group">
+    <div
+      onClick={() => onChange(!checked)}
+      className={`w-4 h-4 rounded-[5px] border flex items-center justify-center transition-all cursor-pointer shrink-0
+        ${checked ? "bg-indigo-500 border-indigo-500" : "bg-white border-slate-300 group-hover:border-indigo-300"}`}
+    >
+      {checked && (
+        <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
+          <path d="M1 3.5L3.5 6L8 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      )}
+    </div>
+    <span className="text-[12.5px] text-slate-600 font-medium">{label}</span>
+  </label>
+);
+
+/* ─── Lab Type Badge ─────────────────────────────────────── */
+
+const LAB_TYPE_META = {
+  diagnostic: {
+    label: "Diagnostic",
+    icon: FlaskConical,
+    color: "bg-indigo-50 text-indigo-500 border-indigo-200",
+  },
+  hospital: {
+    label: "Hospital",
+    icon: Building2,
+    color: "bg-rose-50 text-rose-500 border-rose-200",
+  },
+};
+
+const LabTypeBadge = ({ type }) => {
+  if (!type) return null;
+  const meta = LAB_TYPE_META[type];
+  if (!meta) return null;
+  const Icon = meta.icon;
+  return (
+    <span
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9.5px] font-bold border ${meta.color}`}
+    >
+      <Icon size={9} />
+      {meta.label}
+    </span>
+  );
+};
+
+/* ─── Lab Modal (Create + Edit) ──────────────────────────── */
 
 const LAB_TABS = [
   { id: "info", label: "Info", icon: Building2, sub: "Basic details" },
@@ -107,7 +210,13 @@ const LAB_TABS = [
   { id: "billing", label: "Billing", icon: CreditCard, sub: "Fees & commission" },
 ];
 
-const LabModal = ({ isOpen, onClose, onSubmit }) => {
+const LAB_TYPE_OPTIONS = [
+  { value: "diagnostic", label: "Diagnostic Center", icon: FlaskConical },
+  { value: "hospital", label: "Hospital", icon: Building2 },
+];
+
+const LabModal = ({ isOpen, onClose, onSubmit, editLab = null }) => {
+  const isEdit = !!editLab;
   const [form, setForm] = useState(EMPTY_LAB);
   const [tab, setTab] = useState("info");
   const [loading, setLoading] = useState(false);
@@ -115,13 +224,38 @@ const LabModal = ({ isOpen, onClose, onSubmit }) => {
 
   useEffect(() => {
     if (!isOpen) return;
-    setForm(EMPTY_LAB);
     setTab("info");
+    if (isEdit) {
+      setForm({
+        name: editLab.name ?? "",
+        labKey: editLab.labKey ?? "",
+        type: editLab.type ?? "",
+        registrationNumber: editLab.registrationNumber ?? "",
+        isActive: editLab.isActive ?? true,
+        contact: {
+          primary: editLab.contact?.primary ?? "",
+          secondary: editLab.contact?.secondary ?? "",
+          publicEmail: editLab.contact?.publicEmail ?? "",
+          privateEmail: editLab.contact?.privateEmail ?? "",
+          address: editLab.contact?.address ?? "",
+          district: editLab.contact?.district ?? "",
+          zone: editLab.contact?.zone ?? "",
+          zoneId: editLab.contact?.zoneId ?? "",
+        },
+        billing: {
+          perInvoiceFee: editLab.billing?.perInvoiceFee ?? "",
+          monthlyFee: editLab.billing?.monthlyFee ?? "",
+          commission: editLab.billing?.commission ?? "",
+        },
+      });
+    } else {
+      setForm(EMPTY_LAB);
+    }
     zoneService
       .getZones()
       .then((r) => setZones(Array.isArray(r.data) ? r.data : (r.data?.data ?? [])))
       .catch(() => setZones([]));
-  }, [isOpen]);
+  }, [isOpen, editLab]);
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
   const setC = (k) => (e) => setForm((f) => ({ ...f, contact: { ...f.contact, [k]: e.target.value } }));
@@ -130,7 +264,7 @@ const LabModal = ({ isOpen, onClose, onSubmit }) => {
   const tabIdx = LAB_TABS.findIndex((t) => t.id === tab);
   const isLast = tabIdx === LAB_TABS.length - 1;
 
-  const handleRegister = async () => {
+  const handleSubmit = async () => {
     if (loading) return;
     setLoading(true);
     try {
@@ -144,16 +278,21 @@ const LabModal = ({ isOpen, onClose, onSubmit }) => {
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="md">
       <div className="flex flex-col min-h-full">
-        {/* ── Sticky header ── */}
+        {/* Sticky header */}
         <div className="sticky top-0 z-10 bg-white border-b border-slate-100">
-          {/* Title row */}
           <div className="flex items-center justify-between px-5 py-4">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-400 flex items-center justify-center shadow-md shadow-indigo-200 shrink-0">
-                <FlaskConical size={16} className="text-white" />
+                {isEdit ? (
+                  <Pencil size={15} className="text-white" />
+                ) : (
+                  <FlaskConical size={16} className="text-white" />
+                )}
               </div>
               <div>
-                <p className="text-sm font-black text-slate-800 tracking-tight leading-none">Register Lab</p>
+                <p className="text-sm font-black text-slate-800 tracking-tight leading-none">
+                  {isEdit ? `Edit — ${editLab.name}` : "Register Lab"}
+                </p>
                 <p className="text-[11px] text-slate-400 mt-1">
                   Step {tabIdx + 1} of {LAB_TABS.length} — {LAB_TABS[tabIdx].sub}
                 </p>
@@ -167,7 +306,6 @@ const LabModal = ({ isOpen, onClose, onSubmit }) => {
             </button>
           </div>
 
-          {/* Tab pills */}
           <div className="flex gap-1.5 px-5 pb-3">
             {LAB_TABS.map(({ id, label, icon: Icon }, i) => {
               const isActive = tab === id;
@@ -193,7 +331,7 @@ const LabModal = ({ isOpen, onClose, onSubmit }) => {
           </div>
         </div>
 
-        {/* ── Form body — all panels rendered, show/hide via display ── */}
+        {/* Form body */}
         <div className="flex-1 overflow-y-auto">
           {/* INFO */}
           <div className={`${tab === "info" ? "flex" : "hidden"} flex-col gap-4 p-5`}>
@@ -205,8 +343,59 @@ const LabModal = ({ isOpen, onClose, onSubmit }) => {
                 onChange={(e) => setForm((f) => ({ ...f, labKey: e.target.value.replace(/\D/g, "").slice(0, 5) }))}
                 placeholder="12345"
                 maxLength={5}
+                disabled={isEdit}
               />
             </div>
+
+            {isEdit && (
+              <p className="text-[11px] text-slate-400 bg-slate-50 rounded-lg px-3 py-2 border border-slate-100">
+                Lab ID cannot be changed after creation.
+              </p>
+            )}
+
+            {/* Lab Type */}
+            <div>
+              <label className="block text-[10.5px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                Lab Type <span className="normal-case font-normal text-slate-300">(optional)</span>
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {LAB_TYPE_OPTIONS.map(({ value, label, icon: Icon }) => {
+                  const isSelected = form.type === value;
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setForm((f) => ({ ...f, type: f.type === value ? "" : value }))}
+                      className={`flex items-center gap-2.5 px-4 py-3 rounded-xl border text-[12.5px] font-semibold transition-all cursor-pointer
+                        ${
+                          isSelected
+                            ? value === "hospital"
+                              ? "bg-rose-50 border-rose-300 text-rose-700 shadow-sm"
+                              : "bg-indigo-50 border-indigo-300 text-indigo-700 shadow-sm"
+                            : "bg-white border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-500"
+                        }`}
+                    >
+                      <Icon
+                        size={14}
+                        className={
+                          isSelected ? (value === "hospital" ? "text-rose-500" : "text-indigo-500") : "text-slate-300"
+                        }
+                      />
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Registration Number */}
+            <TextInput
+              label="Registration Number"
+              value={form.registrationNumber}
+              onChange={(e) => setForm((f) => ({ ...f, registrationNumber: e.target.value }))}
+              placeholder="Optional — e.g. DGDA-2024-00123"
+            />
+
             <div className="flex items-center justify-between px-4 py-3.5 rounded-xl border border-slate-100 bg-slate-50">
               <div>
                 <p className="text-[13px] font-semibold text-slate-700 leading-none">Lab Status</p>
@@ -315,7 +504,7 @@ const LabModal = ({ isOpen, onClose, onSubmit }) => {
           </div>
         </div>
 
-        {/* ── Sticky footer ── */}
+        {/* Sticky footer */}
         <div className="sticky bottom-0 z-10 flex items-center justify-between px-5 py-3.5 bg-slate-50 border-t border-slate-100">
           <button
             type="button"
@@ -337,14 +526,14 @@ const LabModal = ({ isOpen, onClose, onSubmit }) => {
             {isLast ? (
               <button
                 type="button"
-                onClick={handleRegister}
+                onClick={handleSubmit}
                 disabled={loading}
                 className="flex items-center gap-2 px-5 py-2 text-xs font-bold text-white bg-gradient-to-br from-indigo-500 to-indigo-400 rounded-lg shadow-md shadow-indigo-200 hover:from-indigo-600 hover:to-indigo-500 disabled:opacity-60 transition-all"
               >
                 {loading && (
                   <div className="w-3.5 h-3.5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
                 )}
-                Register Lab
+                {isEdit ? "Save Changes" : "Register Lab"}
               </button>
             ) : (
               <button
@@ -359,6 +548,468 @@ const LabModal = ({ isOpen, onClose, onSubmit }) => {
         </div>
       </div>
     </Modal>
+  );
+};
+
+/* ─── Staff Modal ────────────────────────────────────────── */
+
+const ROLE_OPTIONS = [
+  { value: "admin", label: "Admin", icon: ShieldCheck, color: "text-indigo-600 bg-indigo-50 border-indigo-200" },
+  { value: "staff", label: "Staff Member", icon: UserCog, color: "text-emerald-600 bg-emerald-50 border-emerald-200" },
+  { value: "support", label: "Support Admin", icon: Headset, color: "text-amber-600 bg-amber-50 border-amber-200" },
+];
+
+const PERM_LABELS = {
+  createInvoice: "Create Invoice",
+  editInvoice: "Edit Invoice",
+  deleteInvoice: "Delete Invoice",
+  cashmemo: "Cash Memo",
+  uploadReport: "Upload Report",
+  downloadReport: "Download Report",
+};
+
+const StaffModal = ({ isOpen, onClose, onSubmit, editStaff = null, labId }) => {
+  const isEdit = !!editStaff;
+  const [form, setForm] = useState({ ...EMPTY_STAFF });
+  const [loading, setLoading] = useState(false);
+  const [showPasswordField, setShowPasswordField] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (isEdit) {
+      setForm({
+        name: editStaff.name ?? "",
+        phone: editStaff.phone ?? "",
+        email: editStaff.email ?? "",
+        password: "",
+        role: editStaff.role ?? "staff",
+        isActive: editStaff.isActive ?? true,
+        permissions: { ...EMPTY_STAFF.permissions, ...(editStaff.permissions ?? {}) },
+      });
+      setShowPasswordField(false);
+    } else {
+      setForm({ ...EMPTY_STAFF });
+      setShowPasswordField(true);
+    }
+  }, [isOpen, editStaff]);
+
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const togglePerm = (k) => (v) => setForm((f) => ({ ...f, permissions: { ...f.permissions, [k]: v } }));
+  const allPerms = Object.values(form.permissions).every(Boolean);
+  const toggleAll = () => {
+    const next = !allPerms;
+    setForm((f) => ({ ...f, permissions: Object.fromEntries(Object.keys(f.permissions).map((k) => [k, next])) }));
+  };
+
+  const isSupportRole = form.role === "support";
+
+  const handleSubmit = async () => {
+    if (loading) return;
+    setLoading(true);
+    try {
+      await onSubmit(form);
+      onClose();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} size="sm">
+      <div className="flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-violet-400 flex items-center justify-center shadow-md shadow-violet-200 shrink-0">
+              <Users size={15} className="text-white" />
+            </div>
+            <div>
+              <p className="text-sm font-black text-slate-800 tracking-tight leading-none">
+                {isEdit ? "Edit Staff Member" : "Add Staff Member"}
+              </p>
+              <p className="text-[11px] text-slate-400 mt-1">{isEdit ? editStaff.name : "Fill in the details below"}</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 border border-transparent hover:border-slate-200 transition"
+          >
+            <X size={14} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex flex-col gap-4 p-5 overflow-y-auto max-h-[60vh]">
+          {!isEdit && (
+            <div>
+              <label className="block text-[10.5px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                Role *
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {ROLE_OPTIONS.map(({ value, label, icon: Icon, color }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, role: value }))}
+                    className={`flex flex-col items-center gap-1.5 py-2.5 px-2 rounded-xl border text-[11px] font-semibold transition-all cursor-pointer
+                      ${form.role === value ? color + " shadow-sm" : "bg-white border-slate-200 text-slate-400 hover:border-slate-300"}`}
+                  >
+                    <Icon size={14} />
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {isSupportRole && !isEdit ? (
+            <PasswordInput
+              label="Password *"
+              value={form.password}
+              onChange={set("password")}
+              placeholder="Min 6 characters"
+            />
+          ) : (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <TextInput label="Full Name *" value={form.name} onChange={set("name")} placeholder="Dr. Ahmed" />
+                <TextInput label="Phone *" value={form.phone} onChange={set("phone")} placeholder="01700000000" />
+                <TextInput
+                  label="Email"
+                  type="email"
+                  value={form.email}
+                  onChange={set("email")}
+                  placeholder="optional"
+                />
+                {!isEdit || showPasswordField ? (
+                  <PasswordInput
+                    label={isEdit ? "New Password" : "Password *"}
+                    value={form.password}
+                    onChange={set("password")}
+                    placeholder="Min 6 characters"
+                  />
+                ) : (
+                  <div className="flex items-end">
+                    <button
+                      type="button"
+                      onClick={() => setShowPasswordField(true)}
+                      className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 border border-slate-200 bg-white rounded-xl px-3 py-2.5 hover:bg-slate-50 transition w-full justify-center"
+                    >
+                      <KeyRound size={12} /> Change Password
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between px-4 py-3 rounded-xl border border-slate-100 bg-slate-50">
+                <div>
+                  <p className="text-[13px] font-semibold text-slate-700 leading-none">Status</p>
+                  <p className="text-[11px] text-slate-400 mt-1">Active or inactive</p>
+                </div>
+                <SwitchToggle active={form.isActive} onChange={(v) => setForm((f) => ({ ...f, isActive: v }))} />
+              </div>
+
+              {(form.role === "staff" || (isEdit && editStaff?.role === "staff")) && (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-[10.5px] font-bold text-slate-400 uppercase tracking-widest">
+                      Permissions
+                    </label>
+                    <button
+                      type="button"
+                      onClick={toggleAll}
+                      className="text-[10.5px] font-semibold text-indigo-500 hover:text-indigo-700 transition bg-transparent border-none cursor-pointer"
+                    >
+                      {allPerms ? "Deselect all" : "Select all"}
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-y-2.5 gap-x-4 px-4 py-3 rounded-xl border border-slate-100 bg-slate-50">
+                    {Object.entries(PERM_LABELS).map(([k, label]) => (
+                      <PermissionToggle key={k} label={label} checked={form.permissions[k]} onChange={togglePerm(k)} />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-2 px-5 py-3.5 bg-slate-50 border-t border-slate-100">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-xs font-semibold text-slate-500 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={loading}
+            className="flex items-center gap-2 px-5 py-2 text-xs font-bold text-white bg-gradient-to-br from-violet-500 to-violet-400 rounded-lg shadow-md shadow-violet-200 hover:from-violet-600 hover:to-violet-500 disabled:opacity-60 transition-all"
+          >
+            {loading && (
+              <div className="w-3.5 h-3.5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+            )}
+            {isEdit ? "Save Changes" : "Add Member"}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+};
+
+/* ─── Staff Panel ────────────────────────────────────────── */
+
+const ROLE_META = {
+  admin: { label: "Admin", icon: ShieldCheck, color: "text-indigo-600 bg-indigo-50 border-indigo-200" },
+  staff: { label: "Staff", icon: UserCog, color: "text-emerald-600 bg-emerald-50 border-emerald-200" },
+  supportAdmin: { label: "Support", icon: Headset, color: "text-amber-600 bg-amber-50 border-amber-200" },
+};
+
+const StaffPanel = ({ lab, onClose, showPopup }) => {
+  const [staffList, setStaffList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [staffModal, setStaffModal] = useState({ open: false, edit: null });
+
+  const fetchStaff = async () => {
+    setLoading(true);
+    try {
+      const r = await staffService.getAll(lab._id);
+      setStaffList(Array.isArray(r.data) ? r.data : []);
+    } catch {
+      showPopup("error", "Failed to load staff.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStaff();
+  }, [lab._id]);
+
+  const handleStaffSubmit = async (form) => {
+    try {
+      if (staffModal.edit) {
+        const updates = {};
+        if (form.name) updates.name = form.name;
+        if (form.phone) updates.phone = form.phone;
+        if (form.email) updates.email = form.email;
+        if (form.password) updates.password = form.password;
+        if (form.permissions) updates.permissions = form.permissions;
+        updates.isActive = form.isActive;
+
+        if (staffModal.edit.role === "supportAdmin") {
+          if (form.password) await staffService.updateSupportPassword(lab._id, { password: form.password });
+        } else {
+          await staffService.update(lab._id, staffModal.edit._id, updates);
+        }
+        showPopup("success", "Staff member updated.");
+      } else {
+        if (form.role === "admin") {
+          await staffService.createAdmin(lab._id, {
+            name: form.name,
+            phone: form.phone,
+            email: form.email || undefined,
+            password: form.password,
+            isActive: form.isActive,
+          });
+        } else if (form.role === "support") {
+          await staffService.createSupport(lab._id, { password: form.password });
+        } else {
+          await staffService.createMember(lab._id, {
+            name: form.name,
+            phone: form.phone,
+            email: form.email || undefined,
+            password: form.password,
+            permissions: form.permissions,
+            isActive: form.isActive,
+          });
+        }
+        showPopup("success", "Staff member added.");
+      }
+      fetchStaff();
+    } catch (err) {
+      showPopup("error", err?.response?.data?.message || "Operation failed.");
+      throw err;
+    }
+  };
+
+  const handleToggleActive = async (member) => {
+    try {
+      if (member.isActive) {
+        await staffService.deactivate(lab._id, member._id);
+      } else {
+        await staffService.activate(lab._id, member._id);
+      }
+      fetchStaff();
+    } catch (err) {
+      showPopup("error", err?.response?.data?.message || "Failed to update status.");
+    }
+  };
+
+  const handleDelete = (member) => {
+    showPopup("confirm", `Delete "${member.name}"? This action cannot be undone.`, async () => {
+      try {
+        if (member.role === "supportAdmin") {
+          await staffService.deleteSupport(lab._id);
+        } else {
+          await staffService.delete(lab._id, member._id);
+        }
+        showPopup("success", "Staff member removed.");
+        fetchStaff();
+      } catch (err) {
+        showPopup("error", err?.response?.data?.message || "Failed to delete.");
+      }
+    });
+  };
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-white">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-violet-400 flex items-center justify-center shadow-md shadow-violet-200 shrink-0">
+            <Users size={15} className="text-white" />
+          </div>
+          <div>
+            <p className="text-sm font-black text-slate-800 tracking-tight leading-none">Staff — {lab.name}</p>
+            <p className="text-[11px] text-slate-400 mt-1">
+              {staffList.length} member{staffList.length !== 1 ? "s" : ""}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setStaffModal({ open: true, edit: null })}
+            className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-white bg-gradient-to-br from-violet-500 to-violet-400 rounded-lg shadow-sm shadow-violet-200 hover:from-violet-600 hover:to-violet-500 transition-all"
+          >
+            <Plus size={12} /> Add
+          </button>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 border border-transparent hover:border-slate-200 transition"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-2">
+        {loading ? (
+          Array.from({ length: 4 }).map((_, i) => (
+            <div
+              key={i}
+              className="flex items-center gap-3 px-4 py-3 rounded-xl border border-slate-100 bg-white animate-pulse"
+            >
+              <div className="w-8 h-8 bg-slate-100 rounded-lg shrink-0" />
+              <div className="flex-1 space-y-2">
+                <div className="h-3 bg-slate-100 rounded w-2/5" />
+                <div className="h-2.5 bg-slate-50 rounded w-3/5" />
+              </div>
+            </div>
+          ))
+        ) : staffList.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <div className="w-12 h-12 rounded-2xl bg-slate-50 border-2 border-dashed border-slate-200 flex items-center justify-center mb-3">
+              <Users size={18} className="text-slate-300" />
+            </div>
+            <p className="text-sm font-bold text-slate-500 mb-1">No staff yet</p>
+            <p className="text-xs text-slate-400">Add an admin or staff member to get started.</p>
+          </div>
+        ) : (
+          staffList.map((member) => {
+            const meta = ROLE_META[member.role] ?? ROLE_META.staff;
+            const Icon = meta.icon;
+            return (
+              <div
+                key={member._id}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl border border-slate-100 bg-white hover:border-slate-200 transition-all"
+              >
+                <div className={`w-8 h-8 rounded-lg border flex items-center justify-center shrink-0 ${meta.color}`}>
+                  <Icon size={13} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-[13px] font-bold text-slate-800 leading-none">{member.name}</p>
+                    <span className={`px-1.5 py-0.5 rounded-md text-[9.5px] font-bold border ${meta.color}`}>
+                      {meta.label}
+                    </span>
+                    {!member.isActive && (
+                      <span className="px-1.5 py-0.5 rounded-md text-[9.5px] font-bold border bg-slate-50 text-slate-400 border-slate-200">
+                        Inactive
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    {member.phone}
+                    {member.email ? ` · ${member.email}` : ""}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={() => setStaffModal({ open: true, edit: member })}
+                    className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition border border-transparent hover:border-indigo-200"
+                    title="Edit"
+                  >
+                    <Pencil size={12} />
+                  </button>
+                  <button
+                    onClick={() => handleToggleActive(member)}
+                    className={`w-7 h-7 flex items-center justify-center rounded-lg transition border border-transparent
+                      ${member.isActive ? "text-slate-400 hover:text-amber-600 hover:bg-amber-50 hover:border-amber-200" : "text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 hover:border-emerald-200"}`}
+                    title={member.isActive ? "Deactivate" : "Activate"}
+                  >
+                    {member.isActive ? <PowerOff size={12} /> : <Power size={12} />}
+                  </button>
+                  <button
+                    onClick={() => handleDelete(member)}
+                    className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition border border-transparent hover:border-rose-200"
+                    title="Delete"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      <StaffModal
+        isOpen={staffModal.open}
+        onClose={() => setStaffModal({ open: false, edit: null })}
+        onSubmit={handleStaffSubmit}
+        editStaff={staffModal.edit}
+        labId={lab._id}
+      />
+    </div>
+  );
+};
+
+/* ─── Staff Drawer ───────────────────────────────────────── */
+
+const StaffDrawer = ({ lab, onClose, showPopup }) => {
+  useEffect(() => {
+    const onKey = (e) => e.key === "Escape" && onClose();
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end">
+      <div className="absolute inset-0 bg-black/20 backdrop-blur-[2px]" onClick={onClose} />
+      <div className="relative w-full max-w-md bg-white shadow-2xl flex flex-col animate-slide-in-right">
+        <StaffPanel lab={lab} onClose={onClose} showPopup={showPopup} />
+      </div>
+      <style>{`
+        @keyframes slide-in-right {
+          from { transform: translateX(100%); opacity: 0; }
+          to   { transform: translateX(0);    opacity: 1; }
+        }
+        .animate-slide-in-right { animation: slide-in-right 0.22s cubic-bezier(0.16,1,0.3,1) forwards; }
+      `}</style>
+    </div>
   );
 };
 
@@ -390,7 +1041,7 @@ const StatCard = ({ icon: Icon, label, value, sub, color = "slate" }) => (
 
 /* ─── Lab Row ────────────────────────────────────────────── */
 
-const LabRow = ({ lab, index }) => (
+const LabRow = ({ lab, index, onEdit, onManageStaff }) => (
   <div
     className="group flex items-center gap-3 px-4 py-3 rounded-2xl border border-slate-100 bg-white hover:border-indigo-200 hover:shadow-sm transition-all"
     style={{ animationDelay: `${index * 0.03}s` }}
@@ -398,16 +1049,29 @@ const LabRow = ({ lab, index }) => (
     <div
       className={`w-9 h-9 rounded-xl shrink-0 flex items-center justify-center border ${lab.isActive ? "bg-indigo-50 border-indigo-200" : "bg-slate-50 border-slate-200"}`}
     >
-      <FlaskConical size={15} className={lab.isActive ? "text-indigo-500" : "text-slate-400"} />
+      {lab.type === "hospital" ? (
+        <Building2 size={15} className={lab.isActive ? "text-rose-500" : "text-slate-400"} />
+      ) : (
+        <FlaskConical size={15} className={lab.isActive ? "text-indigo-500" : "text-slate-400"} />
+      )}
     </div>
 
     <div className="flex-1 min-w-0">
-      <p className="text-[13.5px] font-bold text-slate-800 leading-snug mb-1">{lab.name}</p>
+      <div className="flex items-center gap-2 mb-1">
+        <p className="text-[13.5px] font-bold text-slate-800 leading-snug">{lab.name}</p>
+        <LabTypeBadge type={lab.type} />
+      </div>
       <div className="flex flex-wrap gap-x-3 gap-y-0.5">
         <span className="flex items-center gap-1 text-[11px] text-slate-400 font-mono">
           <Hash size={10} className="text-slate-300" />
           {lab.labKey}
         </span>
+        {lab.registrationNumber && (
+          <span className="flex items-center gap-1 text-[11px] text-slate-400 font-mono">
+            <Lock size={10} className="text-slate-300" />
+            {lab.registrationNumber}
+          </span>
+        )}
         {lab.contact?.primary && (
           <span className="flex items-center gap-1 text-[11px] text-slate-400">
             <Phone size={10} className="text-slate-300" />
@@ -448,6 +1112,23 @@ const LabRow = ({ lab, index }) => (
 
     <div className="shrink-0">
       <StatusBadge active={lab.isActive} />
+    </div>
+
+    <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+      <button
+        onClick={() => onEdit(lab)}
+        className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition border border-transparent hover:border-indigo-200"
+        title="Edit lab"
+      >
+        <Pencil size={12} />
+      </button>
+      <button
+        onClick={() => onManageStaff(lab)}
+        className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-violet-600 hover:bg-violet-50 transition border border-transparent hover:border-violet-200"
+        title="Manage staff"
+      >
+        <Users size={12} />
+      </button>
     </div>
   </div>
 );
@@ -526,7 +1207,8 @@ const Labs = () => {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
-  const [modalOpen, setModalOpen] = useState(false);
+  const [labModal, setLabModal] = useState({ open: false, edit: null });
+  const [staffDrawer, setStaffDrawer] = useState(null);
   const [popup, setPopup] = useState({ open: false, type: "success", message: "", onConfirm: null });
   const debounceRef = useRef(null);
 
@@ -588,6 +1270,8 @@ const Labs = () => {
       await labService.createLab({
         name: form.name,
         labKey: form.labKey,
+        type: form.type || undefined,
+        registrationNumber: form.registrationNumber || undefined,
         contact: form.contact,
         isActive: form.isActive,
         billing: {
@@ -601,6 +1285,36 @@ const Labs = () => {
       handleClearSearch();
     } catch (err) {
       showPopup("error", err?.response?.data?.message || "Failed to create lab.");
+      throw err;
+    }
+  };
+
+  const handleEdit = async (form) => {
+    const id = labModal.edit._id;
+    try {
+      await labService.updateLabInfo(id, {
+        name: form.name,
+        type: form.type || undefined,
+        registrationNumber: form.registrationNumber || undefined,
+        contact: form.contact,
+      });
+      await labService.updateLabBilling(id, {
+        perInvoiceFee: Number(form.billing.perInvoiceFee),
+        monthlyFee: Number(form.billing.monthlyFee),
+        commission: Number(form.billing.commission),
+      });
+      if (form.isActive !== labModal.edit.isActive) {
+        if (form.isActive) {
+          await labService.activateLab(id);
+        } else {
+          await labService.deactivateLab(id);
+        }
+      }
+      showPopup("success", "Lab updated successfully!");
+      fetchStats();
+      fetchLabs(page, search);
+    } catch (err) {
+      showPopup("error", err?.response?.data?.message || "Failed to update lab.");
       throw err;
     }
   };
@@ -621,14 +1335,14 @@ const Labs = () => {
           </div>
         </div>
         <button
-          onClick={() => setModalOpen(true)}
+          onClick={() => setLabModal({ open: true, edit: null })}
           className="flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-white bg-gradient-to-br from-indigo-500 to-indigo-400 rounded-xl shadow-md shadow-indigo-200 hover:from-indigo-600 hover:to-indigo-500 transition-all whitespace-nowrap"
         >
           <Plus size={14} /> Register Lab
         </button>
       </div>
 
-      {/* Stats — 2 col mobile, 4 col desktop */}
+      {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
         <StatCard icon={Layers} label="Total labs" value={statsLoading ? "—" : (stats?.total ?? 0)} color="indigo" />
         <StatCard icon={Activity} label="Active" value={statsLoading ? "—" : (stats?.active ?? 0)} color="green" />
@@ -712,7 +1426,7 @@ const Labs = () => {
               </button>
             ) : (
               <button
-                onClick={() => setModalOpen(true)}
+                onClick={() => setLabModal({ open: true, edit: null })}
                 className="flex items-center gap-2 px-5 py-2.5 text-xs font-bold text-white bg-gradient-to-br from-indigo-500 to-indigo-400 rounded-xl shadow-md shadow-indigo-200 hover:from-indigo-600 hover:to-indigo-500 transition-all"
               >
                 <Plus size={14} /> Register First Lab
@@ -720,13 +1434,28 @@ const Labs = () => {
             )}
           </div>
         ) : (
-          labs.map((lab, i) => <LabRow key={lab._id} lab={lab} index={i} />)
+          labs.map((lab, i) => (
+            <LabRow
+              key={lab._id}
+              lab={lab}
+              index={i}
+              onEdit={(l) => setLabModal({ open: true, edit: l })}
+              onManageStaff={(l) => setStaffDrawer(l)}
+            />
+          ))
         )}
       </div>
 
       <Pagination page={page} totalPages={totalPages} total={total} onPageChange={handlePageChange} />
 
-      <LabModal isOpen={modalOpen} onClose={() => setModalOpen(false)} onSubmit={handleCreate} />
+      <LabModal
+        isOpen={labModal.open}
+        onClose={() => setLabModal({ open: false, edit: null })}
+        onSubmit={labModal.edit ? handleEdit : handleCreate}
+        editLab={labModal.edit}
+      />
+
+      {staffDrawer && <StaffDrawer lab={staffDrawer} onClose={() => setStaffDrawer(null)} showPopup={showPopup} />}
 
       {popup.open && (
         <Popup
