@@ -369,7 +369,7 @@ const BillRow = ({ bill, onPaySuccess }) => {
                           </span>
                           <button
                             onClick={openDueEditor}
-                            title="Extend due date (max +20 days)"
+                            title="Extend due date (max +10 days)"
                             className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium text-blue-600 bg-blue-50 border border-blue-100 hover:bg-blue-100 transition-all"
                           >
                             <Calendar className="w-3 h-3" />
