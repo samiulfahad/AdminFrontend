@@ -20,7 +20,7 @@ import {
   XCircle,
   Activity,
 } from "lucide-react";
-import adminBillingService from "../../services/adminBillingService";
+import adminBillingService from "../../api/adminBilling";
 
 const fmt = {
   currency: (amount) =>
