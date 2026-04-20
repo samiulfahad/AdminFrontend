@@ -23,7 +23,7 @@ import {
 import adminBillingService from "../../api/adminBilling";
 import Popup from "../../components/popup";
 
-const MAX_DUE_EXTENSION_MS = 20 * 24 * 60 * 60 * 1000;
+const MAX_DUE_EXTENSION_MS = 10 * 24 * 60 * 60 * 1000;
 
 const fmt = {
   currency: (amount) =>
