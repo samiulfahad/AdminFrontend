@@ -23,6 +23,8 @@ import {
 import adminBillingService from "../../api/adminBilling";
 import Popup from "../../components/popup";
 
+const MAX_DUE_EXTENSION_MS = 20 * 24 * 60 * 60 * 1000;
+
 const fmt = {
   currency: (amount) =>
     new Intl.NumberFormat("en-BD", {
@@ -59,6 +61,8 @@ const fmt = {
           minute: "2-digit",
         })
       : "—",
+
+  isoDate: (ts) => (ts ? new Date(ts).toISOString().slice(0, 10) : ""),
 };
 
 // ─── Skeleton primitives ──────────────────────────────────────────────────────
@@ -157,8 +161,19 @@ const BreakdownPanel = ({ breakdown }) => {
 const BillRow = ({ bill, onPaySuccess }) => {
   const [expanded, setExpanded] = useState(false);
   const [paying, setPaying] = useState(false);
-  const [popup, setPopup] = useState(null); // { type, message }
+  const [popup, setPopup] = useState(null);
+
+  const [editingDue, setEditingDue] = useState(false);
+  const [newDueDate, setNewDueDate] = useState("");
+  const [savingDue, setSavingDue] = useState(false);
+
   const isOverdue = bill.status === "unpaid" && Date.now() > bill.dueDate;
+
+  // The max selectable date = current dueDate + 20 days
+  const maxDueDateStr = bill.dueDate ? fmt.isoDate(bill.dueDate + MAX_DUE_EXTENSION_MS) : "";
+
+  // min = tomorrow (can't pick today or past)
+  const minDueDateStr = fmt.isoDate(Date.now() + 86_400_000);
 
   const handlePay = async (e) => {
     e.stopPropagation();
@@ -174,6 +189,55 @@ const BillRow = ({ bill, onPaySuccess }) => {
       });
     } finally {
       setPaying(false);
+    }
+  };
+
+  const openDueEditor = (e) => {
+    e.stopPropagation();
+    // Seed with current due date, clamped to max
+    const seed = bill.dueDate ? fmt.isoDate(bill.dueDate) : minDueDateStr;
+    setNewDueDate(seed);
+    setEditingDue(true);
+  };
+
+  const cancelDueEdit = (e) => {
+    e?.stopPropagation();
+    setEditingDue(false);
+  };
+
+  const saveDueDate = async (e) => {
+    e.stopPropagation();
+    if (!newDueDate) return;
+
+    // End-of-day UTC so picking "Jan 30" → Jan 30 23:59:59.999Z
+    const chosenMs = new Date(newDueDate + "T23:59:59.999Z").getTime();
+
+    if (chosenMs <= Date.now()) {
+      setPopup({ type: "error", message: "Due date must be in the future." });
+      return;
+    }
+
+    if (bill.dueDate && chosenMs > bill.dueDate + MAX_DUE_EXTENSION_MS) {
+      setPopup({
+        type: "error",
+        message: `Cannot extend beyond ${fmt.date(bill.dueDate + MAX_DUE_EXTENSION_MS)} (20-day limit).`,
+      });
+      return;
+    }
+
+    setSavingDue(true);
+    try {
+      await adminBillingService.updateDueDate(bill._id, chosenMs);
+      setPopup({ type: "success", message: "Due date updated successfully." });
+      setEditingDue(false);
+      onPaySuccess();
+    } catch (err) {
+      setPopup({
+        type: "error",
+        message: err?.response?.data?.error || "Failed to update due date.",
+      });
+    } finally {
+      setSavingDue(false);
     }
   };
 
@@ -233,6 +297,7 @@ const BillRow = ({ bill, onPaySuccess }) => {
           <td colSpan={6} className="px-3 pb-4 pt-2">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
               <BreakdownPanel breakdown={bill.breakdown} />
+
               <div className="bg-white rounded-xl border border-gray-200/80 overflow-hidden">
                 <p className="px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide border-b border-gray-100">
                   Details
@@ -242,22 +307,81 @@ const BillRow = ({ bill, onPaySuccess }) => {
                     <span className="text-gray-500 shrink-0">Lab ID</span>
                     <span className="font-mono text-xs text-gray-700 break-all text-right">{String(bill.labId)}</span>
                   </div>
+
                   <div className="flex justify-between gap-4 px-4 py-2">
                     <span className="text-gray-500 shrink-0">Period</span>
                     <span className="font-medium text-gray-800 text-right">
                       {fmt.date(bill.billingPeriodStart)} – {fmt.date(bill.billingPeriodEnd)}
                     </span>
                   </div>
+
                   <div className="flex justify-between gap-4 px-4 py-2">
                     <span className="text-gray-500 shrink-0">Invoices</span>
                     <span className="font-medium text-gray-800">{bill.invoiceCount ?? 0}</span>
                   </div>
-                  <div className="flex justify-between gap-4 px-4 py-2">
+
+                  {/* ── Due date — editable only for unpaid ── */}
+                  <div className="flex justify-between items-center gap-4 px-4 py-2 min-h-[40px]">
                     <span className="text-gray-500 shrink-0">Due</span>
-                    <span className={`font-medium ${isOverdue ? "text-red-600" : "text-gray-800"}`}>
-                      {fmt.date(bill.dueDate)}
-                    </span>
+
+                    {bill.status === "unpaid" ? (
+                      editingDue ? (
+                        <div
+                          className="flex items-center gap-2 flex-wrap justify-end"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div className="flex flex-col items-end gap-0.5">
+                            <input
+                              type="date"
+                              value={newDueDate}
+                              min={minDueDateStr}
+                              max={maxDueDateStr}
+                              onChange={(e) => setNewDueDate(e.target.value)}
+                              className="px-2 py-1 text-xs rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+                            />
+                            <span className="text-[10px] text-gray-400">
+                              Max: {fmt.date(bill.dueDate + MAX_DUE_EXTENSION_MS)}
+                            </span>
+                          </div>
+                          <button
+                            onClick={saveDueDate}
+                            disabled={savingDue}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60 transition-all"
+                          >
+                            {savingDue ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <CheckCircle2 className="w-3 h-3" />
+                            )}
+                            Save
+                          </button>
+                          <button
+                            onClick={cancelDueEdit}
+                            className="inline-flex items-center px-2 py-1.5 rounded-lg text-xs font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-all"
+                          >
+                            <XCircle className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <span className={`font-medium ${isOverdue ? "text-red-600" : "text-gray-800"}`}>
+                            {fmt.date(bill.dueDate)}
+                          </span>
+                          <button
+                            onClick={openDueEditor}
+                            title="Extend due date (max +20 days)"
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium text-blue-600 bg-blue-50 border border-blue-100 hover:bg-blue-100 transition-all"
+                          >
+                            <Calendar className="w-3 h-3" />
+                            Edit
+                          </button>
+                        </div>
+                      )
+                    ) : (
+                      <span className="font-medium text-gray-800">{fmt.date(bill.dueDate)}</span>
+                    )}
                   </div>
+
                   {bill.status === "paid" && (
                     <>
                       <div className="flex justify-between gap-4 px-4 py-2">
@@ -287,7 +411,7 @@ const BillRow = ({ bill, onPaySuccess }) => {
 const RunRow = ({ run, onRetry }) => {
   const [expanded, setExpanded] = useState(false);
   const [retrying, setRetrying] = useState(false);
-  const [popup, setPopup] = useState(null); // { type, message }
+  const [popup, setPopup] = useState(null);
 
   const handleRetry = async (e) => {
     e.stopPropagation();
@@ -423,7 +547,7 @@ const GenerateModal = ({ onClose, onSuccess }) => {
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
   const [loading, setLoading] = useState(false);
-  const [popup, setPopup] = useState(null); // { type, message }
+  const [popup, setPopup] = useState(null);
 
   const handleGenerate = async () => {
     setLoading(true);
@@ -446,9 +570,7 @@ const GenerateModal = ({ onClose, onSuccess }) => {
   const handlePopupClose = () => {
     const type = popup?.type;
     setPopup(null);
-    if (type === "success") {
-      onSuccess();
-    }
+    if (type === "success") onSuccess();
   };
 
   const monthNames = [
@@ -582,7 +704,11 @@ const AdminBilling = () => {
     setLoadingBills(true);
     setBillsError(null);
     try {
-      const res = await adminBillingService.getAll({ status: filter || undefined, limit: BILLS_LIMIT, skip });
+      const res = await adminBillingService.getAll({
+        status: filter || undefined,
+        limit: BILLS_LIMIT,
+        skip,
+      });
       setBills(res.data.bills ?? []);
     } catch {
       setBillsError("Failed to load bills.");
@@ -595,7 +721,10 @@ const AdminBilling = () => {
     setLoadingRuns(true);
     setRunsError(null);
     try {
-      const res = await adminBillingService.getRuns({ hasErrors: errOnly ? "true" : undefined, limit: 20 });
+      const res = await adminBillingService.getRuns({
+        hasErrors: errOnly ? "true" : undefined,
+        limit: 20,
+      });
       setRuns(res.data.runs ?? []);
     } catch {
       setRunsError("Failed to load billing runs.");
@@ -650,7 +779,7 @@ const AdminBilling = () => {
     <div className="w-full min-w-0 overflow-x-hidden">
       <div className="p-4 sm:p-6 lg:p-8">
         <div className="max-w-6xl mx-auto min-w-0">
-          {/* ── Header ─────────────────────────────────────────────────── */}
+          {/* ── Header ── */}
           <div className="flex items-center justify-between gap-3 mb-6 min-w-0">
             <div className="min-w-0">
               <h1 className="text-lg sm:text-xl font-bold text-gray-900 leading-tight truncate">Billing Management</h1>
@@ -677,7 +806,7 @@ const AdminBilling = () => {
             </div>
           </div>
 
-          {/* ── Summary Stats ───────────────────────────────────────────── */}
+          {/* ── Summary Stats ── */}
           {loadingSummary ? (
             <StatsSkeleton />
           ) : summary ? (
@@ -707,7 +836,7 @@ const AdminBilling = () => {
             </div>
           ) : null}
 
-          {/* ── Tabs ────────────────────────────────────────────────────── */}
+          {/* ── Tabs ── */}
           <div className="flex items-center gap-1 p-1 bg-gray-100/80 rounded-xl w-fit mb-5">
             <Tab
               active={tab === "bills"}
@@ -725,7 +854,7 @@ const AdminBilling = () => {
             />
           </div>
 
-          {/* ── Bills Tab ───────────────────────────────────────────────── */}
+          {/* ── Bills Tab ── */}
           {tab === "bills" && (
             <div className="min-w-0">
               <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-1 scrollbar-none">
@@ -825,7 +954,7 @@ const AdminBilling = () => {
             </div>
           )}
 
-          {/* ── Runs Tab ────────────────────────────────────────────────── */}
+          {/* ── Runs Tab ── */}
           {tab === "runs" && (
             <div className="min-w-0">
               <div className="flex items-center gap-2 mb-4">

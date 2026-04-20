@@ -1,4 +1,3 @@
-// src/services/adminBillingService.js
 import api from "./baseAPI";
 
 const adminBillingService = {
@@ -7,6 +6,7 @@ const adminBillingService = {
   pay: (billingId, labId) => api.post(`/billing/pay/${billingId}`, { labId: String(labId) }),
   generate: (body) => api.post("/billing/generate", body),
   retryRun: (runId) => api.post(`/billing/runs/${runId}/retry-failed`),
+  updateDueDate: (billingId, dueDate) => api.patch(`/billing/${billingId}/due-date`, { dueDate }),
 };
 
 export default adminBillingService;
