@@ -20,9 +20,7 @@ import {
   XCircle,
   Activity,
 } from "lucide-react";
-import adminBillingService from "../../api/adminBilling"; // adjust path as needed
-
-// ─── Formatters ───────────────────────────────────────────────────────────────
+import adminBillingService from "../../services/adminBillingService";
 
 const fmt = {
   currency: (amount) =>
@@ -78,16 +76,16 @@ const StatsSkeleton = () => (
   </div>
 );
 
-const TableSkeleton = ({ cols = 6, rows = 6 }) => (
+const TableSkeleton = ({ rows = 6 }) => (
   <div className="border border-gray-200/80 rounded-2xl overflow-hidden shadow-sm">
-    <div className="overflow-x-auto">
-      <table className="w-full text-left border-collapse">
+    <div className="w-full overflow-x-auto">
+      <table className="w-full text-left border-collapse" style={{ minWidth: "500px" }}>
         <tbody className="divide-y divide-gray-100">
           {[...Array(rows)].map((_, i) => (
             <tr key={i} className="animate-pulse">
-              {[...Array(cols)].map((__, j) => (
+              {[...Array(5)].map((__, j) => (
                 <td key={j} className="px-4 py-3.5">
-                  <Sk className={`h-3.5 ${j === 0 ? "w-28" : j === cols - 1 ? "w-10" : "w-20"}`} />
+                  <Sk className={`h-3.5 ${j === 0 ? "w-20" : j === 4 ? "w-8" : "w-16"}`} />
                 </td>
               ))}
             </tr>
@@ -126,7 +124,7 @@ const StatusBadge = ({ status, isOverdue }) => {
   );
 };
 
-// ─── Breakdown inline panel ───────────────────────────────────────────────────
+// ─── Breakdown Panel ──────────────────────────────────────────────────────────
 
 const BreakdownPanel = ({ breakdown }) => {
   if (!breakdown) return null;
@@ -178,47 +176,50 @@ const BillRow = ({ bill, onPaySuccess }) => {
   return (
     <>
       <tr className="hover:bg-gray-50/80 transition-colors cursor-pointer" onClick={() => setExpanded((v) => !v)}>
-        <td className="px-4 py-3.5 text-sm whitespace-nowrap">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 bg-blue-50 border border-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-              <Building2 className="w-3.5 h-3.5 text-blue-500" />
+        {/* Lab ID — always visible, truncated */}
+        <td className="px-3 py-3 text-sm whitespace-nowrap">
+          <div className="flex items-center gap-1.5">
+            <div className="w-6 h-6 bg-blue-50 border border-blue-100 rounded-md flex items-center justify-center flex-shrink-0">
+              <Building2 className="w-3 h-3 text-blue-500" />
             </div>
-            <span className="font-mono text-xs text-gray-500 truncate max-w-[120px]">
-              {String(bill.labId).slice(-8)}
-            </span>
+            <span className="font-mono text-xs text-gray-500">…{String(bill.labId).slice(-6)}</span>
           </div>
         </td>
-        <td className="px-4 py-3.5 text-sm text-gray-700 whitespace-nowrap hidden sm:table-cell">
-          <div className="flex items-center gap-1.5">
-            <Calendar className="w-3.5 h-3.5 text-gray-400" />
+
+        {/* Amount — always visible */}
+        <td className="px-3 py-3 text-sm font-semibold text-gray-900 whitespace-nowrap">
+          {fmt.currency(bill.totalAmount)}
+        </td>
+
+        {/* Status — always visible */}
+        <td className="px-3 py-3 whitespace-nowrap">
+          <StatusBadge status={bill.status} isOverdue={isOverdue} />
+        </td>
+
+        {/* Period — hidden on xs */}
+        <td className="px-3 py-3 text-sm text-gray-500 whitespace-nowrap hidden sm:table-cell">
+          <div className="flex items-center gap-1">
+            <Calendar className="w-3 h-3 text-gray-400 flex-shrink-0" />
             {fmt.period(bill.billingPeriodStart)}
           </div>
         </td>
-        <td className="px-4 py-3.5 text-sm font-semibold text-gray-900 whitespace-nowrap">
-          {fmt.currency(bill.totalAmount)}
-        </td>
-        <td className="px-4 py-3.5 whitespace-nowrap">
-          <StatusBadge status={bill.status} isOverdue={isOverdue} />
-        </td>
-        <td className="px-4 py-3.5 text-sm text-gray-500 whitespace-nowrap hidden md:table-cell">
-          {fmt.date(bill.dueDate)}
-        </td>
-        <td className="px-4 py-3.5 text-sm text-gray-500 whitespace-nowrap hidden lg:table-cell">
-          {bill.invoiceCount ?? 0}
-        </td>
-        <td className="px-4 py-3.5 whitespace-nowrap">
+
+        {/* Action — always visible */}
+        <td className="px-3 py-3 whitespace-nowrap">
           {bill.status === "unpaid" && (
             <button
               onClick={handlePay}
               disabled={paying}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-all shadow-sm shadow-blue-200 active:scale-95"
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-all shadow-sm active:scale-95"
             >
               {paying ? <Loader2 className="w-3 h-3 animate-spin" /> : <CreditCard className="w-3 h-3" />}
-              {paying ? "..." : "Pay"}
+              Pay
             </button>
           )}
         </td>
-        <td className="px-4 py-3.5 text-center w-8">
+
+        {/* Chevron */}
+        <td className="px-3 py-3 text-center w-8">
           {expanded ? (
             <ChevronUp className="w-4 h-4 text-gray-400 mx-auto" />
           ) : (
@@ -229,7 +230,7 @@ const BillRow = ({ bill, onPaySuccess }) => {
 
       {expanded && (
         <tr className="bg-gray-50/60">
-          <td colSpan={8} className="px-4 pb-4 pt-2">
+          <td colSpan={6} className="px-3 pb-4 pt-2">
             {payError && (
               <div className="mb-3 flex items-center gap-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5">
                 <AlertTriangle className="w-4 h-4 flex-shrink-0" />
@@ -243,25 +244,35 @@ const BillRow = ({ bill, onPaySuccess }) => {
                   Details
                 </p>
                 <div className="divide-y divide-gray-50">
-                  <div className="flex justify-between px-4 py-2">
-                    <span className="text-gray-500">Lab ID</span>
-                    <span className="font-mono text-xs text-gray-700">{String(bill.labId)}</span>
+                  <div className="flex justify-between gap-4 px-4 py-2">
+                    <span className="text-gray-500 shrink-0">Lab ID</span>
+                    <span className="font-mono text-xs text-gray-700 break-all text-right">{String(bill.labId)}</span>
                   </div>
-                  <div className="flex justify-between px-4 py-2">
-                    <span className="text-gray-500">Period</span>
-                    <span className="font-medium text-gray-800">
+                  <div className="flex justify-between gap-4 px-4 py-2">
+                    <span className="text-gray-500 shrink-0">Period</span>
+                    <span className="font-medium text-gray-800 text-right">
                       {fmt.date(bill.billingPeriodStart)} – {fmt.date(bill.billingPeriodEnd)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-4 px-4 py-2">
+                    <span className="text-gray-500 shrink-0">Invoices</span>
+                    <span className="font-medium text-gray-800">{bill.invoiceCount ?? 0}</span>
+                  </div>
+                  <div className="flex justify-between gap-4 px-4 py-2">
+                    <span className="text-gray-500 shrink-0">Due</span>
+                    <span className={`font-medium ${isOverdue ? "text-red-600" : "text-gray-800"}`}>
+                      {fmt.date(bill.dueDate)}
                     </span>
                   </div>
                   {bill.status === "paid" && (
                     <>
-                      <div className="flex justify-between px-4 py-2">
-                        <span className="text-gray-500">Paid at</span>
-                        <span className="font-medium text-gray-800">{fmt.datetime(bill.paidAt)}</span>
+                      <div className="flex justify-between gap-4 px-4 py-2">
+                        <span className="text-gray-500 shrink-0">Paid at</span>
+                        <span className="font-medium text-gray-800 text-right">{fmt.datetime(bill.paidAt)}</span>
                       </div>
                       {bill.paidBy?.name && (
-                        <div className="flex justify-between px-4 py-2">
-                          <span className="text-gray-500">Paid by</span>
+                        <div className="flex justify-between gap-4 px-4 py-2">
+                          <span className="text-gray-500 shrink-0">Paid by</span>
                           <span className="font-medium text-gray-800">{bill.paidBy.name}</span>
                         </div>
                       )}
@@ -302,11 +313,34 @@ const RunRow = ({ run, onRetry }) => {
   return (
     <>
       <tr className="hover:bg-gray-50/80 transition-colors cursor-pointer" onClick={() => setExpanded((v) => !v)}>
-        <td className="px-4 py-3.5 text-sm font-semibold text-gray-800 whitespace-nowrap">{run.period}</td>
-        <td className="px-4 py-3.5 text-sm text-gray-500 whitespace-nowrap hidden sm:table-cell">
-          {fmt.datetime(run.triggeredAt)}
+        {/* Period — always visible */}
+        <td className="px-3 py-3 text-sm font-semibold text-gray-800 whitespace-nowrap">{run.period}</td>
+
+        {/* Results — always visible */}
+        <td className="px-3 py-3 text-sm whitespace-nowrap">
+          <div className="flex items-center gap-1.5">
+            <span className="text-green-600 font-semibold">{run.generated}</span>
+            <span className="text-gray-300">/</span>
+            <span className="text-gray-500 text-xs">{run.totalLabs} labs</span>
+          </div>
         </td>
-        <td className="px-4 py-3.5 whitespace-nowrap hidden sm:table-cell">
+
+        {/* Health — always visible */}
+        <td className="px-3 py-3 whitespace-nowrap">
+          {run.hasErrors ? (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-red-50 text-red-700 border border-red-200">
+              <XCircle className="w-3 h-3" />
+              {run.failedCount}
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-green-50 text-green-700 border border-green-200">
+              <CheckCircle2 className="w-3 h-3" /> OK
+            </span>
+          )}
+        </td>
+
+        {/* Source — hidden on xs */}
+        <td className="px-3 py-3 whitespace-nowrap hidden sm:table-cell">
           <span
             className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium border ${
               run.triggeredBy === "cron"
@@ -318,39 +352,23 @@ const RunRow = ({ run, onRetry }) => {
             {run.triggeredBy}
           </span>
         </td>
-        <td className="px-4 py-3.5 text-sm text-gray-700 whitespace-nowrap">
-          <div className="flex items-center gap-2">
-            <span className="text-green-600 font-medium">{run.generated}</span>
-            <span className="text-gray-300">/</span>
-            <span className="text-gray-500">{run.totalLabs} labs</span>
-          </div>
-        </td>
-        <td className="px-4 py-3.5 whitespace-nowrap">
-          {run.hasErrors ? (
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-red-50 text-red-700 border border-red-200">
-              <XCircle className="w-3 h-3" />
-              {run.failedCount} failed
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-green-50 text-green-700 border border-green-200">
-              <CheckCircle2 className="w-3 h-3" />
-              Clean
-            </span>
-          )}
-        </td>
-        <td className="px-4 py-3.5 whitespace-nowrap">
+
+        {/* Action */}
+        <td className="px-3 py-3 whitespace-nowrap">
           {run.hasErrors && (
             <button
               onClick={handleRetry}
               disabled={retrying}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-amber-500 hover:bg-amber-600 disabled:opacity-60 transition-all shadow-sm active:scale-95"
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-amber-500 hover:bg-amber-600 disabled:opacity-60 transition-all shadow-sm active:scale-95"
             >
               {retrying ? <Loader2 className="w-3 h-3 animate-spin" /> : <RotateCcw className="w-3 h-3" />}
               Retry
             </button>
           )}
         </td>
-        <td className="px-4 py-3.5 text-center w-8">
+
+        {/* Chevron */}
+        <td className="px-3 py-3 text-center w-8">
           {expanded ? (
             <ChevronUp className="w-4 h-4 text-gray-400 mx-auto" />
           ) : (
@@ -361,22 +379,29 @@ const RunRow = ({ run, onRetry }) => {
 
       {expanded && (
         <tr className="bg-gray-50/60">
-          <td colSpan={7} className="px-4 pb-4 pt-2">
+          <td colSpan={6} className="px-3 pb-4 pt-2">
             {retryMsg && (
               <div className="mb-3 text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5">
                 {retryMsg}
               </div>
             )}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm mb-3">
+
+            {/* Triggered at */}
+            <p className="text-xs text-gray-400 mb-3">
+              Triggered: {fmt.datetime(run.triggeredAt)}
+              {run.lastRetryAt && <> · Last retry: {fmt.datetime(run.lastRetryAt)}</>}
+            </p>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm mb-3">
               {[
                 { label: "Generated", value: run.generated, color: "text-green-700" },
                 { label: "Free", value: run.free, color: "text-purple-700" },
                 { label: "Skipped", value: run.skipped, color: "text-gray-600" },
                 { label: "Failed", value: run.failedCount, color: "text-red-600" },
               ].map((s) => (
-                <div key={s.label} className="bg-white rounded-xl border border-gray-200/80 px-4 py-3">
+                <div key={s.label} className="bg-white rounded-xl border border-gray-200/80 px-3 py-2.5">
                   <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">{s.label}</p>
-                  <p className={`text-xl font-bold ${s.color}`}>{s.value}</p>
+                  <p className={`text-lg font-bold ${s.color}`}>{s.value}</p>
                 </div>
               ))}
             </div>
@@ -388,22 +413,13 @@ const RunRow = ({ run, onRetry }) => {
                   Failed labs
                 </p>
                 {run.failedLabs.map((f, i) => (
-                  <div
-                    key={i}
-                    className="flex items-start justify-between px-4 py-2.5 border-b border-gray-50 last:border-b-0"
-                  >
-                    <div>
-                      <p className="text-sm font-medium text-gray-800">{f.labName || "Unknown"}</p>
-                      <p className="font-mono text-xs text-gray-400">{String(f.labId)}</p>
-                    </div>
-                    <p className="text-xs text-red-500 max-w-[200px] text-right">{f.error}</p>
+                  <div key={i} className="flex flex-col gap-0.5 px-4 py-2.5 border-b border-gray-50 last:border-b-0">
+                    <p className="text-sm font-medium text-gray-800">{f.labName || "Unknown"}</p>
+                    <p className="font-mono text-xs text-gray-400 break-all">{String(f.labId)}</p>
+                    <p className="text-xs text-red-500 mt-0.5">{f.error}</p>
                   </div>
                 ))}
               </div>
-            )}
-
-            {run.lastRetryAt && (
-              <p className="mt-2 text-xs text-gray-400">Last retry: {fmt.datetime(run.lastRetryAt)}</p>
             )}
           </td>
         </tr>
@@ -417,7 +433,7 @@ const RunRow = ({ run, onRetry }) => {
 const GenerateModal = ({ onClose, onSuccess }) => {
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
-  const [month, setMonth] = useState(now.getMonth()); // previous month default (postpaid)
+  const [month, setMonth] = useState(now.getMonth());
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState(null);
   const [error, setError] = useState(null);
@@ -456,7 +472,7 @@ const GenerateModal = ({ onClose, onSuccess }) => {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-2xl border border-gray-200/80 w-full max-w-sm p-6">
         <div className="flex items-center gap-3 mb-5">
-          <div className="w-10 h-10 bg-blue-50 border border-blue-100 rounded-xl flex items-center justify-center">
+          <div className="w-10 h-10 bg-blue-50 border border-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
             <Play className="w-5 h-5 text-blue-600" />
           </div>
           <div>
@@ -532,14 +548,14 @@ const GenerateModal = ({ onClose, onSuccess }) => {
 const Tab = ({ active, onClick, icon: Icon, label, count }) => (
   <button
     onClick={onClick}
-    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+    className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all ${
       active
         ? "bg-white text-blue-700 border border-blue-200/80 shadow-sm"
         : "text-gray-500 hover:text-gray-800 hover:bg-white/60"
     }`}
   >
     <Icon className="w-4 h-4" />
-    {label}
+    <span className="hidden xs:inline">{label}</span>
     {count != null && (
       <span
         className={`text-xs px-1.5 py-0.5 rounded-md font-semibold ${
@@ -555,9 +571,8 @@ const Tab = ({ active, onClick, icon: Icon, label, count }) => (
 // ─── Main Admin Billing Page ──────────────────────────────────────────────────
 
 const AdminBilling = () => {
-  const [tab, setTab] = useState("bills"); // "bills" | "runs"
+  const [tab, setTab] = useState("bills");
 
-  // Bills state
   const [bills, setBills] = useState([]);
   const [loadingBills, setLoadingBills] = useState(true);
   const [billsError, setBillsError] = useState(null);
@@ -565,16 +580,12 @@ const AdminBilling = () => {
   const [billsSkip, setBillsSkip] = useState(0);
   const BILLS_LIMIT = 20;
 
-  // Runs state
   const [runs, setRuns] = useState([]);
   const [loadingRuns, setLoadingRuns] = useState(true);
   const [runsError, setRunsError] = useState(null);
   const [errorsOnly, setErrorsOnly] = useState(false);
 
-  // UI
   const [showGenerate, setShowGenerate] = useState(false);
-
-  // Summary from bills
   const [summary, setSummary] = useState(null);
   const [loadingSummary, setLoadingSummary] = useState(true);
 
@@ -607,7 +618,6 @@ const AdminBilling = () => {
   const fetchSummary = useCallback(async () => {
     setLoadingSummary(true);
     try {
-      // Fetch unpaid + paid totals using the all endpoint with no filter (first page gives enough for stats)
       const [unpaidRes, paidRes] = await Promise.all([
         adminBillingService.getAll({ status: "unpaid", limit: 100 }),
         adminBillingService.getAll({ status: "paid", limit: 100 }),
@@ -633,7 +643,6 @@ const AdminBilling = () => {
     fetchRuns(errorsOnly);
   }, []);
 
-  // Re-fetch bills when filter or page changes
   useEffect(() => {
     fetchBills(billsSkip, statusFilter);
   }, [statusFilter, billsSkip]);
@@ -649,266 +658,264 @@ const AdminBilling = () => {
   };
 
   return (
-    <div className="min-h-full p-4 sm:p-6 lg:p-8">
-      <div className="max-w-6xl mx-auto">
-        {/* ── Header ───────────────────────────────────────────────────── */}
-        <div className="flex items-start justify-between mb-6 gap-4">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 leading-tight">Billing Management</h1>
-            <p className="text-sm text-gray-500 mt-0.5">Manage all lab bills, payments, and billing run history</p>
-          </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <button
-              onClick={handleRefresh}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-xl border border-gray-200/80 transition-all"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Refresh</span>
-            </button>
-            <button
-              onClick={() => setShowGenerate(true)}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md shadow-blue-200 transition-all"
-            >
-              <Play className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Generate Bills</span>
-              <span className="sm:hidden">Generate</span>
-            </button>
-          </div>
-        </div>
-
-        {/* ── Summary Stats ─────────────────────────────────────────────── */}
-        {loadingSummary ? (
-          <StatsSkeleton />
-        ) : summary ? (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-            <div className="bg-white border border-gray-200/80 rounded-xl px-4 py-3 shadow-sm">
-              <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Unpaid Bills</p>
-              <p className="text-lg font-bold text-amber-600">{summary.unpaidCount}</p>
-              <p className="text-xs text-gray-400 mt-0.5">{fmt.currency(summary.unpaidTotal)} outstanding</p>
-            </div>
-            <div className="bg-white border border-gray-200/80 rounded-xl px-4 py-3 shadow-sm">
-              <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Overdue</p>
-              <p className={`text-lg font-bold ${summary.overdueCount > 0 ? "text-red-600" : "text-gray-400"}`}>
-                {summary.overdueCount}
+    // KEY FIX: w-0 min-w-full prevents the content from stretching the flex parent
+    <div className="w-full min-w-0 overflow-x-hidden">
+      <div className="p-4 sm:p-6 lg:p-8">
+        <div className="max-w-6xl mx-auto min-w-0">
+          {/* ── Header ─────────────────────────────────────────────────── */}
+          <div className="flex items-center justify-between gap-3 mb-6 min-w-0">
+            <div className="min-w-0">
+              <h1 className="text-lg sm:text-xl font-bold text-gray-900 leading-tight truncate">Billing Management</h1>
+              <p className="text-xs sm:text-sm text-gray-500 mt-0.5 hidden sm:block">
+                Manage all lab bills, payments, and billing run history
               </p>
-              <p className="text-xs text-gray-400 mt-0.5">past due date</p>
             </div>
-            <div className="bg-white border border-gray-200/80 rounded-xl px-4 py-3 shadow-sm">
-              <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Collected</p>
-              <p className="text-lg font-bold text-green-700">{fmt.currency(summary.paidTotal)}</p>
-              <p className="text-xs text-gray-400 mt-0.5">total paid</p>
-            </div>
-            <div className="bg-white border border-gray-200/80 rounded-xl px-4 py-3 shadow-sm">
-              <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Billing Runs</p>
-              <p className="text-lg font-bold text-gray-800">{runs.length}</p>
-              <p className="text-xs text-gray-400 mt-0.5">{runs.filter((r) => r.hasErrors).length} with errors</p>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                onClick={handleRefresh}
+                className="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-xl border border-gray-200/80 transition-all"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Refresh</span>
+              </button>
+              <button
+                onClick={() => setShowGenerate(true)}
+                className="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md shadow-blue-200 transition-all"
+              >
+                <Play className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Generate Bills</span>
+                <span className="sm:hidden">Generate</span>
+              </button>
             </div>
           </div>
-        ) : null}
 
-        {/* ── Tabs ─────────────────────────────────────────────────────── */}
-        <div className="flex items-center gap-1.5 p-1 bg-gray-100/80 rounded-xl w-fit mb-5">
-          <Tab
-            active={tab === "bills"}
-            onClick={() => setTab("bills")}
-            icon={CreditCard}
-            label="Bills"
-            count={bills.length}
-          />
-          <Tab
-            active={tab === "runs"}
-            onClick={() => setTab("runs")}
-            icon={Activity}
-            label="Billing Runs"
-            count={runs.length}
-          />
-        </div>
-
-        {/* ── Bills Tab ────────────────────────────────────────────────── */}
-        {tab === "bills" && (
-          <div>
-            {/* Filter bar */}
-            <div className="flex items-center gap-2 mb-4">
-              <Filter className="w-4 h-4 text-gray-400 flex-shrink-0" />
-              {["", "unpaid", "paid", "free"].map((s) => (
-                <button
-                  key={s}
-                  onClick={() => {
-                    setStatusFilter(s);
-                    setBillsSkip(0);
-                  }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
-                    statusFilter === s
-                      ? "bg-blue-600 text-white border-blue-600 shadow-sm"
-                      : "bg-white text-gray-600 border-gray-200 hover:border-blue-300"
-                  }`}
-                >
-                  {s === "" ? "All" : s.charAt(0).toUpperCase() + s.slice(1)}
-                </button>
-              ))}
+          {/* ── Summary Stats ───────────────────────────────────────────── */}
+          {loadingSummary ? (
+            <StatsSkeleton />
+          ) : summary ? (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+              <div className="bg-white border border-gray-200/80 rounded-xl px-4 py-3 shadow-sm min-w-0">
+                <p className="text-xs text-gray-500 uppercase tracking-wide mb-1 truncate">Unpaid</p>
+                <p className="text-lg font-bold text-amber-600">{summary.unpaidCount}</p>
+                <p className="text-xs text-gray-400 mt-0.5 truncate">{fmt.currency(summary.unpaidTotal)}</p>
+              </div>
+              <div className="bg-white border border-gray-200/80 rounded-xl px-4 py-3 shadow-sm min-w-0">
+                <p className="text-xs text-gray-500 uppercase tracking-wide mb-1 truncate">Overdue</p>
+                <p className={`text-lg font-bold ${summary.overdueCount > 0 ? "text-red-600" : "text-gray-400"}`}>
+                  {summary.overdueCount}
+                </p>
+                <p className="text-xs text-gray-400 mt-0.5">past due</p>
+              </div>
+              <div className="bg-white border border-gray-200/80 rounded-xl px-4 py-3 shadow-sm min-w-0">
+                <p className="text-xs text-gray-500 uppercase tracking-wide mb-1 truncate">Collected</p>
+                <p className="text-lg font-bold text-green-700 truncate">{fmt.currency(summary.paidTotal)}</p>
+                <p className="text-xs text-gray-400 mt-0.5">total paid</p>
+              </div>
+              <div className="bg-white border border-gray-200/80 rounded-xl px-4 py-3 shadow-sm min-w-0">
+                <p className="text-xs text-gray-500 uppercase tracking-wide mb-1 truncate">Runs</p>
+                <p className="text-lg font-bold text-gray-800">{runs.length}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{runs.filter((r) => r.hasErrors).length} with errors</p>
+              </div>
             </div>
+          ) : null}
 
-            {loadingBills ? (
-              <TableSkeleton cols={8} rows={6} />
-            ) : billsError ? (
-              <div className="flex items-center gap-3 px-5 py-4 bg-red-50 border border-red-200 rounded-2xl">
-                <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0" />
-                <div>
-                  <p className="text-sm font-medium text-red-800">{billsError}</p>
+          {/* ── Tabs ────────────────────────────────────────────────────── */}
+          <div className="flex items-center gap-1 p-1 bg-gray-100/80 rounded-xl w-fit mb-5">
+            <Tab
+              active={tab === "bills"}
+              onClick={() => setTab("bills")}
+              icon={CreditCard}
+              label="Bills"
+              count={bills.length}
+            />
+            <Tab
+              active={tab === "runs"}
+              onClick={() => setTab("runs")}
+              icon={Activity}
+              label="Runs"
+              count={runs.length}
+            />
+          </div>
+
+          {/* ── Bills Tab ───────────────────────────────────────────────── */}
+          {tab === "bills" && (
+            <div className="min-w-0">
+              {/* Filter bar — scrollable on tiny screens */}
+              <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-1 scrollbar-none">
+                <Filter className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                {["", "unpaid", "paid", "free"].map((s) => (
                   <button
-                    onClick={() => fetchBills(billsSkip, statusFilter)}
-                    className="text-xs text-red-600 hover:underline mt-0.5"
+                    key={s}
+                    onClick={() => {
+                      setStatusFilter(s);
+                      setBillsSkip(0);
+                    }}
+                    className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                      statusFilter === s
+                        ? "bg-blue-600 text-white border-blue-600 shadow-sm"
+                        : "bg-white text-gray-600 border-gray-200 hover:border-blue-300"
+                    }`}
                   >
-                    Try again
+                    {s === "" ? "All" : s.charAt(0).toUpperCase() + s.slice(1)}
                   </button>
-                </div>
+                ))}
               </div>
-            ) : bills.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-14 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
-                <FileText className="w-8 h-8 text-gray-300 mb-3" />
-                <p className="text-sm font-medium text-gray-500">No bills found</p>
-                <p className="text-xs text-gray-400 mt-1">Try changing the filter or generate bills first</p>
-              </div>
-            ) : (
-              <div className="border border-gray-200/80 rounded-2xl overflow-hidden shadow-sm">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-gray-50/80 border-b border-gray-200/80">
-                        <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Lab</th>
-                        <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden sm:table-cell">
-                          Period
-                        </th>
-                        <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                          Amount
-                        </th>
-                        <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                          Status
-                        </th>
-                        <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">
-                          Due Date
-                        </th>
-                        <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden lg:table-cell">
-                          Invoices
-                        </th>
-                        <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                          Action
-                        </th>
-                        <th className="px-4 py-3 w-8" />
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {bills.map((bill) => (
-                        <BillRow key={bill._id} bill={bill} onPaySuccess={handleRefresh} />
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
 
-                {/* Pagination */}
-                <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 bg-gray-50/50">
-                  <p className="text-xs text-gray-500">
-                    Showing {billsSkip + 1}–{billsSkip + bills.length}
-                  </p>
-                  <div className="flex items-center gap-2">
+              {loadingBills ? (
+                <TableSkeleton rows={6} />
+              ) : billsError ? (
+                <div className="flex items-center gap-3 px-5 py-4 bg-red-50 border border-red-200 rounded-2xl">
+                  <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-red-800">{billsError}</p>
                     <button
-                      onClick={() => setBillsSkip(Math.max(0, billsSkip - BILLS_LIMIT))}
-                      disabled={billsSkip === 0}
-                      className="px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-200 text-gray-600 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                      onClick={() => fetchBills(billsSkip, statusFilter)}
+                      className="text-xs text-red-600 hover:underline mt-0.5"
                     >
-                      Previous
-                    </button>
-                    <button
-                      onClick={() => setBillsSkip(billsSkip + BILLS_LIMIT)}
-                      disabled={bills.length < BILLS_LIMIT}
-                      className="px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-200 text-gray-600 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                    >
-                      Next
+                      Try again
                     </button>
                   </div>
                 </div>
-              </div>
-            )}
-          </div>
-        )}
+              ) : bills.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-14 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+                  <FileText className="w-8 h-8 text-gray-300 mb-3" />
+                  <p className="text-sm font-medium text-gray-500">No bills found</p>
+                  <p className="text-xs text-gray-400 mt-1">Try changing the filter or generate bills first</p>
+                </div>
+              ) : (
+                <div className="border border-gray-200/80 rounded-2xl overflow-hidden shadow-sm">
+                  {/* KEY FIX: this wrapper clips the table and enables horizontal scroll only within */}
+                  <div className="w-full overflow-x-auto">
+                    <table className="text-left border-collapse" style={{ minWidth: "480px", width: "100%" }}>
+                      <thead>
+                        <tr className="bg-gray-50/80 border-b border-gray-200/80">
+                          <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Lab</th>
+                          <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                            Amount
+                          </th>
+                          <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                            Status
+                          </th>
+                          <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden sm:table-cell">
+                            Period
+                          </th>
+                          <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                            Action
+                          </th>
+                          <th className="px-3 py-3 w-8" />
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {bills.map((bill) => (
+                          <BillRow key={bill._id} bill={bill} onPaySuccess={handleRefresh} />
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
 
-        {/* ── Runs Tab ─────────────────────────────────────────────────── */}
-        {tab === "runs" && (
-          <div>
-            {/* Filter bar */}
-            <div className="flex items-center gap-2 mb-4">
-              <button
-                onClick={() => setErrorsOnly((v) => !v)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
-                  errorsOnly
-                    ? "bg-red-600 text-white border-red-600"
-                    : "bg-white text-gray-600 border-gray-200 hover:border-red-300"
-                }`}
-              >
-                <AlertTriangle className="w-3 h-3" />
-                Errors only
-              </button>
+                  {/* Pagination */}
+                  <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 bg-gray-50/50">
+                    <p className="text-xs text-gray-500">
+                      {billsSkip + 1}–{billsSkip + bills.length}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setBillsSkip(Math.max(0, billsSkip - BILLS_LIMIT))}
+                        disabled={billsSkip === 0}
+                        className="px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-200 text-gray-600 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                      >
+                        Prev
+                      </button>
+                      <button
+                        onClick={() => setBillsSkip(billsSkip + BILLS_LIMIT)}
+                        disabled={bills.length < BILLS_LIMIT}
+                        className="px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-200 text-gray-600 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
+          )}
 
-            {loadingRuns ? (
-              <TableSkeleton cols={7} rows={5} />
-            ) : runsError ? (
-              <div className="flex items-center gap-3 px-5 py-4 bg-red-50 border border-red-200 rounded-2xl">
-                <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0" />
-                <div>
-                  <p className="text-sm font-medium text-red-800">{runsError}</p>
-                  <button onClick={() => fetchRuns(errorsOnly)} className="text-xs text-red-600 hover:underline mt-0.5">
-                    Try again
-                  </button>
+          {/* ── Runs Tab ────────────────────────────────────────────────── */}
+          {tab === "runs" && (
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 mb-4">
+                <button
+                  onClick={() => setErrorsOnly((v) => !v)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                    errorsOnly
+                      ? "bg-red-600 text-white border-red-600"
+                      : "bg-white text-gray-600 border-gray-200 hover:border-red-300"
+                  }`}
+                >
+                  <AlertTriangle className="w-3 h-3" />
+                  Errors only
+                </button>
+              </div>
+
+              {loadingRuns ? (
+                <TableSkeleton rows={5} />
+              ) : runsError ? (
+                <div className="flex items-center gap-3 px-5 py-4 bg-red-50 border border-red-200 rounded-2xl">
+                  <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-red-800">{runsError}</p>
+                    <button
+                      onClick={() => fetchRuns(errorsOnly)}
+                      className="text-xs text-red-600 hover:underline mt-0.5"
+                    >
+                      Try again
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ) : runs.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-14 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
-                <Activity className="w-8 h-8 text-gray-300 mb-3" />
-                <p className="text-sm font-medium text-gray-500">No billing runs yet</p>
-                <p className="text-xs text-gray-400 mt-1">Runs appear here after bills are generated</p>
-              </div>
-            ) : (
-              <div className="border border-gray-200/80 rounded-2xl overflow-hidden shadow-sm">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-gray-50/80 border-b border-gray-200/80">
-                        <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                          Period
-                        </th>
-                        <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden sm:table-cell">
-                          Triggered At
-                        </th>
-                        <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden sm:table-cell">
-                          Source
-                        </th>
-                        <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                          Results
-                        </th>
-                        <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                          Health
-                        </th>
-                        <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                          Action
-                        </th>
-                        <th className="px-4 py-3 w-8" />
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {runs.map((run) => (
-                        <RunRow key={run._id} run={run} onRetry={handleRefresh} />
-                      ))}
-                    </tbody>
-                  </table>
+              ) : runs.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-14 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+                  <Activity className="w-8 h-8 text-gray-300 mb-3" />
+                  <p className="text-sm font-medium text-gray-500">No billing runs yet</p>
+                  <p className="text-xs text-gray-400 mt-1">Runs appear here after bills are generated</p>
                 </div>
-              </div>
-            )}
-          </div>
-        )}
+              ) : (
+                <div className="border border-gray-200/80 rounded-2xl overflow-hidden shadow-sm">
+                  <div className="w-full overflow-x-auto">
+                    <table className="text-left border-collapse" style={{ minWidth: "420px", width: "100%" }}>
+                      <thead>
+                        <tr className="bg-gray-50/80 border-b border-gray-200/80">
+                          <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                            Period
+                          </th>
+                          <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                            Results
+                          </th>
+                          <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                            Health
+                          </th>
+                          <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden sm:table-cell">
+                            Source
+                          </th>
+                          <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                            Action
+                          </th>
+                          <th className="px-3 py-3 w-8" />
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {runs.map((run) => (
+                          <RunRow key={run._id} run={run} onRetry={handleRefresh} />
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* ── Generate Modal ────────────────────────────────────────────── */}
       {showGenerate && (
         <GenerateModal
           onClose={() => setShowGenerate(false)}
