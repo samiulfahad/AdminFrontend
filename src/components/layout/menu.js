@@ -11,6 +11,7 @@ import {
 const menu = [
   { label: "Home", path: "/", icon: LayoutDashboard },
   { label: "Labs", path: "/labs", icon: FlaskConical },
+  { label: "Billing", path: "/billing", icon: MapPin },
   { label: "Lab Management", path: "/lab-management", icon: SlidersHorizontal },
   { label: "Test Catalog", path: "/test-catalog", icon: BookOpen },
   { label: "Schema Engine", path: "/schema-engine", icon: WashingMachine },

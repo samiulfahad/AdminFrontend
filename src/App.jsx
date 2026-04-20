@@ -10,6 +10,7 @@ import SchemaBuilder from "./pages/schemaBuilder";
 import Zones from "./pages/zones";
 import ReportUpload from "./pages/reportUpload";
 import ReportDownload from "./pages/reportDownload";
+import AdminBilling from "./pages/billing";
 function App() {
   return (
     <Layout>
@@ -17,6 +18,7 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/labs" element={<Labs />} />
         <Route path="/lab-management" element={<LabManagement />} />
+        <Route path="/billing" element={<AdminBilling/> } />
         <Route path="/test-catalog" element={<TestCatalog />} />
         <Route path="/schema-engine" element={<SchemaEngine />} />
         <Route path="/schema-builder" element={<SchemaBuilder />} />
