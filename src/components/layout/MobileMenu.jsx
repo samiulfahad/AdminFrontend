@@ -46,17 +46,19 @@ const MobileMenu = () => {
       <div className="lg:hidden">
         {/* Top indigo stripe */}
         <div
-          className={`fixed top-0 left-0 right-0 h-[3px] z-[51] bg-gradient-to-r from-indigo-500 via-indigo-400 to-indigo-300 transition-transform duration-300 ${hidden ? "-translate-y-full" : "translate-y-0"}`}
+          className={`fixed top-0 left-0 right-0 h-[3px] z-[51] bg-gradient-to-r from-indigo-500 via-indigo-400 to-indigo-300 transition-transform duration-300 ${
+            hidden ? "-translate-y-full" : "translate-y-0"
+          }`}
         />
 
-        {/* Navbar */}
+        {/* Navbar — removed py-10, height locked to h-14 */}
         <nav
-          className={`fixed top-0 left-0 right-0 py-10 z-50 flex items-center justify-between px-[18px] h-14 border-b border-slate-100 transition-all duration-300
-          ${scrolled ? "bg-white/95 backdrop-blur-xl shadow-[0_4px_24px_rgba(99,102,241,0.07)]" : "bg-white"}
-          ${hidden ? "-translate-y-full" : "translate-y-0"}`}
+          className={`fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-[18px] h-14 border-b border-slate-100 transition-all duration-300
+            ${scrolled ? "bg-white/95 backdrop-blur-xl shadow-[0_4px_24px_rgba(99,102,241,0.07)]" : "bg-white"}
+            ${hidden ? "-translate-y-full" : "translate-y-0"}`}
         >
           <Link to="/" className="no-underline flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-[9px] bg-gradient-to-br from-indigo-500 to-indigo-400 flex items-center justify-center shadow-md shadow-indigo-200">
+            <div className="w-8 h-8 rounded-[9px] bg-gradient-to-br from-indigo-500 to-indigo-400 flex items-center justify-center shadow-md shadow-indigo-200 flex-shrink-0">
               <Zap size={14} className="text-white" />
             </div>
             <div>
@@ -70,14 +72,14 @@ const MobileMenu = () => {
           <button
             onClick={() => setIsMenuOpen(!isMenuOpen)}
             aria-label="Toggle menu"
-            className={`w-12 h-12 flex items-center justify-center rounded-xl border transition-all duration-200 cursor-pointer
+            className={`w-10 h-10 flex items-center justify-center rounded-xl border transition-all duration-200 cursor-pointer flex-shrink-0
               ${isMenuOpen ? "bg-indigo-50 border-indigo-200" : "bg-slate-50 border-slate-200 hover:bg-slate-100"}`}
           >
-            {isMenuOpen ? <X size={20} className="text-indigo-500" /> : <Menu size={20} className="text-slate-500" />}
+            {isMenuOpen ? <X size={18} className="text-indigo-500" /> : <Menu size={18} className="text-slate-500" />}
           </button>
         </nav>
 
-        {/* Spacer */}
+        {/* Spacer — always exactly h-14 to match the fixed navbar */}
         <div className="h-14" />
       </div>
 
@@ -92,7 +94,7 @@ const MobileMenu = () => {
       {/* Drawer */}
       <div
         className={`lg:hidden fixed top-0 right-0 bottom-0 z-50 w-72 max-w-[86vw] flex flex-col bg-white border-l border-slate-100 shadow-[-12px_0_50px_rgba(15,23,42,0.08)] transition-transform duration-[360ms] ease-[cubic-bezier(0.16,1,0.3,1)]
-        ${isMenuOpen ? "translate-x-0" : "translate-x-[105%]"}`}
+          ${isMenuOpen ? "translate-x-0" : "translate-x-[105%]"}`}
       >
         {/* Top stripe */}
         <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-indigo-500 via-indigo-400 to-indigo-300" />
@@ -100,7 +102,7 @@ const MobileMenu = () => {
         {/* Drawer header */}
         <div className="shrink-0 flex items-center justify-between px-5 pt-7 pb-[18px] border-b border-slate-50">
           <div className="flex items-center gap-3">
-            <div className="w-[42px] h-[42px] rounded-[13px] bg-gradient-to-br from-indigo-500 to-indigo-400 flex items-center justify-center shadow-lg shadow-indigo-200">
+            <div className="w-[42px] h-[42px] rounded-[13px] bg-gradient-to-br from-indigo-500 to-indigo-400 flex items-center justify-center shadow-lg shadow-indigo-200 flex-shrink-0">
               <Zap size={17} className="text-white" />
             </div>
             <div>
@@ -114,7 +116,7 @@ const MobileMenu = () => {
           </div>
           <button
             onClick={() => setIsMenuOpen(false)}
-            className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-50 border border-slate-200 cursor-pointer hover:bg-slate-100 transition"
+            className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-50 border border-slate-200 cursor-pointer hover:bg-slate-100 transition flex-shrink-0"
           >
             <X size={13} className="text-slate-400" />
           </button>
@@ -138,29 +140,23 @@ const MobileMenu = () => {
                   {({ isActive }) => (
                     <div
                       className={`relative flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all
-                      ${isActive ? "bg-indigo-50 border-indigo-200" : "border-transparent"}`}
+                        ${isActive ? "bg-indigo-50 border-indigo-200" : "border-transparent"}`}
                     >
-                      {/* Active left bar */}
                       {isActive && (
                         <div className="absolute left-0 top-[22%] bottom-[22%] w-[3px] bg-gradient-to-b from-indigo-500 to-indigo-400 rounded-r-full" />
                       )}
-
-                      {/* Icon */}
                       <div
                         className={`w-[34px] h-[34px] rounded-[9px] shrink-0 flex items-center justify-center border
-                        ${isActive ? "bg-indigo-100 border-indigo-200" : "bg-slate-50 border-slate-200"}`}
+                          ${isActive ? "bg-indigo-100 border-indigo-200" : "bg-slate-50 border-slate-200"}`}
                       >
                         <Icon size={14} className={isActive ? "text-indigo-500" : "text-slate-400"} />
                       </div>
-
-                      {/* Label */}
                       <span
                         className={`flex-1 text-[13.5px] tracking-[-0.2px]
-                        ${isActive ? "font-bold text-indigo-900" : "font-medium text-slate-500"}`}
+                          ${isActive ? "font-bold text-indigo-900" : "font-medium text-slate-500"}`}
                       >
                         {item.label}
                       </span>
-
                       <ChevronRight size={13} className={isActive ? "text-indigo-400" : "text-slate-200"} />
                     </div>
                   )}
