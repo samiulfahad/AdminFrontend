@@ -21,6 +21,7 @@ import {
   Activity,
 } from "lucide-react";
 import adminBillingService from "../../api/adminBilling";
+import Popup from "../../components/popup";
 
 const fmt = {
   currency: (amount) =>
@@ -156,18 +157,21 @@ const BreakdownPanel = ({ breakdown }) => {
 const BillRow = ({ bill, onPaySuccess }) => {
   const [expanded, setExpanded] = useState(false);
   const [paying, setPaying] = useState(false);
-  const [payError, setPayError] = useState(null);
+  const [popup, setPopup] = useState(null); // { type, message }
   const isOverdue = bill.status === "unpaid" && Date.now() > bill.dueDate;
 
   const handlePay = async (e) => {
     e.stopPropagation();
     setPaying(true);
-    setPayError(null);
     try {
       await adminBillingService.pay(bill._id, bill.labId);
+      setPopup({ type: "success", message: "Bill has been marked as paid successfully." });
       onPaySuccess();
     } catch (err) {
-      setPayError(err?.response?.data?.error || "Payment failed.");
+      setPopup({
+        type: "error",
+        message: err?.response?.data?.error || "Payment failed. Please try again.",
+      });
     } finally {
       setPaying(false);
     }
@@ -175,8 +179,9 @@ const BillRow = ({ bill, onPaySuccess }) => {
 
   return (
     <>
+      {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
+
       <tr className="hover:bg-gray-50/80 transition-colors cursor-pointer" onClick={() => setExpanded((v) => !v)}>
-        {/* Lab ID — always visible, truncated */}
         <td className="px-3 py-3 text-sm whitespace-nowrap">
           <div className="flex items-center gap-1.5">
             <div className="w-6 h-6 bg-blue-50 border border-blue-100 rounded-md flex items-center justify-center flex-shrink-0">
@@ -186,17 +191,14 @@ const BillRow = ({ bill, onPaySuccess }) => {
           </div>
         </td>
 
-        {/* Amount — always visible */}
         <td className="px-3 py-3 text-sm font-semibold text-gray-900 whitespace-nowrap">
           {fmt.currency(bill.totalAmount)}
         </td>
 
-        {/* Status — always visible */}
         <td className="px-3 py-3 whitespace-nowrap">
           <StatusBadge status={bill.status} isOverdue={isOverdue} />
         </td>
 
-        {/* Period — hidden on xs */}
         <td className="px-3 py-3 text-sm text-gray-500 whitespace-nowrap hidden sm:table-cell">
           <div className="flex items-center gap-1">
             <Calendar className="w-3 h-3 text-gray-400 flex-shrink-0" />
@@ -204,7 +206,6 @@ const BillRow = ({ bill, onPaySuccess }) => {
           </div>
         </td>
 
-        {/* Action — always visible */}
         <td className="px-3 py-3 whitespace-nowrap">
           {bill.status === "unpaid" && (
             <button
@@ -218,7 +219,6 @@ const BillRow = ({ bill, onPaySuccess }) => {
           )}
         </td>
 
-        {/* Chevron */}
         <td className="px-3 py-3 text-center w-8">
           {expanded ? (
             <ChevronUp className="w-4 h-4 text-gray-400 mx-auto" />
@@ -231,12 +231,6 @@ const BillRow = ({ bill, onPaySuccess }) => {
       {expanded && (
         <tr className="bg-gray-50/60">
           <td colSpan={6} className="px-3 pb-4 pt-2">
-            {payError && (
-              <div className="mb-3 flex items-center gap-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5">
-                <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-                {payError}
-              </div>
-            )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
               <BreakdownPanel breakdown={bill.breakdown} />
               <div className="bg-white rounded-xl border border-gray-200/80 overflow-hidden">
@@ -293,18 +287,23 @@ const BillRow = ({ bill, onPaySuccess }) => {
 const RunRow = ({ run, onRetry }) => {
   const [expanded, setExpanded] = useState(false);
   const [retrying, setRetrying] = useState(false);
-  const [retryMsg, setRetryMsg] = useState(null);
+  const [popup, setPopup] = useState(null); // { type, message }
 
   const handleRetry = async (e) => {
     e.stopPropagation();
     setRetrying(true);
-    setRetryMsg(null);
     try {
       const res = await adminBillingService.retryRun(run._id);
-      setRetryMsg(res.data?.message || "Retry started.");
+      setPopup({
+        type: "success",
+        message: res.data?.message || "Retry started successfully.",
+      });
       onRetry();
     } catch (err) {
-      setRetryMsg(err?.response?.data?.error || "Retry failed.");
+      setPopup({
+        type: "error",
+        message: err?.response?.data?.error || "Retry failed. Please try again.",
+      });
     } finally {
       setRetrying(false);
     }
@@ -312,11 +311,11 @@ const RunRow = ({ run, onRetry }) => {
 
   return (
     <>
+      {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
+
       <tr className="hover:bg-gray-50/80 transition-colors cursor-pointer" onClick={() => setExpanded((v) => !v)}>
-        {/* Period — always visible */}
         <td className="px-3 py-3 text-sm font-semibold text-gray-800 whitespace-nowrap">{run.period}</td>
 
-        {/* Results — always visible */}
         <td className="px-3 py-3 text-sm whitespace-nowrap">
           <div className="flex items-center gap-1.5">
             <span className="text-green-600 font-semibold">{run.generated}</span>
@@ -325,7 +324,6 @@ const RunRow = ({ run, onRetry }) => {
           </div>
         </td>
 
-        {/* Health — always visible */}
         <td className="px-3 py-3 whitespace-nowrap">
           {run.hasErrors ? (
             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-red-50 text-red-700 border border-red-200">
@@ -339,7 +337,6 @@ const RunRow = ({ run, onRetry }) => {
           )}
         </td>
 
-        {/* Source — hidden on xs */}
         <td className="px-3 py-3 whitespace-nowrap hidden sm:table-cell">
           <span
             className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium border ${
@@ -353,7 +350,6 @@ const RunRow = ({ run, onRetry }) => {
           </span>
         </td>
 
-        {/* Action */}
         <td className="px-3 py-3 whitespace-nowrap">
           {run.hasErrors && (
             <button
@@ -367,7 +363,6 @@ const RunRow = ({ run, onRetry }) => {
           )}
         </td>
 
-        {/* Chevron */}
         <td className="px-3 py-3 text-center w-8">
           {expanded ? (
             <ChevronUp className="w-4 h-4 text-gray-400 mx-auto" />
@@ -380,13 +375,6 @@ const RunRow = ({ run, onRetry }) => {
       {expanded && (
         <tr className="bg-gray-50/60">
           <td colSpan={6} className="px-3 pb-4 pt-2">
-            {retryMsg && (
-              <div className="mb-3 text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5">
-                {retryMsg}
-              </div>
-            )}
-
-            {/* Triggered at */}
             <p className="text-xs text-gray-400 mb-3">
               Triggered: {fmt.datetime(run.triggeredAt)}
               {run.lastRetryAt && <> · Last retry: {fmt.datetime(run.lastRetryAt)}</>}
@@ -435,21 +423,31 @@ const GenerateModal = ({ onClose, onSuccess }) => {
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
   const [loading, setLoading] = useState(false);
-  const [msg, setMsg] = useState(null);
-  const [error, setError] = useState(null);
+  const [popup, setPopup] = useState(null); // { type, message }
 
   const handleGenerate = async () => {
     setLoading(true);
-    setMsg(null);
-    setError(null);
     try {
       const res = await adminBillingService.generate({ year, month });
-      setMsg(res.data?.message || "Generation started.");
-      onSuccess();
+      setPopup({
+        type: "success",
+        message: res.data?.message || "Bill generation started successfully.",
+      });
     } catch (err) {
-      setError(err?.response?.data?.error || "Failed to start generation.");
+      setPopup({
+        type: "error",
+        message: err?.response?.data?.error || "Failed to start bill generation.",
+      });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePopupClose = () => {
+    const type = popup?.type;
+    setPopup(null);
+    if (type === "success") {
+      onSuccess();
     }
   };
 
@@ -469,77 +467,68 @@ const GenerateModal = ({ onClose, onSuccess }) => {
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl border border-gray-200/80 w-full max-w-sm p-6">
-        <div className="flex items-center gap-3 mb-5">
-          <div className="w-10 h-10 bg-blue-50 border border-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
-            <Play className="w-5 h-5 text-blue-600" />
-          </div>
-          <div>
-            <h3 className="text-base font-bold text-gray-900">Generate Bills</h3>
-            <p className="text-xs text-gray-500">Select billing period</p>
-          </div>
-        </div>
+    <>
+      {popup && <Popup type={popup.type} message={popup.message} onClose={handlePopupClose} />}
 
-        <div className="grid grid-cols-2 gap-3 mb-5">
-          <div>
-            <label className="text-xs font-medium text-gray-600 mb-1.5 block">Year</label>
-            <input
-              type="number"
-              value={year}
-              onChange={(e) => setYear(parseInt(e.target.value))}
-              min={2024}
-              max={2100}
-              className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
-            />
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
+        <div className="bg-white rounded-2xl shadow-2xl border border-gray-200/80 w-full max-w-sm p-6">
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-10 h-10 bg-blue-50 border border-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
+              <Play className="w-5 h-5 text-blue-600" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-gray-900">Generate Bills</h3>
+              <p className="text-xs text-gray-500">Select billing period</p>
+            </div>
           </div>
-          <div>
-            <label className="text-xs font-medium text-gray-600 mb-1.5 block">Month</label>
-            <select
-              value={month}
-              onChange={(e) => setMonth(parseInt(e.target.value))}
-              className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 bg-white"
+
+          <div className="grid grid-cols-2 gap-3 mb-5">
+            <div>
+              <label className="text-xs font-medium text-gray-600 mb-1.5 block">Year</label>
+              <input
+                type="number"
+                value={year}
+                onChange={(e) => setYear(parseInt(e.target.value))}
+                min={2024}
+                max={2100}
+                className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-600 mb-1.5 block">Month</label>
+              <select
+                value={month}
+                onChange={(e) => setMonth(parseInt(e.target.value))}
+                className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 bg-white"
+              >
+                {monthNames.map((name, i) => (
+                  <option key={i} value={i + 1}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              onClick={onClose}
+              className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors"
             >
-              {monthNames.map((name, i) => (
-                <option key={i} value={i + 1}>
-                  {name}
-                </option>
-              ))}
-            </select>
+              Cancel
+            </button>
+            <button
+              onClick={handleGenerate}
+              disabled={loading}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60 transition-all shadow-md shadow-blue-200"
+            >
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+              Generate
+            </button>
           </div>
-        </div>
-
-        {msg && (
-          <div className="mb-4 flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-xl px-4 py-2.5">
-            <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-            {msg}
-          </div>
-        )}
-        {error && (
-          <div className="mb-4 flex items-center gap-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5">
-            <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-            {error}
-          </div>
-        )}
-
-        <div className="flex gap-3">
-          <button
-            onClick={onClose}
-            className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleGenerate}
-            disabled={loading}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60 transition-all shadow-md shadow-blue-200"
-          >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-            Generate
-          </button>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 
@@ -658,7 +647,6 @@ const AdminBilling = () => {
   };
 
   return (
-    // KEY FIX: w-0 min-w-full prevents the content from stretching the flex parent
     <div className="w-full min-w-0 overflow-x-hidden">
       <div className="p-4 sm:p-6 lg:p-8">
         <div className="max-w-6xl mx-auto min-w-0">
@@ -740,7 +728,6 @@ const AdminBilling = () => {
           {/* ── Bills Tab ───────────────────────────────────────────────── */}
           {tab === "bills" && (
             <div className="min-w-0">
-              {/* Filter bar — scrollable on tiny screens */}
               <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-1 scrollbar-none">
                 <Filter className="w-4 h-4 text-gray-400 flex-shrink-0" />
                 {["", "unpaid", "paid", "free"].map((s) => (
@@ -784,7 +771,6 @@ const AdminBilling = () => {
                 </div>
               ) : (
                 <div className="border border-gray-200/80 rounded-2xl overflow-hidden shadow-sm">
-                  {/* KEY FIX: this wrapper clips the table and enables horizontal scroll only within */}
                   <div className="w-full overflow-x-auto">
                     <table className="text-left border-collapse" style={{ minWidth: "480px", width: "100%" }}>
                       <thead>
@@ -813,7 +799,6 @@ const AdminBilling = () => {
                     </table>
                   </div>
 
-                  {/* Pagination */}
                   <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 bg-gray-50/50">
                     <p className="text-xs text-gray-500">
                       {billsSkip + 1}–{billsSkip + bills.length}
