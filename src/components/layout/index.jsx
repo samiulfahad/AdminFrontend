@@ -12,7 +12,7 @@ const Layout = ({ children }) => {
         <DesktopMenu />
       </div>
       <div className="flex-1 flex flex-col min-w-0 lg:ml-60 print:ml-0">
-        <main className="flex-1 lg:pt-0 print:pt-0 bg-slate-50 min-w-0 overflow-x-hidden">
+        <main className="flex-1 pt-18 lg:pt-0 print:pt-0 bg-slate-50 min-w-0 overflow-x-hidden">
           <div className="w-full min-w-0 print:max-w-none">{children}</div>
         </main>
         <footer className="print:hidden bg-white border-t border-slate-100">
