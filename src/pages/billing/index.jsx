@@ -33,7 +33,9 @@ const fmtDate = (ms) =>
   ms ? new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(ms)) : "—";
 
 const fmtMonth = (ms) =>
-  ms ? new Intl.DateTimeFormat("en-GB", { month: "short", year: "numeric" }).format(new Date(ms)) : "—";
+  ms
+    ? new Intl.DateTimeFormat("en-GB", { month: "short", year: "numeric" }).format(new Date(ms + 12 * 60 * 60 * 1000))
+    : "—";
 
 const fmtCurrency = (n) =>
   typeof n === "number"
