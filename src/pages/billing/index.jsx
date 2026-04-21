@@ -24,8 +24,6 @@ import {
   BadgeCheck,
   Ban,
   BarChart3,
-  TrendingUp,
-  TrendingDown,
 } from "lucide-react";
 import billingService from "../../api/billingService";
 
@@ -96,25 +94,6 @@ const RunRowSkeleton = () => (
       </td>
     ))}
   </tr>
-);
-
-const OverviewRowSkeleton = () => (
-  <div className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm">
-    <div className="flex items-center justify-between mb-3">
-      <Bone className="h-5 w-24" />
-      <Bone className="h-4 w-16" />
-    </div>
-    <div className="grid grid-cols-4 gap-3">
-      {[0, 1, 2, 3].map((i) => (
-        <div key={i} className="space-y-1.5">
-          <Bone className="h-3 w-12" />
-          <Bone className="h-6 w-10" />
-          <Bone className="h-3 w-20" />
-        </div>
-      ))}
-    </div>
-    <Bone className="h-2 w-full mt-3 rounded-full" />
-  </div>
 );
 
 // ─── UI Atoms ─────────────────────────────────────────────────────────────────
@@ -583,177 +562,156 @@ const RunRow = ({ run, onRetry }) => (
   </tr>
 );
 
-// ─── Month Overview Card ──────────────────────────────────────────────────────
-
-const MonthOverviewCard = ({ m }) => {
-  const total = m.totalLabs;
-  const paidPct = total ? Math.round((m.paid.count / total) * 100) : 0;
-  const unpaidPct = total ? Math.round((m.unpaid.count / total) * 100) : 0;
-  const freePct = total ? Math.round((m.free.count / total) * 100) : 0;
-
-  const grandTotal = m.paid.total + m.unpaid.total;
-
-  return (
-    <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow">
-      {/* Header */}
-      <div className="flex items-start justify-between mb-4">
-        <div>
-          <div className="text-[16px] font-black text-slate-900">{m.label}</div>
-          <div className="text-[11px] text-slate-400 mt-0.5 font-mono">{m.period}</div>
-        </div>
-        <div className="text-right">
-          <div className="text-[11px] text-slate-400">Total Labs</div>
-          <div className="text-[20px] font-black text-slate-900 leading-tight">{total}</div>
-        </div>
-      </div>
-
-      {/* Stats grid */}
-      <div className="grid grid-cols-3 gap-2 mb-4">
-        {/* Paid */}
-        <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3">
-          <div className="flex items-center gap-1 mb-1">
-            <CheckCircle2 size={10} className="text-emerald-500" />
-            <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wide">Paid</span>
-          </div>
-          <div className="text-[18px] font-black text-emerald-700 leading-tight">{m.paid.count}</div>
-          {m.paid.total > 0 && <div className="text-[10.5px] text-emerald-600 mt-0.5">{fmtCurrency(m.paid.total)}</div>}
-          <div className="text-[10px] text-emerald-500 mt-0.5">{paidPct}%</div>
-        </div>
-
-        {/* Unpaid */}
-        <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
-          <div className="flex items-center gap-1 mb-1">
-            <Clock size={10} className="text-amber-500" />
-            <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wide">Unpaid</span>
-          </div>
-          <div className="text-[18px] font-black text-amber-700 leading-tight">{m.unpaid.count}</div>
-          {m.unpaid.total > 0 && (
-            <div className="text-[10.5px] text-amber-600 mt-0.5">{fmtCurrency(m.unpaid.total)}</div>
-          )}
-          <div className="text-[10px] text-amber-500 mt-0.5">{unpaidPct}%</div>
-        </div>
-
-        {/* Free */}
-        <div className="bg-slate-50 border border-slate-100 rounded-xl p-3">
-          <div className="flex items-center gap-1 mb-1">
-            <Zap size={10} className="text-slate-400" />
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Free</span>
-          </div>
-          <div className="text-[18px] font-black text-slate-500 leading-tight">{m.free.count}</div>
-          <div className="text-[10px] text-slate-400 mt-0.5">{freePct}%</div>
-        </div>
-      </div>
-
-      {/* Progress bar */}
-      <div className="h-2 rounded-full overflow-hidden bg-slate-100 flex">
-        {paidPct > 0 && (
-          <div
-            className="bg-emerald-400 h-full transition-all"
-            style={{ width: `${paidPct}%` }}
-            title={`Paid ${paidPct}%`}
-          />
-        )}
-        {unpaidPct > 0 && (
-          <div
-            className="bg-amber-400 h-full transition-all"
-            style={{ width: `${unpaidPct}%` }}
-            title={`Unpaid ${unpaidPct}%`}
-          />
-        )}
-        {freePct > 0 && (
-          <div
-            className="bg-slate-300 h-full transition-all"
-            style={{ width: `${freePct}%` }}
-            title={`Free ${freePct}%`}
-          />
-        )}
-      </div>
-
-      {/* Revenue footer */}
-      {grandTotal > 0 && (
-        <div className="mt-3 pt-3 border-t border-slate-50 flex items-center justify-between">
-          <span className="text-[11px] text-slate-400">Total Revenue</span>
-          <span className="text-[12.5px] font-bold text-slate-700">{fmtCurrency(grandTotal)}</span>
-        </div>
-      )}
-    </div>
-  );
-};
-
 // ─── Month Overview Tab ───────────────────────────────────────────────────────
+// Step 1: pick month/year from a dropdown of available periods
+// Step 2: show per-lab bill list with paid/unpaid/free tags + stats banner
 
 const MonthOverviewTab = () => {
-  const [months, setMonths] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [months, setMonths] = useState([]); // all available periods from API
+  const [overviewLoading, setOverviewLoading] = useState(false);
+  const [overviewError, setOverviewError] = useState("");
 
-  const fetch = useCallback(async () => {
-    setLoading(true);
-    setError("");
+  // Selected period (one of the months returned by API)
+  const [selectedPeriod, setSelectedPeriod] = useState(null); // { period, label, year, month, periodStart, paid, unpaid, free, totalLabs }
+
+  // Per-lab bills for selected period
+  const [bills, setBills] = useState([]);
+  const [billsLoading, setBillsLoading] = useState(false);
+  const [billsError, setBillsError] = useState("");
+  const [billsSkip, setBillsSkip] = useState(0);
+  const [billsTotal, setBillsTotal] = useState(0);
+  const BILLS_LIMIT = 30;
+
+  // Load available periods on mount
+  const loadPeriods = useCallback(async () => {
+    setOverviewLoading(true);
+    setOverviewError("");
     try {
       const res = await billingService.getMonthOverview();
-      setMonths(res.data.months ?? []);
+      const m = res.data.months ?? [];
+      setMonths(m);
+      if (m.length > 0 && !selectedPeriod) setSelectedPeriod(m[0]); // default to newest
     } catch {
-      setError("Failed to fetch monthly overview");
+      setOverviewError("Failed to load billing periods");
     } finally {
-      setLoading(false);
+      setOverviewLoading(false);
+    }
+  }, []); // eslint-disable-line
+
+  useEffect(() => {
+    loadPeriods();
+  }, [loadPeriods]);
+
+  // Load per-lab bills whenever selected period or page changes
+  const loadBills = useCallback(async (periodStart, skip) => {
+    if (periodStart == null) return;
+    setBillsLoading(true);
+    setBillsError("");
+    try {
+      const res = await billingService.getBillsByPeriod({ periodStart, skip, limit: BILLS_LIMIT });
+      setBills(res.data.bills ?? []);
+      setBillsTotal(res.data.total ?? 0);
+    } catch {
+      setBillsError("Failed to load labs for this period");
+    } finally {
+      setBillsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetch();
-  }, [fetch]);
+    if (selectedPeriod) {
+      setBillsSkip(0);
+      loadBills(selectedPeriod.periodStart, 0);
+    }
+  }, [selectedPeriod, loadBills]);
 
-  // Aggregate totals across all months
-  const totals = months.reduce(
-    (acc, m) => ({
-      labs: acc.labs + m.totalLabs,
-      paid: acc.paid + m.paid.count,
-      unpaid: acc.unpaid + m.unpaid.count,
-      free: acc.free + m.free.count,
-      revenue: acc.revenue + m.paid.total + m.unpaid.total,
-      collected: acc.collected + m.paid.total,
-    }),
-    { labs: 0, paid: 0, unpaid: 0, free: 0, revenue: 0, collected: 0 },
-  );
+  useEffect(() => {
+    if (selectedPeriod) loadBills(selectedPeriod.periodStart, billsSkip);
+  }, [billsSkip]); // eslint-disable-line
+
+  const billsPages = Math.ceil(billsTotal / BILLS_LIMIT);
+  const billsPage = Math.floor(billsSkip / BILLS_LIMIT);
+
+  const sp = selectedPeriod;
+  const total = sp?.totalLabs ?? 0;
+  const paidPct = total ? Math.round(((sp?.paid?.count ?? 0) / total) * 100) : 0;
+  const unpaidPct = total ? Math.round(((sp?.unpaid?.count ?? 0) / total) * 100) : 0;
+  const freePct = total ? Math.round(((sp?.free?.count ?? 0) / total) * 100) : 0;
 
   return (
     <div>
-      {/* Toolbar */}
+      {/* Period selector toolbar */}
       <div className="bg-white border border-slate-100 rounded-2xl p-4 mb-4 flex flex-wrap items-center gap-3 shadow-sm">
         <BarChart3 size={14} className="text-slate-300" />
-        <span className="text-[13px] font-semibold text-slate-600">All billing periods</span>
-        <Btn variant="secondary" onClick={fetch} loading={loading} className="ml-auto">
+        <span className="text-[13px] font-semibold text-slate-600">Billing Period</span>
+        {overviewLoading ? (
+          <Bone className="h-9 w-40 rounded-xl" />
+        ) : (
+          <select
+            className="px-3 py-2 text-[13px] border border-slate-200 rounded-xl bg-white text-slate-700 font-semibold outline-none focus:border-indigo-400 transition cursor-pointer"
+            value={selectedPeriod?.period ?? ""}
+            onChange={(e) => {
+              const m = months.find((x) => x.period === e.target.value);
+              if (m) setSelectedPeriod(m);
+            }}
+          >
+            {months.map((m) => (
+              <option key={m.period} value={m.period}>
+                {m.label}
+              </option>
+            ))}
+          </select>
+        )}
+        <Btn
+          variant="secondary"
+          onClick={() => selectedPeriod && loadBills(selectedPeriod.periodStart, billsSkip)}
+          loading={billsLoading}
+          className="ml-auto"
+        >
           <RefreshCw size={12} /> Refresh
         </Btn>
       </div>
 
-      {error && (
+      {overviewError && (
         <div className="bg-red-50 border border-red-100 rounded-2xl px-5 py-4 text-[13px] text-red-500 flex items-center gap-2 mb-4">
-          <AlertCircle size={14} /> {error}
+          <AlertCircle size={14} /> {overviewError}
         </div>
       )}
 
-      {/* Summary banner — shown once data loads */}
-      {!loading && months.length > 0 && (
+      {/* Stats banner for selected period */}
+      {sp && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
           {[
             {
-              label: "Total Bills",
-              value: totals.labs,
+              label: "Total Labs",
+              value: sp.totalLabs,
               color: "text-slate-900",
-              sub: `across ${months.length} months`,
+              sub: sp.label,
+              border: "border-slate-100",
             },
-            { label: "Paid Bills", value: totals.paid, color: "text-emerald-700", sub: fmtCurrency(totals.collected) },
             {
-              label: "Unpaid Bills",
-              value: totals.unpaid,
-              color: "text-amber-700",
-              sub: fmtCurrency(totals.revenue - totals.collected),
+              label: "Paid",
+              value: sp.paid?.count ?? 0,
+              color: "text-emerald-700",
+              sub: fmtCurrency(sp.paid?.total ?? 0),
+              border: "border-emerald-100",
             },
-            { label: "Free Bills", value: totals.free, color: "text-slate-500", sub: "no charge" },
-          ].map(({ label, value, color, sub }) => (
-            <div key={label} className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm">
+            {
+              label: "Unpaid",
+              value: sp.unpaid?.count ?? 0,
+              color: "text-amber-700",
+              sub: fmtCurrency(sp.unpaid?.total ?? 0),
+              border: "border-amber-100",
+            },
+            {
+              label: "Free",
+              value: sp.free?.count ?? 0,
+              color: "text-slate-500",
+              sub: "no charge",
+              border: "border-slate-100",
+            },
+          ].map(({ label, value, color, sub, border }) => (
+            <div key={label} className={`bg-white border ${border} rounded-2xl p-4 shadow-sm`}>
               <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-1">{label}</div>
               <div className={`text-[24px] font-black leading-tight ${color}`}>{value}</div>
               <div className="text-[11px] text-slate-400 mt-0.5">{sub}</div>
@@ -762,25 +720,147 @@ const MonthOverviewTab = () => {
         </div>
       )}
 
-      {/* Month cards */}
-      {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <OverviewRowSkeleton key={i} />
-          ))}
-        </div>
-      ) : months.length === 0 ? (
-        <div className="bg-white border border-slate-100 rounded-2xl py-20 text-center shadow-sm">
-          <BarChart3 size={28} className="text-slate-200 mx-auto mb-3" />
-          <p className="text-[14px] font-semibold text-slate-400">No billing data found</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {months.map((m) => (
-            <MonthOverviewCard key={m.period} m={m} />
-          ))}
+      {/* Progress bar */}
+      {sp && total > 0 && (
+        <div className="bg-white border border-slate-100 rounded-2xl p-4 mb-4 shadow-sm">
+          <div className="flex items-center justify-between mb-2 text-[11.5px] text-slate-500">
+            <span className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block" />
+              Paid {paidPct}%
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block" />
+              Unpaid {unpaidPct}%
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-slate-300 inline-block" />
+              Free {freePct}%
+            </span>
+          </div>
+          <div className="h-3 rounded-full overflow-hidden bg-slate-100 flex">
+            {paidPct > 0 && <div className="bg-emerald-400 h-full" style={{ width: `${paidPct}%` }} />}
+            {unpaidPct > 0 && <div className="bg-amber-400 h-full" style={{ width: `${unpaidPct}%` }} />}
+            {freePct > 0 && <div className="bg-slate-300 h-full" style={{ width: `${freePct}%` }} />}
+          </div>
         </div>
       )}
+
+      {/* Bills list */}
+      <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden">
+        {/* Table header */}
+        <div className="grid grid-cols-[1fr_auto_auto_auto] gap-4 px-5 py-3 border-b border-slate-100 bg-slate-50/60">
+          {["Lab", "Status", "Amount", "Due / Paid"].map((h) => (
+            <div key={h} className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">
+              {h}
+            </div>
+          ))}
+        </div>
+
+        {billsError && (
+          <div className="px-5 py-4 text-[12px] text-red-500 flex items-center gap-1.5">
+            <AlertCircle size={13} /> {billsError}
+          </div>
+        )}
+
+        {billsLoading ? (
+          <div className="divide-y divide-slate-50">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="grid grid-cols-[1fr_auto_auto_auto] gap-4 px-5 py-3.5 items-center">
+                <div className="space-y-1.5">
+                  <Bone className="h-3.5 w-36" />
+                  <Bone className="h-3 w-20" />
+                </div>
+                <Bone className="h-5 w-14 rounded-md" />
+                <Bone className="h-4 w-20" />
+                <Bone className="h-3.5 w-24" />
+              </div>
+            ))}
+          </div>
+        ) : bills.length === 0 ? (
+          <div className="py-16 text-center text-[13px] text-slate-400">No bills found for this period</div>
+        ) : (
+          <div className="divide-y divide-slate-50">
+            {bills.map((bill) => {
+              const over = isOverdue(bill.dueDate) && bill.status === "unpaid";
+              return (
+                <div
+                  key={bill._id}
+                  className={`grid grid-cols-[1fr_auto_auto_auto] gap-4 px-5 py-3.5 items-center transition-colors ${over ? "bg-red-50/30" : "hover:bg-slate-50/60"}`}
+                >
+                  {/* Lab info */}
+                  <div className="min-w-0">
+                    <div className="text-[13px] font-bold text-slate-800 truncate">{bill.labName ?? "—"}</div>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span className="text-[11px] font-mono text-slate-400">{bill.labKey}</span>
+                      {!bill.isActive && (
+                        <span className="text-[10px] text-slate-300 font-bold flex items-center gap-0.5">
+                          <Ban size={8} /> inactive
+                        </span>
+                      )}
+                      {bill.invoiceCount != null && (
+                        <span className="text-[11px] text-slate-400">{bill.invoiceCount} inv.</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Status badge */}
+                  <StatusBadge status={bill.status} overdue={over} />
+
+                  {/* Amount */}
+                  <span className="text-[13px] font-black text-slate-800 tabular-nums">
+                    {fmtCurrency(bill.totalAmount)}
+                  </span>
+
+                  {/* Due / Paid date */}
+                  <div className="text-right">
+                    {bill.status === "paid" && bill.paidAt ? (
+                      <span className="text-[11.5px] text-emerald-600 font-medium flex items-center gap-1 justify-end">
+                        <BadgeCheck size={11} /> {fmtDate(bill.paidAt)}
+                      </span>
+                    ) : bill.status === "unpaid" ? (
+                      <span
+                        className={`text-[11.5px] flex items-center gap-1 justify-end ${over ? "text-red-500 font-bold" : "text-slate-400"}`}
+                      >
+                        {over ? <AlertTriangle size={10} /> : <Clock size={10} />}
+                        {fmtDate(bill.dueDate)}
+                      </span>
+                    ) : (
+                      <span className="text-[11px] text-slate-300">—</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Pagination */}
+        {billsPages > 1 && (
+          <div className="px-5 py-3 border-t border-slate-100 flex items-center justify-between">
+            <span className="text-[11.5px] text-slate-400">
+              {billsTotal} labs · page {billsPage + 1} of {billsPages}
+            </span>
+            <div className="flex gap-1.5">
+              <Btn
+                variant="ghost"
+                className="!px-2 !py-1 !text-[11px]"
+                disabled={billsSkip === 0 || billsLoading}
+                onClick={() => setBillsSkip((s) => Math.max(0, s - BILLS_LIMIT))}
+              >
+                <ChevronLeft size={11} /> Prev
+              </Btn>
+              <Btn
+                variant="ghost"
+                className="!px-2 !py-1 !text-[11px]"
+                disabled={billsSkip + BILLS_LIMIT >= billsTotal || billsLoading}
+                onClick={() => setBillsSkip((s) => s + BILLS_LIMIT)}
+              >
+                Next <ChevronRight size={11} />
+              </Btn>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
@@ -936,19 +1016,12 @@ export default function AdminBilling() {
   };
 
   // ── Generate ──
-  // FIX: The backend's generateMonthlyBills treats month as 0-indexed internally.
-  // When user picks "Nov 2025" (month=11, 1-indexed from picker), we must send
-  // month+1 so the backend's internal month-1 lands on the correct month.
-  // Example: user picks Nov → send 12 → backend does month-1=11 → generates Nov ✓
   const handleGenerate = async () => {
     setActionLoading(true);
     try {
       const body = {};
       if (genPeriod?.year) body.year = genPeriod.year;
-      if (genPeriod?.month) {
-        // Compensate for backend's 0-indexed month interpretation
-        body.month = genPeriod.month + 1;
-      }
+      if (genPeriod?.month) body.month = genPeriod.month; // picker is already 1-indexed, send as-is
       if (genDueDate) body.dueDate = genDueDate;
       await billingService.generate(body);
       showToast("Bill generation started ✓");
@@ -983,9 +1056,6 @@ export default function AdminBilling() {
 
   const unpaidPages = Math.ceil(unpaidTotal / UNPAID_LIMIT);
   const unpaidPage = Math.floor(unpaidSkip / UNPAID_LIMIT);
-
-  // Preview label for generate modal — what period will actually be generated
-  const genPreviewLabel = genPeriod ? `${MONTHS[genPeriod.month - 1]} ${genPeriod.year}` : "previous BST month (auto)";
 
   return (
     <div className="min-h-screen bg-slate-50 px-4 sm:px-6 lg:px-8 py-8">
@@ -1418,16 +1488,6 @@ export default function AdminBilling() {
             maxYear={maxYear}
             maxMonth={maxMonth}
           />
-          {/* ✅ Preview box — shows exactly which month will be generated */}
-          <div className="flex items-center gap-2 bg-indigo-50 border border-indigo-100 rounded-xl px-3.5 py-2.5">
-            <Calendar size={13} className="text-indigo-400 shrink-0" />
-            <div>
-              <div className="text-[10px] font-bold text-indigo-400 uppercase tracking-wide">
-                Will generate bills for
-              </div>
-              <div className="text-[13px] font-bold text-indigo-700">{genPreviewLabel}</div>
-            </div>
-          </div>
           <Input
             label="Due Date (optional)"
             type="date"

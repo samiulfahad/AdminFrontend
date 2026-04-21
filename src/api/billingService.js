@@ -17,6 +17,10 @@ const billingService = {
   // GET month-wise overview — all periods grouped with paid/unpaid/free stats
   getMonthOverview: () => api.get("/billing/month-overview"),
 
+  // GET all labs' bills for a specific billing period (by periodStart timestamp)
+  // Used by Month Overview drill-down tab
+  getBillsByPeriod: (params = {}) => api.get("/billing/period-bills", { params }),
+
   // POST mark a bill as paid
   markPaid: (billingId, labId) => api.post(`/billing/pay/${billingId}`, { labId }),
 
