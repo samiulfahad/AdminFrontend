@@ -19,44 +19,53 @@ import {
   Gift,
   XCircle,
   Activity,
+  ArrowLeft,
 } from "lucide-react";
 import adminBillingService from "../../api/adminBilling";
 import Popup from "../../components/popup";
 
 const MAX_DUE_EXTENSION_MS = 10 * 24 * 60 * 60 * 1000;
-const DHAKA_OFFSET_MS = 6 * 60 * 60 * 1000; // UTC+6
+const BST_OFFSET_MS = 6 * 60 * 60 * 1000;
 
-// ─── Date helpers (all BST-aware) ─────────────────────────────────────────────
+// ─── BST-aware date helpers ───────────────────────────────────────────────────
+//
+// The core bug was: fmt.isoDate used toISOString() (UTC), so saving
+// "2026-05-05T23:59:59.999Z" and then displaying that epoch-ms via
+// toLocaleDateString would show May 6 in BST (+6).
+//
+// Fix: all date arithmetic uses BST.  The date-picker always shows/accepts
+// BST calendar dates.  The backend receives "YYYY-MM-DD" and converts to
+// epoch-ms at 23:59:59.999 BST.  The frontend never sends epoch-ms for
+// due-date updates — only a date string.
 
-/**
- * Given a UTC ms timestamp, return the BST calendar date as "YYYY-MM-DD".
- * This is what we feed into <input type="date">.
- */
-function utcMsToBSTDateString(utcMs) {
-  if (!utcMs) return "";
-  const d = new Date(utcMs + DHAKA_OFFSET_MS); // shift to BST
-  const y = d.getUTCFullYear();
-  const mo = String(d.getUTCMonth() + 1).padStart(2, "0");
-  const dy = String(d.getUTCDate()).padStart(2, "0");
-  return `${y}-${mo}-${dy}`;
-}
+const bst = {
+  /** epoch-ms → BST "YYYY-MM-DD" string */
+  toDateStr(ms) {
+    if (!ms) return "";
+    const d = new Date(ms + BST_OFFSET_MS);
+    return d.toISOString().slice(0, 10);
+  },
 
-/**
- * Convert a "YYYY-MM-DD" string (BST calendar date the user picked) to
- * the UTC ms for 23:59:59.999 BST of that day.
- *
- * BST midnight = Date.UTC(y, m, d) − 6 h
- * BST end-of-day = BST midnight + 24 h − 1 ms
- */
-function bstDateStringToEndOfDayUtcMs(dateStr) {
-  if (!dateStr) return 0;
-  const [y, mo, dy] = dateStr.split("-").map(Number);
-  const midnightBSTasUTC = Date.UTC(y, mo - 1, dy) - DHAKA_OFFSET_MS;
-  return midnightBSTasUTC + 24 * 60 * 60 * 1000 - 1; // 23:59:59.999 BST
-}
+  /** "YYYY-MM-DD" BST date → epoch-ms at 23:59:59.999 BST */
+  endOfDayMs(dateStr) {
+    if (!dateStr) return null;
+    const [y, mo, d] = dateStr.split("-").map(Number);
+    const utcMidnight = Date.UTC(y, mo - 1, d);
+    return utcMidnight - BST_OFFSET_MS + 23 * 3_600_000 + 59 * 60_000 + 59_999;
+  },
 
-// ─── Formatters ───────────────────────────────────────────────────────────────
+  /** epoch-ms → "YYYY-MM-DD" for today in BST */
+  todayStr() {
+    return bst.toDateStr(Date.now());
+  },
 
+  /** epoch-ms → "YYYY-MM-DD" for tomorrow in BST */
+  tomorrowStr() {
+    return bst.toDateStr(Date.now() + 86_400_000);
+  },
+};
+
+// ─── Generic formatters ───────────────────────────────────────────────────────
 const fmt = {
   currency: (amount) =>
     new Intl.NumberFormat("en-BD", {
@@ -66,22 +75,21 @@ const fmt = {
       maximumFractionDigits: 0,
     }).format(amount ?? 0),
 
-  // Display a UTC ms timestamp as a BST calendar date (Day Mon Year)
-  date: (utcMs) => {
-    if (!utcMs) return "—";
-    // Shift to BST then format as UTC date (avoids local TZ of the browser)
-    const d = new Date(utcMs + DHAKA_OFFSET_MS);
+  // Display a timestamp as a BST calendar date, e.g. "5 May 2026"
+  date: (ms) => {
+    if (!ms) return "—";
+    const d = new Date(ms + BST_OFFSET_MS);
     return d.toLocaleDateString("en-BD", {
       year: "numeric",
       month: "short",
       day: "numeric",
-      timeZone: "UTC", // interpret shifted date as UTC → gives BST day
+      timeZone: "UTC", // interpret the shifted date as UTC to get BST values
     });
   },
 
-  period: (utcMs) => {
-    if (!utcMs) return "—";
-    const d = new Date(utcMs + DHAKA_OFFSET_MS);
+  period: (ms) => {
+    if (!ms) return "—";
+    const d = new Date(ms + BST_OFFSET_MS);
     return d.toLocaleDateString("en-BD", {
       year: "numeric",
       month: "long",
@@ -89,22 +97,28 @@ const fmt = {
     });
   },
 
-  datetime: (utcMs) => {
-    if (!utcMs) return "—";
-    const d = new Date(utcMs + DHAKA_OFFSET_MS);
-    return d.toLocaleString("en-BD", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      timeZone: "UTC",
-    });
+  datetime: (ms) => {
+    if (!ms) return "—";
+    const d = new Date(ms + BST_OFFSET_MS);
+    return (
+      d.toLocaleDateString("en-BD", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        timeZone: "UTC",
+      }) +
+      " " +
+      d.toLocaleTimeString("en-BD", {
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: "UTC",
+      }) +
+      " BST"
+    );
   },
 };
 
 // ─── Skeleton primitives ──────────────────────────────────────────────────────
-
 const Sk = ({ className = "" }) => <div className={`animate-pulse rounded-lg bg-gray-200/80 ${className}`} />;
 
 const StatsSkeleton = () => (
@@ -140,7 +154,6 @@ const TableSkeleton = ({ rows = 6 }) => (
 );
 
 // ─── Status Badge ─────────────────────────────────────────────────────────────
-
 const StatusBadge = ({ status, isOverdue }) => {
   if (status === "paid")
     return (
@@ -168,7 +181,6 @@ const StatusBadge = ({ status, isOverdue }) => {
 };
 
 // ─── Breakdown Panel ──────────────────────────────────────────────────────────
-
 const BreakdownPanel = ({ breakdown }) => {
   if (!breakdown) return null;
   const rows = [
@@ -195,22 +207,21 @@ const BreakdownPanel = ({ breakdown }) => {
 };
 
 // ─── Bill Row ─────────────────────────────────────────────────────────────────
-
 const BillRow = ({ bill, onPaySuccess }) => {
   const [expanded, setExpanded] = useState(false);
   const [paying, setPaying] = useState(false);
   const [popup, setPopup] = useState(null);
   const [editingDue, setEditingDue] = useState(false);
-  const [newDueDate, setNewDueDate] = useState(""); // "YYYY-MM-DD" in BST
+  const [newDueDateStr, setNewDueDateStr] = useState(""); // "YYYY-MM-DD" in BST
   const [savingDue, setSavingDue] = useState(false);
 
   const isOverdue = bill.status === "unpaid" && Date.now() > bill.dueDate;
 
-  // ── Min / max for the date picker (all expressed as BST date strings) ──
-  // min: tomorrow BST
-  const minDueDateStr = utcMsToBSTDateString(Date.now() + 86_400_000);
-  // max: current dueDate + 10 days, snapped to BST date
-  const maxDueDateStr = bill.dueDate ? utcMsToBSTDateString(bill.dueDate + MAX_DUE_EXTENSION_MS) : "";
+  // min = tomorrow in BST (can't pick today or past)
+  const minDueDateStr = bst.tomorrowStr();
+
+  // max = current due date + 10 days, expressed as BST date string
+  const maxDueDateStr = bill.dueDate ? bst.toDateStr(bill.dueDate + MAX_DUE_EXTENSION_MS) : "";
 
   const handlePay = async (e) => {
     e.stopPropagation();
@@ -220,7 +231,10 @@ const BillRow = ({ bill, onPaySuccess }) => {
       setPopup({ type: "success", message: "Bill has been marked as paid successfully." });
       onPaySuccess();
     } catch (err) {
-      setPopup({ type: "error", message: err?.response?.data?.error || "Payment failed. Please try again." });
+      setPopup({
+        type: "error",
+        message: err?.response?.data?.error || "Payment failed. Please try again.",
+      });
     } finally {
       setPaying(false);
     }
@@ -228,8 +242,8 @@ const BillRow = ({ bill, onPaySuccess }) => {
 
   const openDueEditor = (e) => {
     e.stopPropagation();
-    // Seed with the current due date rendered as BST calendar date
-    setNewDueDate(bill.dueDate ? utcMsToBSTDateString(bill.dueDate) : minDueDateStr);
+    // Seed with current due date as a BST date string
+    setNewDueDateStr(bill.dueDate ? bst.toDateStr(bill.dueDate) : minDueDateStr);
     setEditingDue(true);
   };
 
@@ -240,35 +254,36 @@ const BillRow = ({ bill, onPaySuccess }) => {
 
   const saveDueDate = async (e) => {
     e.stopPropagation();
-    if (!newDueDate) return;
+    if (!newDueDateStr) return;
 
-    // Convert the picked BST calendar date → UTC ms for 23:59:59.999 BST that day
-    const chosenMs = bstDateStringToEndOfDayUtcMs(newDueDate);
+    // Convert the picked BST calendar date to epoch-ms at 23:59:59.999 BST.
+    const chosenMs = bst.endOfDayMs(newDueDateStr);
 
     if (chosenMs <= Date.now()) {
       setPopup({ type: "error", message: "Due date must be in the future." });
       return;
     }
 
-    if (bill.dueDate) {
-      const maxMs = bstDateStringToEndOfDayUtcMs(maxDueDateStr);
-      if (chosenMs > maxMs) {
-        setPopup({
-          type: "error",
-          message: `Cannot extend beyond ${fmt.date(bill.dueDate + MAX_DUE_EXTENSION_MS)} (10-day limit).`,
-        });
-        return;
-      }
+    if (bill.dueDate && chosenMs > bill.dueDate + MAX_DUE_EXTENSION_MS) {
+      setPopup({
+        type: "error",
+        message: `Cannot extend beyond ${bst.toDateStr(bill.dueDate + MAX_DUE_EXTENSION_MS)} BST (10-day limit).`,
+      });
+      return;
     }
 
     setSavingDue(true);
     try {
-      await adminBillingService.updateDueDate(bill._id, chosenMs);
+      // Send the BST date string; backend converts to epoch-ms.
+      await adminBillingService.updateDueDate(bill._id, newDueDateStr);
       setPopup({ type: "success", message: "Due date updated successfully." });
       setEditingDue(false);
       onPaySuccess();
     } catch (err) {
-      setPopup({ type: "error", message: err?.response?.data?.error || "Failed to update due date." });
+      setPopup({
+        type: "error",
+        message: err?.response?.data?.error || "Failed to update due date.",
+      });
     } finally {
       setSavingDue(false);
     }
@@ -355,7 +370,7 @@ const BillRow = ({ bill, onPaySuccess }) => {
 
                   {/* ── Due date — editable only for unpaid ── */}
                   <div className="flex justify-between items-center gap-4 px-4 py-2 min-h-[40px]">
-                    <span className="text-gray-500 shrink-0">Due</span>
+                    <span className="text-gray-500 shrink-0">Due (BST)</span>
 
                     {bill.status === "unpaid" ? (
                       editingDue ? (
@@ -366,15 +381,13 @@ const BillRow = ({ bill, onPaySuccess }) => {
                           <div className="flex flex-col items-end gap-0.5">
                             <input
                               type="date"
-                              value={newDueDate}
+                              value={newDueDateStr}
                               min={minDueDateStr}
                               max={maxDueDateStr}
-                              onChange={(e) => setNewDueDate(e.target.value)}
+                              onChange={(e) => setNewDueDateStr(e.target.value)}
                               className="px-2 py-1 text-xs rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
                             />
-                            <span className="text-[10px] text-gray-400">
-                              Max: {fmt.date(bill.dueDate + MAX_DUE_EXTENSION_MS)}
-                            </span>
+                            <span className="text-[10px] text-gray-400">Max: {maxDueDateStr} BST</span>
                           </div>
                           <button
                             onClick={saveDueDate}
@@ -398,7 +411,8 @@ const BillRow = ({ bill, onPaySuccess }) => {
                       ) : (
                         <div className="flex items-center gap-2">
                           <span className={`font-medium ${isOverdue ? "text-red-600" : "text-gray-800"}`}>
-                            {fmt.date(bill.dueDate)}
+                            {/* Display as BST date */}
+                            {bst.toDateStr(bill.dueDate)}
                           </span>
                           <button
                             onClick={openDueEditor}
@@ -411,7 +425,7 @@ const BillRow = ({ bill, onPaySuccess }) => {
                         </div>
                       )
                     ) : (
-                      <span className="font-medium text-gray-800">{fmt.date(bill.dueDate)}</span>
+                      <span className="font-medium text-gray-800">{bst.toDateStr(bill.dueDate)}</span>
                     )}
                   </div>
 
@@ -440,7 +454,6 @@ const BillRow = ({ bill, onPaySuccess }) => {
 };
 
 // ─── Run Row ──────────────────────────────────────────────────────────────────
-
 const RunRow = ({ run, onRetry }) => {
   const [expanded, setExpanded] = useState(false);
   const [retrying, setRetrying] = useState(false);
@@ -454,7 +467,10 @@ const RunRow = ({ run, onRetry }) => {
       setPopup({ type: "success", message: res.data?.message || "Retry started successfully." });
       onRetry();
     } catch (err) {
-      setPopup({ type: "error", message: err?.response?.data?.error || "Retry failed. Please try again." });
+      setPopup({
+        type: "error",
+        message: err?.response?.data?.error || "Retry failed. Please try again.",
+      });
     } finally {
       setRetrying(false);
     }
@@ -478,7 +494,8 @@ const RunRow = ({ run, onRetry }) => {
         <td className="px-3 py-3 whitespace-nowrap">
           {run.hasErrors ? (
             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-red-50 text-red-700 border border-red-200">
-              <XCircle className="w-3 h-3" /> {run.failedCount}
+              <XCircle className="w-3 h-3" />
+              {run.failedCount}
             </span>
           ) : (
             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-green-50 text-green-700 border border-green-200">
@@ -567,39 +584,41 @@ const RunRow = ({ run, onRetry }) => {
 };
 
 // ─── Generate Modal ───────────────────────────────────────────────────────────
-
-const MONTH_NAMES = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
-
 const GenerateModal = ({ onClose, onSuccess }) => {
-  // Default to the previous month (what the cron would bill)
-  const nowBST = new Date(Date.now() + DHAKA_OFFSET_MS);
-  const prevMonthRaw = new Date(Date.UTC(nowBST.getUTCFullYear(), nowBST.getUTCMonth() - 1, 1));
+  // Default to previous month in BST
+  const nowBst = (() => {
+    const d = new Date(Date.now() + BST_OFFSET_MS);
+    return { year: d.getUTCFullYear(), month: d.getUTCMonth() + 1 };
+  })();
 
-  const [year, setYear] = useState(prevMonthRaw.getUTCFullYear());
-  const [month, setMonth] = useState(prevMonthRaw.getUTCMonth() + 1); // 1-indexed
+  let defaultYear = nowBst.year;
+  let defaultMonth = nowBst.month - 1;
+  if (defaultMonth === 0) {
+    defaultMonth = 12;
+    defaultYear -= 1;
+  }
+
+  const [year, setYear] = useState(defaultYear);
+  const [month, setMonth] = useState(defaultMonth);
+  const [dueDateStr, setDueDateStr] = useState(""); // optional custom due date
   const [loading, setLoading] = useState(false);
   const [popup, setPopup] = useState(null);
 
   const handleGenerate = async () => {
     setLoading(true);
     try {
-      const res = await adminBillingService.generate({ year, month });
-      setPopup({ type: "success", message: res.data?.message || "Bill generation started successfully." });
+      const body = { year, month };
+      if (dueDateStr) body.dueDate = dueDateStr;
+      const res = await adminBillingService.generate(body);
+      setPopup({
+        type: "success",
+        message: res.data?.message || "Bill generation started successfully.",
+      });
     } catch (err) {
-      setPopup({ type: "error", message: err?.response?.data?.error || "Failed to start bill generation." });
+      setPopup({
+        type: "error",
+        message: err?.response?.data?.error || "Failed to start bill generation.",
+      });
     } finally {
       setLoading(false);
     }
@@ -610,6 +629,24 @@ const GenerateModal = ({ onClose, onSuccess }) => {
     setPopup(null);
     if (type === "success") onSuccess();
   };
+
+  const monthNames = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ];
+
+  // Min due date: tomorrow in BST
+  const minDueDateStr = bst.tomorrowStr();
 
   return (
     <>
@@ -623,11 +660,11 @@ const GenerateModal = ({ onClose, onSuccess }) => {
             </div>
             <div>
               <h3 className="text-base font-bold text-gray-900">Generate Bills</h3>
-              <p className="text-xs text-gray-500">Select a past billing period</p>
+              <p className="text-xs text-gray-500">Select billing period (past months only)</p>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 mb-5">
+          <div className="grid grid-cols-2 gap-3 mb-4">
             <div>
               <label className="text-xs font-medium text-gray-600 mb-1.5 block">Year</label>
               <input
@@ -646,13 +683,27 @@ const GenerateModal = ({ onClose, onSuccess }) => {
                 onChange={(e) => setMonth(parseInt(e.target.value))}
                 className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 bg-white"
               >
-                {MONTH_NAMES.map((name, i) => (
+                {monthNames.map((name, i) => (
                   <option key={i} value={i + 1}>
                     {name}
                   </option>
                 ))}
               </select>
             </div>
+          </div>
+
+          <div className="mb-5">
+            <label className="text-xs font-medium text-gray-600 mb-1.5 block">Custom due date (BST) — optional</label>
+            <input
+              type="date"
+              value={dueDateStr}
+              min={minDueDateStr}
+              onChange={(e) => setDueDateStr(e.target.value)}
+              className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+            />
+            <p className="text-[11px] text-gray-400 mt-1">
+              Leave blank to use the default ({process.env.BILLING_DUE_DAYS ?? 7}-day) due date.
+            </p>
           </div>
 
           <div className="flex gap-3">
@@ -678,7 +729,6 @@ const GenerateModal = ({ onClose, onSuccess }) => {
 };
 
 // ─── Tab Button ───────────────────────────────────────────────────────────────
-
 const Tab = ({ active, onClick, icon: Icon, label, count }) => (
   <button
     onClick={onClick}
@@ -702,10 +752,85 @@ const Tab = ({ active, onClick, icon: Icon, label, count }) => (
   </button>
 );
 
-// ─── Main Admin Billing Page ──────────────────────────────────────────────────
+// ─── Per-lab billing view ─────────────────────────────────────────────────────
+const LabBillingView = ({ labId, onBack }) => {
+  const [bills, setBills] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
+  const fetchBills = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await adminBillingService.getByLab(labId);
+      setBills(res.data.bills ?? []);
+    } catch {
+      setError("Failed to load lab bills.");
+    } finally {
+      setLoading(false);
+    }
+  }, [labId]);
+
+  useEffect(() => {
+    fetchBills();
+  }, [fetchBills]);
+
+  return (
+    <div>
+      <button
+        onClick={onBack}
+        className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 mb-4 transition-colors"
+      >
+        <ArrowLeft className="w-4 h-4" /> Back to all bills
+      </button>
+
+      <h2 className="text-base font-bold text-gray-800 mb-4 font-mono">Lab: …{String(labId).slice(-8)}</h2>
+
+      {loading ? (
+        <TableSkeleton rows={4} />
+      ) : error ? (
+        <div className="flex items-center gap-3 px-5 py-4 bg-red-50 border border-red-200 rounded-2xl">
+          <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0" />
+          <p className="text-sm font-medium text-red-800">{error}</p>
+        </div>
+      ) : bills.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-14 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+          <FileText className="w-8 h-8 text-gray-300 mb-3" />
+          <p className="text-sm font-medium text-gray-500">No bills found for this lab</p>
+        </div>
+      ) : (
+        <div className="border border-gray-200/80 rounded-2xl overflow-hidden shadow-sm">
+          <div className="w-full overflow-x-auto">
+            <table className="text-left border-collapse" style={{ minWidth: "480px", width: "100%" }}>
+              <thead>
+                <tr className="bg-gray-50/80 border-b border-gray-200/80">
+                  <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Lab</th>
+                  <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Amount</th>
+                  <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
+                  <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden sm:table-cell">
+                    Period
+                  </th>
+                  <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Action</th>
+                  <th className="px-3 py-3 w-8" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {bills.map((bill) => (
+                  <BillRow key={bill._id} bill={bill} onPaySuccess={fetchBills} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ─── Main Admin Billing Page ──────────────────────────────────────────────────
 const AdminBilling = () => {
   const [tab, setTab] = useState("bills");
+  const [selectedLabId, setSelectedLabId] = useState(null);
 
   const [bills, setBills] = useState([]);
   const [loadingBills, setLoadingBills] = useState(true);
@@ -727,7 +852,11 @@ const AdminBilling = () => {
     setLoadingBills(true);
     setBillsError(null);
     try {
-      const res = await adminBillingService.getAll({ status: filter || undefined, limit: BILLS_LIMIT, skip });
+      const res = await adminBillingService.getAll({
+        status: filter || undefined,
+        limit: BILLS_LIMIT,
+        skip,
+      });
       setBills(res.data.bills ?? []);
     } catch {
       setBillsError("Failed to load bills.");
@@ -740,7 +869,10 @@ const AdminBilling = () => {
     setLoadingRuns(true);
     setRunsError(null);
     try {
-      const res = await adminBillingService.getRuns({ hasErrors: errOnly ? "true" : undefined, limit: 20 });
+      const res = await adminBillingService.getRuns({
+        hasErrors: errOnly ? "true" : undefined,
+        limit: 20,
+      });
       setRuns(res.data.runs ?? []);
     } catch {
       setRunsError("Failed to load billing runs.");
@@ -790,16 +922,29 @@ const AdminBilling = () => {
     fetchRuns(errorsOnly);
   };
 
+  // ── Per-lab drill-down ──
+  if (selectedLabId) {
+    return (
+      <div className="w-full min-w-0 overflow-x-hidden">
+        <div className="p-4 sm:p-6 lg:p-8">
+          <div className="max-w-6xl mx-auto min-w-0">
+            <LabBillingView labId={selectedLabId} onBack={() => setSelectedLabId(null)} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full min-w-0 overflow-x-hidden">
       <div className="p-4 sm:p-6 lg:p-8">
         <div className="max-w-6xl mx-auto min-w-0">
-          {/* Header */}
+          {/* ── Header ── */}
           <div className="flex items-center justify-between gap-3 mb-6 min-w-0">
             <div className="min-w-0">
               <h1 className="text-lg sm:text-xl font-bold text-gray-900 leading-tight truncate">Billing Management</h1>
               <p className="text-xs sm:text-sm text-gray-500 mt-0.5 hidden sm:block">
-                Manage all lab bills, payments, and billing run history
+                Manage all lab bills, payments, and billing run history · All dates in BST (UTC+6)
               </p>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
@@ -821,50 +966,37 @@ const AdminBilling = () => {
             </div>
           </div>
 
-          {/* Summary Stats */}
+          {/* ── Summary Stats ── */}
           {loadingSummary ? (
             <StatsSkeleton />
           ) : summary ? (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-              {[
-                {
-                  label: "Unpaid",
-                  value: summary.unpaidCount,
-                  sub: fmt.currency(summary.unpaidTotal),
-                  color: "text-amber-600",
-                },
-                {
-                  label: "Overdue",
-                  value: summary.overdueCount,
-                  sub: "past due",
-                  color: summary.overdueCount > 0 ? "text-red-600" : "text-gray-400",
-                },
-                {
-                  label: "Collected",
-                  value: fmt.currency(summary.paidTotal),
-                  sub: "total paid",
-                  color: "text-green-700",
-                },
-                {
-                  label: "Runs",
-                  value: runs.length,
-                  sub: `${runs.filter((r) => r.hasErrors).length} with errors`,
-                  color: "text-gray-800",
-                },
-              ].map((s) => (
-                <div
-                  key={s.label}
-                  className="bg-white border border-gray-200/80 rounded-xl px-4 py-3 shadow-sm min-w-0"
-                >
-                  <p className="text-xs text-gray-500 uppercase tracking-wide mb-1 truncate">{s.label}</p>
-                  <p className={`text-lg font-bold truncate ${s.color}`}>{s.value}</p>
-                  <p className="text-xs text-gray-400 mt-0.5 truncate">{s.sub}</p>
-                </div>
-              ))}
+              <div className="bg-white border border-gray-200/80 rounded-xl px-4 py-3 shadow-sm min-w-0">
+                <p className="text-xs text-gray-500 uppercase tracking-wide mb-1 truncate">Unpaid</p>
+                <p className="text-lg font-bold text-amber-600">{summary.unpaidCount}</p>
+                <p className="text-xs text-gray-400 mt-0.5 truncate">{fmt.currency(summary.unpaidTotal)}</p>
+              </div>
+              <div className="bg-white border border-gray-200/80 rounded-xl px-4 py-3 shadow-sm min-w-0">
+                <p className="text-xs text-gray-500 uppercase tracking-wide mb-1 truncate">Overdue</p>
+                <p className={`text-lg font-bold ${summary.overdueCount > 0 ? "text-red-600" : "text-gray-400"}`}>
+                  {summary.overdueCount}
+                </p>
+                <p className="text-xs text-gray-400 mt-0.5">past due</p>
+              </div>
+              <div className="bg-white border border-gray-200/80 rounded-xl px-4 py-3 shadow-sm min-w-0">
+                <p className="text-xs text-gray-500 uppercase tracking-wide mb-1 truncate">Collected</p>
+                <p className="text-lg font-bold text-green-700 truncate">{fmt.currency(summary.paidTotal)}</p>
+                <p className="text-xs text-gray-400 mt-0.5">total paid</p>
+              </div>
+              <div className="bg-white border border-gray-200/80 rounded-xl px-4 py-3 shadow-sm min-w-0">
+                <p className="text-xs text-gray-500 uppercase tracking-wide mb-1 truncate">Runs</p>
+                <p className="text-lg font-bold text-gray-800">{runs.length}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{runs.filter((r) => r.hasErrors).length} with errors</p>
+              </div>
             </div>
           ) : null}
 
-          {/* Tabs */}
+          {/* ── Tabs ── */}
           <div className="flex items-center gap-1 p-1 bg-gray-100/80 rounded-xl w-fit mb-5">
             <Tab
               active={tab === "bills"}
@@ -882,7 +1014,7 @@ const AdminBilling = () => {
             />
           </div>
 
-          {/* Bills Tab */}
+          {/* ── Bills Tab ── */}
           {tab === "bills" && (
             <div className="min-w-0">
               <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-1 scrollbar-none">
@@ -932,14 +1064,20 @@ const AdminBilling = () => {
                     <table className="text-left border-collapse" style={{ minWidth: "480px", width: "100%" }}>
                       <thead>
                         <tr className="bg-gray-50/80 border-b border-gray-200/80">
-                          {["Lab", "Amount", "Status", "Period", "Action", ""].map((h, i) => (
-                            <th
-                              key={i}
-                              className={`px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide ${i === 3 ? "hidden sm:table-cell" : ""} ${i === 5 ? "w-8" : ""}`}
-                            >
-                              {h}
-                            </th>
-                          ))}
+                          <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Lab</th>
+                          <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                            Amount
+                          </th>
+                          <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                            Status
+                          </th>
+                          <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden sm:table-cell">
+                            Period
+                          </th>
+                          <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                            Action
+                          </th>
+                          <th className="px-3 py-3 w-8" />
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
@@ -976,7 +1114,7 @@ const AdminBilling = () => {
             </div>
           )}
 
-          {/* Runs Tab */}
+          {/* ── Runs Tab ── */}
           {tab === "runs" && (
             <div className="min-w-0">
               <div className="flex items-center gap-2 mb-4">
@@ -1020,14 +1158,22 @@ const AdminBilling = () => {
                     <table className="text-left border-collapse" style={{ minWidth: "420px", width: "100%" }}>
                       <thead>
                         <tr className="bg-gray-50/80 border-b border-gray-200/80">
-                          {["Period", "Results", "Health", "Source", "Action", ""].map((h, i) => (
-                            <th
-                              key={i}
-                              className={`px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide ${i === 3 ? "hidden sm:table-cell" : ""} ${i === 5 ? "w-8" : ""}`}
-                            >
-                              {h}
-                            </th>
-                          ))}
+                          <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                            Period
+                          </th>
+                          <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                            Results
+                          </th>
+                          <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                            Health
+                          </th>
+                          <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden sm:table-cell">
+                            Source
+                          </th>
+                          <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                            Action
+                          </th>
+                          <th className="px-3 py-3 w-8" />
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
