@@ -14,6 +14,9 @@ const billingService = {
   // GET billing run history
   getRuns: (params = {}) => api.get("/billing/runs", { params }),
 
+  // GET month-wise overview — all periods grouped with paid/unpaid/free stats
+  getMonthOverview: () => api.get("/billing/month-overview"),
+
   // POST mark a bill as paid
   markPaid: (billingId, labId) => api.post(`/billing/pay/${billingId}`, { labId }),
 

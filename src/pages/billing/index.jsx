@@ -194,7 +194,7 @@ const MonthTag = ({ label, isOverdue: over }) => (
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 const MonthYearPicker = ({ value, onChange, label, maxYear, maxMonth }) => {
-  const [viewYear, setViewYear] = useState(value?.year ?? new Date().getFullYear());
+  const [viewYear, setViewYear] = useState(value?.year ?? maxYear ?? new Date().getFullYear());
   const isDisabled = (y, m) => maxYear && (y > maxYear || (y === maxYear && m > maxMonth));
 
   return (
