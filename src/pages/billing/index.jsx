@@ -23,7 +23,7 @@ import {
   Receipt,
   Activity,
 } from "lucide-react";
-import billingService from "../api/billingService";
+import billingService from "../../api/billingService";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
