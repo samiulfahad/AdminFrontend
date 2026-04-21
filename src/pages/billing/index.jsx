@@ -29,27 +29,74 @@ import billingService from "../../api/billingService";
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const fmtDate = (ms) =>
-  ms
-    ? new Intl.DateTimeFormat("en-GB", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      }).format(new Date(ms))
-    : "—";
+  ms ? new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(ms)) : "—";
 
 const fmtMonth = (ms) =>
   ms ? new Intl.DateTimeFormat("en-GB", { month: "short", year: "numeric" }).format(new Date(ms)) : "—";
 
 const fmtCurrency = (n) =>
   typeof n === "number"
-    ? new Intl.NumberFormat("en-BD", {
-        style: "currency",
-        currency: "BDT",
-        maximumFractionDigits: 0,
-      }).format(n)
+    ? new Intl.NumberFormat("en-BD", { style: "currency", currency: "BDT", maximumFractionDigits: 0 }).format(n)
     : "—";
 
 const isOverdue = (ms) => ms && Date.now() > ms;
+
+// ─── Skeleton primitives ──────────────────────────────────────────────────────
+
+const Bone = ({ className = "" }) => <div className={`bg-slate-200 rounded-lg animate-pulse ${className}`} />;
+
+// Skeleton for a single unpaid lab card
+const LabCardSkeleton = () => (
+  <div className="border border-slate-100 rounded-2xl bg-white shadow-sm p-5">
+    <div className="flex items-start gap-4">
+      <div className="flex-1 space-y-3">
+        <div className="flex items-center gap-2">
+          <Bone className="h-4 w-40" />
+          <Bone className="h-4 w-16" />
+        </div>
+        <div className="flex gap-2">
+          <Bone className="h-5 w-20 rounded-lg" />
+          <Bone className="h-5 w-20 rounded-lg" />
+        </div>
+      </div>
+      <div className="flex items-center gap-3 shrink-0">
+        <div className="text-right space-y-1.5">
+          <Bone className="h-3 w-20 ml-auto" />
+          <Bone className="h-6 w-28" />
+        </div>
+        <Bone className="h-9 w-24 rounded-xl" />
+      </div>
+    </div>
+    <div className="mt-4 space-y-2.5">
+      <Bone className="h-14 w-full rounded-xl" />
+    </div>
+  </div>
+);
+
+// Skeleton for history rows inside drawer
+const HistoryRowSkeleton = () => (
+  <div className="px-5 py-3 flex items-center gap-3 bg-white/50 border-b border-slate-100">
+    <Bone className="h-5 w-14 rounded-md" />
+    <div className="min-w-[110px] space-y-1.5">
+      <Bone className="h-3.5 w-20" />
+      <Bone className="h-3 w-32" />
+    </div>
+    <Bone className="h-4 w-20" />
+    <Bone className="h-3.5 w-16" />
+    <Bone className="h-3.5 w-24 ml-auto" />
+  </div>
+);
+
+// Skeleton for runs table rows
+const RunRowSkeleton = () => (
+  <tr className="border-b border-slate-50">
+    {[28, 24, 20, 12, 36, 16, 8].map((w, i) => (
+      <td key={i} className="px-4 py-3">
+        <Bone className={`h-4 w-${w}`} />
+      </td>
+    ))}
+  </tr>
+);
 
 // ─── UI Atoms ─────────────────────────────────────────────────────────────────
 
@@ -133,8 +180,6 @@ const StatusBadge = ({ status, overdue }) => {
   );
 };
 
-// ─── Month Tag ────────────────────────────────────────────────────────────────
-
 const MonthTag = ({ label, isOverdue: over }) => (
   <span
     className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-semibold border ${over ? "bg-red-50 text-red-600 border-red-200" : "bg-amber-50 text-amber-700 border-amber-100"}`}
@@ -150,11 +195,7 @@ const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "
 
 const MonthYearPicker = ({ value, onChange, label, maxYear, maxMonth }) => {
   const [viewYear, setViewYear] = useState(value?.year ?? new Date().getFullYear());
-
-  const isDisabled = (y, m) => {
-    if (!maxYear || !maxMonth) return false;
-    return y > maxYear || (y === maxYear && m > maxMonth);
-  };
+  const isDisabled = (y, m) => maxYear && (y > maxYear || (y === maxYear && m > maxMonth));
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -188,10 +229,7 @@ const MonthYearPicker = ({ value, onChange, label, maxYear, maxMonth }) => {
                 type="button"
                 disabled={dis}
                 onClick={() => onChange({ year: viewYear, month: mn })}
-                className={`py-1.5 rounded-lg text-[12px] font-semibold transition cursor-pointer
-                  ${sel ? "bg-indigo-500 text-white shadow-sm" : ""}
-                  ${!sel && !dis ? "hover:bg-indigo-50 text-slate-700" : ""}
-                  ${dis ? "text-slate-200 cursor-not-allowed" : ""}`}
+                className={`py-1.5 rounded-lg text-[12px] font-semibold transition cursor-pointer ${sel ? "bg-indigo-500 text-white shadow-sm" : !dis ? "hover:bg-indigo-50 text-slate-700" : "text-slate-200 cursor-not-allowed"}`}
               >
                 {m}
               </button>
@@ -217,7 +255,7 @@ const MonthYearPicker = ({ value, onChange, label, maxYear, maxMonth }) => {
   );
 };
 
-// ─── Lab History Drawer ───────────────────────────────────────────────────────
+// ─── Lab History Drawer — lazy loaded on expand ───────────────────────────────
 
 const LabHistoryDrawer = ({ labKey, onPay, onExtend }) => {
   const [data, setData] = useState(null);
@@ -246,50 +284,60 @@ const LabHistoryDrawer = ({ labKey, onPay, onExtend }) => {
     load(page * limit);
   }, [load, page]);
 
-  if (loading)
-    return (
-      <div className="flex items-center justify-center py-8">
-        <Loader2 size={18} className="animate-spin text-indigo-400" />
-      </div>
-    );
-
-  if (error)
-    return (
-      <div className="px-5 py-4 text-[12px] text-red-500 flex items-center gap-1.5">
-        <AlertCircle size={13} /> {error}
-      </div>
-    );
-
   const bills = data?.bills ?? [];
   const total = data?.total ?? 0;
   const totalPages = Math.ceil(total / limit);
 
   return (
     <div className="bg-slate-50/60 border-t border-slate-100">
-      {/* Stats row */}
-      <div className="px-5 py-3 flex items-center gap-3 flex-wrap border-b border-slate-100 bg-white/70">
-        {[
-          { key: "paid", label: "Paid", color: "text-emerald-600" },
-          { key: "unpaid", label: "Unpaid", color: "text-amber-600" },
-          { key: "free", label: "Free", color: "text-slate-400" },
-        ].map(
-          ({ key, label, color }) =>
-            data?.stats?.[key]?.count > 0 && (
-              <span key={key} className="text-[12px]">
-                <span className={`font-bold ${color}`}>
-                  {data.stats[key].count} {label}
-                </span>
-                {data.stats[key].total > 0 && (
-                  <span className="text-slate-400 ml-1">({fmtCurrency(data.stats[key].total)})</span>
-                )}
-              </span>
-            ),
+      {/* Stats row — show skeleton while loading first page */}
+      <div className="px-5 py-3 flex items-center gap-3 flex-wrap border-b border-slate-100 bg-white/70 min-h-[44px]">
+        {loading && !data ? (
+          <>
+            <Bone className="h-3.5 w-24" />
+            <Bone className="h-3.5 w-20" />
+            <Bone className="h-3.5 w-16 ml-auto" />
+          </>
+        ) : (
+          <>
+            {[
+              { key: "paid", label: "Paid", color: "text-emerald-600" },
+              { key: "unpaid", label: "Unpaid", color: "text-amber-600" },
+              { key: "free", label: "Free", color: "text-slate-400" },
+            ].map(
+              ({ key, label, color }) =>
+                data?.stats?.[key]?.count > 0 && (
+                  <span key={key} className="text-[12px]">
+                    <span className={`font-bold ${color}`}>
+                      {data.stats[key].count} {label}
+                    </span>
+                    {data.stats[key].total > 0 && (
+                      <span className="text-slate-400 ml-1">({fmtCurrency(data.stats[key].total)})</span>
+                    )}
+                  </span>
+                ),
+            )}
+            <span className="text-[11px] text-slate-300 ml-auto">{total} total</span>
+          </>
         )}
-        <span className="text-[11px] text-slate-300 ml-auto">{total} total bills</span>
       </div>
 
+      {/* Error */}
+      {error && (
+        <div className="px-5 py-4 text-[12px] text-red-500 flex items-center gap-1.5">
+          <AlertCircle size={13} /> {error}
+        </div>
+      )}
+
       {/* Bill rows */}
-      {bills.length === 0 ? (
+      {loading ? (
+        // Skeleton rows while loading
+        <div className="divide-y divide-slate-100">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <HistoryRowSkeleton key={i} />
+          ))}
+        </div>
+      ) : bills.length === 0 ? (
         <div className="px-5 py-6 text-[13px] text-slate-400 text-center">No billing history</div>
       ) : (
         <div className="divide-y divide-slate-100">
@@ -298,7 +346,7 @@ const LabHistoryDrawer = ({ labKey, onPay, onExtend }) => {
             return (
               <div
                 key={bill._id}
-                className={`px-5 py-3 flex items-center gap-3 flex-wrap ${over ? "bg-red-50/40" : "bg-white/50"}`}
+                className={`px-5 py-3 flex items-center gap-3 flex-wrap transition-colors ${over ? "bg-red-50/40" : "bg-white/50"}`}
               >
                 <StatusBadge status={bill.status} overdue={over} />
 
@@ -362,6 +410,7 @@ const LabHistoryDrawer = ({ labKey, onPay, onExtend }) => {
         </div>
       )}
 
+      {/* Pagination */}
       {totalPages > 1 && (
         <div className="px-5 py-3 flex items-center justify-between border-t border-slate-100">
           <span className="text-[11.5px] text-slate-400">
@@ -371,7 +420,7 @@ const LabHistoryDrawer = ({ labKey, onPay, onExtend }) => {
             <Btn
               variant="ghost"
               className="!px-2 !py-1 !text-[11px]"
-              disabled={page === 0}
+              disabled={page === 0 || loading}
               onClick={() => setPage((p) => p - 1)}
             >
               <ChevronLeft size={11} /> Prev
@@ -379,7 +428,7 @@ const LabHistoryDrawer = ({ labKey, onPay, onExtend }) => {
             <Btn
               variant="ghost"
               className="!px-2 !py-1 !text-[11px]"
-              disabled={page + 1 >= totalPages}
+              disabled={page + 1 >= totalPages || loading}
               onClick={() => setPage((p) => p + 1)}
             >
               Next <ChevronRight size={11} />
@@ -398,6 +447,7 @@ const UnpaidLabRow = ({ lab, onPay, onExtend }) => {
 
   return (
     <div className="border border-slate-100 rounded-2xl overflow-hidden bg-white shadow-sm">
+      {/* Header row */}
       <div className="flex items-start gap-4 px-5 py-4">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-2">
@@ -423,6 +473,7 @@ const UnpaidLabRow = ({ lab, onPay, onExtend }) => {
             <div className="text-[11px] text-slate-400 font-medium">Total Unpaid</div>
             <div className="text-[16px] font-black text-amber-600">{fmtCurrency(lab.unpaidTotal)}</div>
           </div>
+          {/* History toggle — triggers lazy fetch on first click */}
           <button
             type="button"
             onClick={() => setExpanded((o) => !o)}
@@ -434,7 +485,7 @@ const UnpaidLabRow = ({ lab, onPay, onExtend }) => {
         </div>
       </div>
 
-      {/* Unpaid bills quick-pay */}
+      {/* Unpaid quick-pay rows */}
       {lab.unpaidMonths.length > 0 && (
         <div className="px-5 pb-4 flex flex-col gap-2">
           {lab.unpaidMonths.map((um) => (
@@ -486,6 +537,7 @@ const UnpaidLabRow = ({ lab, onPay, onExtend }) => {
         </div>
       )}
 
+      {/* History drawer — only mounted (and fetched) when expanded */}
       {expanded && <LabHistoryDrawer labKey={lab.labKey} onPay={onPay} onExtend={onExtend} />}
     </div>
   );
@@ -544,7 +596,6 @@ export default function AdminBilling() {
   const [unpaidLabs, setUnpaidLabs] = useState([]);
   const [unpaidTotal, setUnpaidTotal] = useState(0);
   const [unpaidLoading, setUnpaidLoading] = useState(false);
-  // Single source of truth: the committed search term (debounced)
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [unpaidSkip, setUnpaidSkip] = useState(0);
@@ -576,8 +627,7 @@ export default function AdminBilling() {
     setTimeout(() => setToast(null), 3500);
   };
 
-  // ── Fetch unpaid labs ─────────────────────────────────────────────────────
-  // fetchUnpaid takes explicit args so it never closes over stale state.
+  // ── Fetch unpaid labs — explicit args, no stale closure ──
   const fetchUnpaid = useCallback(async (skip, searchVal) => {
     setUnpaidLoading(true);
     try {
@@ -591,25 +641,22 @@ export default function AdminBilling() {
     } finally {
       setUnpaidLoading(false);
     }
-  }, []); // no deps — args are passed explicitly
+  }, []);
 
-  // Trigger fetch whenever tab/skip/search change (single effect, no double-fire).
   useEffect(() => {
     if (tab === "unpaid") fetchUnpaid(unpaidSkip, search);
   }, [tab, unpaidSkip, search, fetchUnpaid]);
 
-  // Debounced search: update searchInput immediately (controlled input),
-  // commit `search` + reset skip after 400 ms.
   const handleSearchInput = (val) => {
     setSearchInput(val);
     clearTimeout(searchTimer.current);
     searchTimer.current = setTimeout(() => {
-      setUnpaidSkip(0); // reset first so the effect fires with skip=0
-      setSearch(val); // this is what triggers the fetch effect
+      setUnpaidSkip(0);
+      setSearch(val);
     }, 400);
   };
 
-  // ── Fetch runs ────────────────────────────────────────────────────────────
+  // ── Fetch runs ──
   const fetchRuns = useCallback(async () => {
     setRunsLoading(true);
     try {
@@ -628,7 +675,7 @@ export default function AdminBilling() {
     if (tab === "runs") fetchRuns();
   }, [tab, fetchRuns]);
 
-  // ── Lab lookup ────────────────────────────────────────────────────────────
+  // ── Lab lookup ──
   const handleLabLookup = async () => {
     const key = labKeyInput.trim();
     if (!key) {
@@ -648,7 +695,7 @@ export default function AdminBilling() {
     }
   };
 
-  // ── Pay ───────────────────────────────────────────────────────────────────
+  // ── Pay ──
   const handlePay = async () => {
     if (!payModal) return;
     setActionLoading(true);
@@ -664,7 +711,7 @@ export default function AdminBilling() {
     }
   };
 
-  // ── Extend ────────────────────────────────────────────────────────────────
+  // ── Extend ──
   const handleExtend = async () => {
     if (!extendModal || !extendDate) return;
     setActionLoading(true);
@@ -681,7 +728,7 @@ export default function AdminBilling() {
     }
   };
 
-  // ── Generate ──────────────────────────────────────────────────────────────
+  // ── Generate ──
   const handleGenerate = async () => {
     setActionLoading(true);
     try {
@@ -701,7 +748,7 @@ export default function AdminBilling() {
     }
   };
 
-  // ── Retry ─────────────────────────────────────────────────────────────────
+  // ── Retry ──
   const handleRetry = async (run) => {
     try {
       await billingService.retryFailed(run._id);
@@ -724,7 +771,7 @@ export default function AdminBilling() {
       <style>{`
         @keyframes fadeUp {
           from { opacity:0; transform:translateY(10px); }
-          to   { opacity:1; transform:translateY(0);    }
+          to   { opacity:1; transform:translateY(0); }
         }
       `}</style>
 
@@ -780,6 +827,7 @@ export default function AdminBilling() {
       {/* ─── UNPAID BILLS TAB ─── */}
       {tab === "unpaid" && (
         <div>
+          {/* Toolbar */}
           <div className="bg-white border border-slate-100 rounded-2xl p-4 mb-4 flex flex-wrap items-center gap-3 shadow-sm">
             <div className="relative flex-1 min-w-[200px] max-w-xs">
               <Search
@@ -796,14 +844,19 @@ export default function AdminBilling() {
             <Btn variant="secondary" onClick={() => fetchUnpaid(unpaidSkip, search)} loading={unpaidLoading}>
               <RefreshCw size={12} /> Refresh
             </Btn>
-            <span className="ml-auto text-[12px] text-slate-400">
-              {unpaidTotal} lab{unpaidTotal !== 1 ? "s" : ""} with unpaid bills
-            </span>
+            {!unpaidLoading && (
+              <span className="ml-auto text-[12px] text-slate-400">
+                {unpaidTotal} lab{unpaidTotal !== 1 ? "s" : ""} with unpaid bills
+              </span>
+            )}
           </div>
 
+          {/* Skeleton list OR real list */}
           {unpaidLoading ? (
-            <div className="flex items-center justify-center py-20">
-              <Loader2 size={24} className="animate-spin text-indigo-400" />
+            <div className="space-y-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <LabCardSkeleton key={i} />
+              ))}
             </div>
           ) : unpaidLabs.length === 0 ? (
             <div className="bg-white border border-slate-100 rounded-2xl py-20 text-center shadow-sm">
@@ -828,7 +881,8 @@ export default function AdminBilling() {
             </div>
           )}
 
-          {unpaidPages > 1 && (
+          {/* Pagination */}
+          {unpaidPages > 1 && !unpaidLoading && (
             <div className="flex items-center justify-between mt-4 px-1">
               <span className="text-[12px] text-slate-400">
                 Page {unpaidPage + 1} of {unpaidPages}
@@ -889,11 +943,7 @@ export default function AdminBilling() {
                 </thead>
                 <tbody>
                   {runsLoading ? (
-                    <tr>
-                      <td colSpan={7} className="py-16 text-center">
-                        <Loader2 size={22} className="animate-spin text-indigo-400 mx-auto" />
-                      </td>
-                    </tr>
+                    Array.from({ length: 5 }).map((_, i) => <RunRowSkeleton key={i} />)
                   ) : runs.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="py-16 text-center text-slate-300 text-[13px]">
@@ -933,8 +983,32 @@ export default function AdminBilling() {
             )}
           </div>
 
-          {labData && (
+          {/* Lab lookup skeleton */}
+          {labLoading && (
+            <div className="space-y-4 animate-pulse">
+              <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
+                <div className="flex justify-between">
+                  <div className="space-y-2">
+                    <Bone className="h-5 w-48" />
+                    <Bone className="h-3.5 w-24" />
+                  </div>
+                  <Bone className="h-7 w-16 rounded-full" />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                {[0, 1, 2].map((i) => (
+                  <div key={i} className="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm space-y-2">
+                    <Bone className="h-3 w-12" />
+                    <Bone className="h-7 w-10" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {labData && !labLoading && (
             <div className="space-y-4 animate-[fadeUp_0.2s_ease]">
+              {/* Lab card */}
               <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
                 <div className="flex items-start justify-between flex-wrap gap-3">
                   <div>
@@ -949,6 +1023,7 @@ export default function AdminBilling() {
                 </div>
               </div>
 
+              {/* Stats */}
               <div className="grid grid-cols-3 gap-3">
                 {[
                   { label: "Paid", key: "paid", border: "border-emerald-100" },
@@ -967,6 +1042,7 @@ export default function AdminBilling() {
                 ))}
               </div>
 
+              {/* Current unpaid bill */}
               {labData.currentBill ? (
                 <div
                   className={`bg-white border rounded-2xl p-5 shadow-sm ${labData.currentBill.isOverdue ? "border-red-200 bg-red-50/20" : "border-amber-100"}`}
@@ -1009,11 +1085,7 @@ export default function AdminBilling() {
                     <Btn
                       variant="success"
                       onClick={() =>
-                        setPayModal({
-                          ...labData.currentBill,
-                          _id: labData.currentBill.id,
-                          labId: labData.lab?._id,
-                        })
+                        setPayModal({ ...labData.currentBill, _id: labData.currentBill.id, labId: labData.lab?._id })
                       }
                     >
                       <CheckCircle2 size={13} /> Mark as Paid
@@ -1036,6 +1108,7 @@ export default function AdminBilling() {
                 </div>
               )}
 
+              {/* Full history — lazy loaded via LabHistoryDrawer */}
               <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-sm">
                 <div className="px-5 py-3 border-b border-slate-100 flex items-center gap-2">
                   <Receipt size={14} className="text-slate-400" />
