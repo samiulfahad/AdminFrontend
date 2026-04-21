@@ -23,6 +23,9 @@ import {
   Filter,
   BadgeCheck,
   Ban,
+  BarChart3,
+  TrendingUp,
+  TrendingDown,
 } from "lucide-react";
 import billingService from "../../api/billingService";
 
@@ -45,7 +48,6 @@ const isOverdue = (ms) => ms && Date.now() > ms;
 
 const Bone = ({ className = "" }) => <div className={`bg-slate-200 rounded-lg animate-pulse ${className}`} />;
 
-// Skeleton for a single unpaid lab card
 const LabCardSkeleton = () => (
   <div className="border border-slate-100 rounded-2xl bg-white shadow-sm p-5">
     <div className="flex items-start gap-4">
@@ -73,7 +75,6 @@ const LabCardSkeleton = () => (
   </div>
 );
 
-// Skeleton for history rows inside drawer
 const HistoryRowSkeleton = () => (
   <div className="px-5 py-3 flex items-center gap-3 bg-white/50 border-b border-slate-100">
     <Bone className="h-5 w-14 rounded-md" />
@@ -87,7 +88,6 @@ const HistoryRowSkeleton = () => (
   </div>
 );
 
-// Skeleton for runs table rows
 const RunRowSkeleton = () => (
   <tr className="border-b border-slate-50">
     {[28, 24, 20, 12, 36, 16, 8].map((w, i) => (
@@ -96,6 +96,25 @@ const RunRowSkeleton = () => (
       </td>
     ))}
   </tr>
+);
+
+const OverviewRowSkeleton = () => (
+  <div className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm">
+    <div className="flex items-center justify-between mb-3">
+      <Bone className="h-5 w-24" />
+      <Bone className="h-4 w-16" />
+    </div>
+    <div className="grid grid-cols-4 gap-3">
+      {[0, 1, 2, 3].map((i) => (
+        <div key={i} className="space-y-1.5">
+          <Bone className="h-3 w-12" />
+          <Bone className="h-6 w-10" />
+          <Bone className="h-3 w-20" />
+        </div>
+      ))}
+    </div>
+    <Bone className="h-2 w-full mt-3 rounded-full" />
+  </div>
 );
 
 // ─── UI Atoms ─────────────────────────────────────────────────────────────────
@@ -194,7 +213,8 @@ const MonthTag = ({ label, isOverdue: over }) => (
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 const MonthYearPicker = ({ value, onChange, label, maxYear, maxMonth }) => {
-  const [viewYear, setViewYear] = useState(value?.year ?? maxYear ?? new Date().getFullYear());
+  const [viewYear, setViewYear] = useState(value?.year ?? new Date().getFullYear());
+  // maxMonth is 1-indexed — months with index > maxMonth in maxYear are disabled
   const isDisabled = (y, m) => maxYear && (y > maxYear || (y === maxYear && m > maxMonth));
 
   return (
@@ -220,7 +240,7 @@ const MonthYearPicker = ({ value, onChange, label, maxYear, maxMonth }) => {
         </div>
         <div className="grid grid-cols-4 gap-1 p-2">
           {MONTHS.map((m, i) => {
-            const mn = i + 1;
+            const mn = i + 1; // 1-indexed
             const dis = isDisabled(viewYear, mn);
             const sel = value?.year === viewYear && value?.month === mn;
             return (
@@ -255,7 +275,7 @@ const MonthYearPicker = ({ value, onChange, label, maxYear, maxMonth }) => {
   );
 };
 
-// ─── Lab History Drawer — lazy loaded on expand ───────────────────────────────
+// ─── Lab History Drawer ───────────────────────────────────────────────────────
 
 const LabHistoryDrawer = ({ labKey, onPay, onExtend }) => {
   const [data, setData] = useState(null);
@@ -290,7 +310,6 @@ const LabHistoryDrawer = ({ labKey, onPay, onExtend }) => {
 
   return (
     <div className="bg-slate-50/60 border-t border-slate-100">
-      {/* Stats row — show skeleton while loading first page */}
       <div className="px-5 py-3 flex items-center gap-3 flex-wrap border-b border-slate-100 bg-white/70 min-h-[44px]">
         {loading && !data ? (
           <>
@@ -322,16 +341,13 @@ const LabHistoryDrawer = ({ labKey, onPay, onExtend }) => {
         )}
       </div>
 
-      {/* Error */}
       {error && (
         <div className="px-5 py-4 text-[12px] text-red-500 flex items-center gap-1.5">
           <AlertCircle size={13} /> {error}
         </div>
       )}
 
-      {/* Bill rows */}
       {loading ? (
-        // Skeleton rows while loading
         <div className="divide-y divide-slate-100">
           {Array.from({ length: 4 }).map((_, i) => (
             <HistoryRowSkeleton key={i} />
@@ -349,28 +365,23 @@ const LabHistoryDrawer = ({ labKey, onPay, onExtend }) => {
                 className={`px-5 py-3 flex items-center gap-3 flex-wrap transition-colors ${over ? "bg-red-50/40" : "bg-white/50"}`}
               >
                 <StatusBadge status={bill.status} overdue={over} />
-
                 <div className="min-w-[110px]">
                   <div className="text-[12.5px] font-semibold text-slate-700">{fmtMonth(bill.billingPeriodStart)}</div>
                   <div className="text-[11px] text-slate-400">
                     {fmtDate(bill.billingPeriodStart)} – {fmtDate(bill.billingPeriodEnd)}
                   </div>
                 </div>
-
                 <span className="text-[13px] font-bold text-slate-800 min-w-[90px]">
                   {fmtCurrency(bill.totalAmount)}
                 </span>
-
                 {bill.invoiceCount != null && (
                   <span className="text-[11.5px] text-slate-400">{bill.invoiceCount} inv.</span>
                 )}
-
                 {bill.status === "paid" && bill.paidAt && (
                   <span className="text-[11.5px] text-emerald-600 font-medium flex items-center gap-1">
                     <BadgeCheck size={12} /> Paid {fmtDate(bill.paidAt)}
                   </span>
                 )}
-
                 {bill.status === "unpaid" && (
                   <span
                     className={`text-[11.5px] flex items-center gap-1 ${over ? "text-red-500 font-semibold" : "text-slate-400"}`}
@@ -379,7 +390,6 @@ const LabHistoryDrawer = ({ labKey, onPay, onExtend }) => {
                     Due {fmtDate(bill.dueDate)}
                   </span>
                 )}
-
                 {bill.breakdown && (
                   <div className="flex flex-wrap gap-1 w-full mt-1">
                     {Object.entries(bill.breakdown).map(([k, v]) => (
@@ -393,7 +403,6 @@ const LabHistoryDrawer = ({ labKey, onPay, onExtend }) => {
                     ))}
                   </div>
                 )}
-
                 {bill.status === "unpaid" && (
                   <div className="flex items-center gap-1.5 ml-auto">
                     <Btn variant="success" className="!px-2.5 !py-1.5 !text-[11px]" onClick={() => onPay(bill)}>
@@ -410,7 +419,6 @@ const LabHistoryDrawer = ({ labKey, onPay, onExtend }) => {
         </div>
       )}
 
-      {/* Pagination */}
       {totalPages > 1 && (
         <div className="px-5 py-3 flex items-center justify-between border-t border-slate-100">
           <span className="text-[11.5px] text-slate-400">
@@ -447,7 +455,6 @@ const UnpaidLabRow = ({ lab, onPay, onExtend }) => {
 
   return (
     <div className="border border-slate-100 rounded-2xl overflow-hidden bg-white shadow-sm">
-      {/* Header row */}
       <div className="flex items-start gap-4 px-5 py-4">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-2">
@@ -473,7 +480,6 @@ const UnpaidLabRow = ({ lab, onPay, onExtend }) => {
             <div className="text-[11px] text-slate-400 font-medium">Total Unpaid</div>
             <div className="text-[16px] font-black text-amber-600">{fmtCurrency(lab.unpaidTotal)}</div>
           </div>
-          {/* History toggle — triggers lazy fetch on first click */}
           <button
             type="button"
             onClick={() => setExpanded((o) => !o)}
@@ -485,7 +491,6 @@ const UnpaidLabRow = ({ lab, onPay, onExtend }) => {
         </div>
       </div>
 
-      {/* Unpaid quick-pay rows */}
       {lab.unpaidMonths.length > 0 && (
         <div className="px-5 pb-4 flex flex-col gap-2">
           {lab.unpaidMonths.map((um) => (
@@ -537,7 +542,6 @@ const UnpaidLabRow = ({ lab, onPay, onExtend }) => {
         </div>
       )}
 
-      {/* History drawer — only mounted (and fetched) when expanded */}
       {expanded && <LabHistoryDrawer labKey={lab.labKey} onPay={onPay} onExtend={onExtend} />}
     </div>
   );
@@ -579,11 +583,214 @@ const RunRow = ({ run, onRetry }) => (
   </tr>
 );
 
+// ─── Month Overview Card ──────────────────────────────────────────────────────
+
+const MonthOverviewCard = ({ m }) => {
+  const total = m.totalLabs;
+  const paidPct = total ? Math.round((m.paid.count / total) * 100) : 0;
+  const unpaidPct = total ? Math.round((m.unpaid.count / total) * 100) : 0;
+  const freePct = total ? Math.round((m.free.count / total) * 100) : 0;
+
+  const grandTotal = m.paid.total + m.unpaid.total;
+
+  return (
+    <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow">
+      {/* Header */}
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <div className="text-[16px] font-black text-slate-900">{m.label}</div>
+          <div className="text-[11px] text-slate-400 mt-0.5 font-mono">{m.period}</div>
+        </div>
+        <div className="text-right">
+          <div className="text-[11px] text-slate-400">Total Labs</div>
+          <div className="text-[20px] font-black text-slate-900 leading-tight">{total}</div>
+        </div>
+      </div>
+
+      {/* Stats grid */}
+      <div className="grid grid-cols-3 gap-2 mb-4">
+        {/* Paid */}
+        <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3">
+          <div className="flex items-center gap-1 mb-1">
+            <CheckCircle2 size={10} className="text-emerald-500" />
+            <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wide">Paid</span>
+          </div>
+          <div className="text-[18px] font-black text-emerald-700 leading-tight">{m.paid.count}</div>
+          {m.paid.total > 0 && <div className="text-[10.5px] text-emerald-600 mt-0.5">{fmtCurrency(m.paid.total)}</div>}
+          <div className="text-[10px] text-emerald-500 mt-0.5">{paidPct}%</div>
+        </div>
+
+        {/* Unpaid */}
+        <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
+          <div className="flex items-center gap-1 mb-1">
+            <Clock size={10} className="text-amber-500" />
+            <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wide">Unpaid</span>
+          </div>
+          <div className="text-[18px] font-black text-amber-700 leading-tight">{m.unpaid.count}</div>
+          {m.unpaid.total > 0 && (
+            <div className="text-[10.5px] text-amber-600 mt-0.5">{fmtCurrency(m.unpaid.total)}</div>
+          )}
+          <div className="text-[10px] text-amber-500 mt-0.5">{unpaidPct}%</div>
+        </div>
+
+        {/* Free */}
+        <div className="bg-slate-50 border border-slate-100 rounded-xl p-3">
+          <div className="flex items-center gap-1 mb-1">
+            <Zap size={10} className="text-slate-400" />
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Free</span>
+          </div>
+          <div className="text-[18px] font-black text-slate-500 leading-tight">{m.free.count}</div>
+          <div className="text-[10px] text-slate-400 mt-0.5">{freePct}%</div>
+        </div>
+      </div>
+
+      {/* Progress bar */}
+      <div className="h-2 rounded-full overflow-hidden bg-slate-100 flex">
+        {paidPct > 0 && (
+          <div
+            className="bg-emerald-400 h-full transition-all"
+            style={{ width: `${paidPct}%` }}
+            title={`Paid ${paidPct}%`}
+          />
+        )}
+        {unpaidPct > 0 && (
+          <div
+            className="bg-amber-400 h-full transition-all"
+            style={{ width: `${unpaidPct}%` }}
+            title={`Unpaid ${unpaidPct}%`}
+          />
+        )}
+        {freePct > 0 && (
+          <div
+            className="bg-slate-300 h-full transition-all"
+            style={{ width: `${freePct}%` }}
+            title={`Free ${freePct}%`}
+          />
+        )}
+      </div>
+
+      {/* Revenue footer */}
+      {grandTotal > 0 && (
+        <div className="mt-3 pt-3 border-t border-slate-50 flex items-center justify-between">
+          <span className="text-[11px] text-slate-400">Total Revenue</span>
+          <span className="text-[12.5px] font-bold text-slate-700">{fmtCurrency(grandTotal)}</span>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ─── Month Overview Tab ───────────────────────────────────────────────────────
+
+const MonthOverviewTab = () => {
+  const [months, setMonths] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const fetch = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await billingService.getMonthOverview();
+      setMonths(res.data.months ?? []);
+    } catch {
+      setError("Failed to fetch monthly overview");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetch();
+  }, [fetch]);
+
+  // Aggregate totals across all months
+  const totals = months.reduce(
+    (acc, m) => ({
+      labs: acc.labs + m.totalLabs,
+      paid: acc.paid + m.paid.count,
+      unpaid: acc.unpaid + m.unpaid.count,
+      free: acc.free + m.free.count,
+      revenue: acc.revenue + m.paid.total + m.unpaid.total,
+      collected: acc.collected + m.paid.total,
+    }),
+    { labs: 0, paid: 0, unpaid: 0, free: 0, revenue: 0, collected: 0 },
+  );
+
+  return (
+    <div>
+      {/* Toolbar */}
+      <div className="bg-white border border-slate-100 rounded-2xl p-4 mb-4 flex flex-wrap items-center gap-3 shadow-sm">
+        <BarChart3 size={14} className="text-slate-300" />
+        <span className="text-[13px] font-semibold text-slate-600">All billing periods</span>
+        <Btn variant="secondary" onClick={fetch} loading={loading} className="ml-auto">
+          <RefreshCw size={12} /> Refresh
+        </Btn>
+      </div>
+
+      {error && (
+        <div className="bg-red-50 border border-red-100 rounded-2xl px-5 py-4 text-[13px] text-red-500 flex items-center gap-2 mb-4">
+          <AlertCircle size={14} /> {error}
+        </div>
+      )}
+
+      {/* Summary banner — shown once data loads */}
+      {!loading && months.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+          {[
+            {
+              label: "Total Bills",
+              value: totals.labs,
+              color: "text-slate-900",
+              sub: `across ${months.length} months`,
+            },
+            { label: "Paid Bills", value: totals.paid, color: "text-emerald-700", sub: fmtCurrency(totals.collected) },
+            {
+              label: "Unpaid Bills",
+              value: totals.unpaid,
+              color: "text-amber-700",
+              sub: fmtCurrency(totals.revenue - totals.collected),
+            },
+            { label: "Free Bills", value: totals.free, color: "text-slate-500", sub: "no charge" },
+          ].map(({ label, value, color, sub }) => (
+            <div key={label} className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm">
+              <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-1">{label}</div>
+              <div className={`text-[24px] font-black leading-tight ${color}`}>{value}</div>
+              <div className="text-[11px] text-slate-400 mt-0.5">{sub}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Month cards */}
+      {loading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <OverviewRowSkeleton key={i} />
+          ))}
+        </div>
+      ) : months.length === 0 ? (
+        <div className="bg-white border border-slate-100 rounded-2xl py-20 text-center shadow-sm">
+          <BarChart3 size={28} className="text-slate-200 mx-auto mb-3" />
+          <p className="text-[14px] font-semibold text-slate-400">No billing data found</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {months.map((m) => (
+            <MonthOverviewCard key={m.period} m={m} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 const TABS = [
   { id: "unpaid", label: "Unpaid Bills", icon: Clock },
   { id: "runs", label: "Billing Runs", icon: Activity },
+  { id: "overview", label: "Month Overview", icon: BarChart3 },
   { id: "lab", label: "Lab Lookup", icon: Building2 },
 ];
 
@@ -627,7 +834,7 @@ export default function AdminBilling() {
     setTimeout(() => setToast(null), 3500);
   };
 
-  // ── Fetch unpaid labs — explicit args, no stale closure ──
+  // ── Fetch unpaid labs ──
   const fetchUnpaid = useCallback(async (skip, searchVal) => {
     setUnpaidLoading(true);
     try {
@@ -729,12 +936,19 @@ export default function AdminBilling() {
   };
 
   // ── Generate ──
+  // FIX: The backend's generateMonthlyBills treats month as 0-indexed internally.
+  // When user picks "Nov 2025" (month=11, 1-indexed from picker), we must send
+  // month+1 so the backend's internal month-1 lands on the correct month.
+  // Example: user picks Nov → send 12 → backend does month-1=11 → generates Nov ✓
   const handleGenerate = async () => {
     setActionLoading(true);
     try {
       const body = {};
       if (genPeriod?.year) body.year = genPeriod.year;
-      if (genPeriod?.month) body.month = genPeriod.month;
+      if (genPeriod?.month) {
+        // Compensate for backend's 0-indexed month interpretation
+        body.month = genPeriod.month + 1;
+      }
       if (genDueDate) body.dueDate = genDueDate;
       await billingService.generate(body);
       showToast("Bill generation started ✓");
@@ -759,12 +973,19 @@ export default function AdminBilling() {
     }
   };
 
+  // maxMonth: current month minus 1, 1-indexed (last completed month)
+  // e.g. April 2026 → maxMonth = 3 (March), maxYear = 2026
+  // If January → maxMonth = 12, maxYear = year - 1
   const now = new Date();
-  const maxYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
-  const maxMonth = now.getMonth() === 0 ? 12 : now.getMonth();
+  const currentMonth1 = now.getMonth() + 1; // 1-indexed current month
+  const maxYear = currentMonth1 === 1 ? now.getFullYear() - 1 : now.getFullYear();
+  const maxMonth = currentMonth1 === 1 ? 12 : currentMonth1 - 1;
 
   const unpaidPages = Math.ceil(unpaidTotal / UNPAID_LIMIT);
   const unpaidPage = Math.floor(unpaidSkip / UNPAID_LIMIT);
+
+  // Preview label for generate modal — what period will actually be generated
+  const genPreviewLabel = genPeriod ? `${MONTHS[genPeriod.month - 1]} ${genPeriod.year}` : "previous BST month (auto)";
 
   return (
     <div className="min-h-screen bg-slate-50 px-4 sm:px-6 lg:px-8 py-8">
@@ -827,7 +1048,6 @@ export default function AdminBilling() {
       {/* ─── UNPAID BILLS TAB ─── */}
       {tab === "unpaid" && (
         <div>
-          {/* Toolbar */}
           <div className="bg-white border border-slate-100 rounded-2xl p-4 mb-4 flex flex-wrap items-center gap-3 shadow-sm">
             <div className="relative flex-1 min-w-[200px] max-w-xs">
               <Search
@@ -851,7 +1071,6 @@ export default function AdminBilling() {
             )}
           </div>
 
-          {/* Skeleton list OR real list */}
           {unpaidLoading ? (
             <div className="space-y-3">
               {Array.from({ length: 3 }).map((_, i) => (
@@ -881,7 +1100,6 @@ export default function AdminBilling() {
             </div>
           )}
 
-          {/* Pagination */}
           {unpaidPages > 1 && !unpaidLoading && (
             <div className="flex items-center justify-between mt-4 px-1">
               <span className="text-[12px] text-slate-400">
@@ -960,6 +1178,9 @@ export default function AdminBilling() {
         </div>
       )}
 
+      {/* ─── MONTH OVERVIEW TAB ─── */}
+      {tab === "overview" && <MonthOverviewTab />}
+
       {/* ─── LAB LOOKUP TAB ─── */}
       {tab === "lab" && (
         <div className="max-w-2xl">
@@ -983,7 +1204,6 @@ export default function AdminBilling() {
             )}
           </div>
 
-          {/* Lab lookup skeleton */}
           {labLoading && (
             <div className="space-y-4 animate-pulse">
               <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
@@ -1008,7 +1228,6 @@ export default function AdminBilling() {
 
           {labData && !labLoading && (
             <div className="space-y-4 animate-[fadeUp_0.2s_ease]">
-              {/* Lab card */}
               <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
                 <div className="flex items-start justify-between flex-wrap gap-3">
                   <div>
@@ -1023,7 +1242,6 @@ export default function AdminBilling() {
                 </div>
               </div>
 
-              {/* Stats */}
               <div className="grid grid-cols-3 gap-3">
                 {[
                   { label: "Paid", key: "paid", border: "border-emerald-100" },
@@ -1042,7 +1260,6 @@ export default function AdminBilling() {
                 ))}
               </div>
 
-              {/* Current unpaid bill */}
               {labData.currentBill ? (
                 <div
                   className={`bg-white border rounded-2xl p-5 shadow-sm ${labData.currentBill.isOverdue ? "border-red-200 bg-red-50/20" : "border-amber-100"}`}
@@ -1108,7 +1325,6 @@ export default function AdminBilling() {
                 </div>
               )}
 
-              {/* Full history — lazy loaded via LabHistoryDrawer */}
               <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-sm">
                 <div className="px-5 py-3 border-b border-slate-100 flex items-center gap-2">
                   <Receipt size={14} className="text-slate-400" />
@@ -1202,6 +1418,16 @@ export default function AdminBilling() {
             maxYear={maxYear}
             maxMonth={maxMonth}
           />
+          {/* ✅ Preview box — shows exactly which month will be generated */}
+          <div className="flex items-center gap-2 bg-indigo-50 border border-indigo-100 rounded-xl px-3.5 py-2.5">
+            <Calendar size={13} className="text-indigo-400 shrink-0" />
+            <div>
+              <div className="text-[10px] font-bold text-indigo-400 uppercase tracking-wide">
+                Will generate bills for
+              </div>
+              <div className="text-[13px] font-bold text-indigo-700">{genPreviewLabel}</div>
+            </div>
+          </div>
           <Input
             label="Due Date (optional)"
             type="date"
