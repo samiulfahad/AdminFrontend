@@ -29,13 +29,16 @@ import billingService from "../../api/billingService";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const fmtDate = (ms) =>
-  ms ? new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(ms)) : "—";
+const BST_OFFSET_MS = 6 * 60 * 60 * 1000;
 
-const fmtMonth = (ms) =>
+const fmtDate = (ms) =>
   ms
-    ? new Intl.DateTimeFormat("en-GB", { month: "short", year: "numeric" }).format(new Date(ms + 12 * 60 * 60 * 1000))
+    ? new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric" }).format(
+        new Date(ms + BST_OFFSET_MS),
+      )
     : "—";
+const fmtMonth = (ms) =>
+  ms ? new Intl.DateTimeFormat("en-GB", { month: "short", year: "numeric" }).format(new Date(ms + BST_OFFSET_MS)) : "—";
 
 const fmtCurrency = (n) =>
   typeof n === "number"
