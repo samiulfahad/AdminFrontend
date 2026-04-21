@@ -1,452 +1,214 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   CreditCard,
-  Clock,
-  AlertTriangle,
-  CheckCircle2,
+  Building2,
   RefreshCw,
-  FileText,
-  TrendingUp,
+  Play,
   Calendar,
+  CheckCircle2,
+  AlertCircle,
+  Clock,
   ChevronDown,
   ChevronUp,
-  Loader2,
-  Play,
-  RotateCcw,
-  Building2,
-  Zap,
-  Filter,
-  Gift,
-  XCircle,
-  Activity,
   Search,
+  Filter,
+  RotateCcw,
+  X,
+  Zap,
+  TrendingUp,
+  AlertTriangle,
+  Ban,
+  ChevronRight,
+  Loader2,
+  Receipt,
+  Activity,
 } from "lucide-react";
-import adminBillingService from "../../api/adminBilling";
-import Popup from "../../components/popup";
+import billingService from "../api/billingService";
 
-// ─── BST time helpers (mirrors the backend utils) ─────────────────────────────
-//
-// All timestamps in the DB are UTC epoch ms.
-// dueDate = 23:59:59.999 BST of the due calendar day = (due_day_end_BST) expressed in UTC.
-// BST = UTC+6, so:
-//   23:59:59.999 BST = 17:59:59.999 UTC of the same calendar day.
-//
-// For <input type="date"> we always work in BST calendar dates.
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const DHAKA_OFFSET_MS = 6 * 60 * 60 * 1000;
+const fmt = (ms) =>
+  ms ? new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(ms)) : "—";
 
-/** Convert a UTC epoch ms to a BST calendar date string "YYYY-MM-DD". */
-function toBSTDateString(utcMs) {
-  return new Date(utcMs + DHAKA_OFFSET_MS).toISOString().slice(0, 10);
-}
+const fmtCurrency = (n) =>
+  typeof n === "number"
+    ? new Intl.NumberFormat("en-BD", { style: "currency", currency: "BDT", maximumFractionDigits: 0 }).format(n)
+    : "—";
 
-/**
- * Convert a "YYYY-MM-DD" BST calendar date string to the UTC epoch ms of
- * 23:59:59.999 BST on that day (= 17:59:59.999 UTC).
- * This is the value we send to the backend as the new dueDate.
- */
-function bstDateStringToEndOfDayUTC(dateStr) {
-  // Treat as noon UTC to avoid any boundary issues, then snap to end of BST day.
-  const noonUTC = new Date(dateStr + "T12:00:00Z").getTime();
-  // End of BST day = start of next BST day − 1ms
-  // Start of next BST day = midnight BST of (dateStr+1 day) = Date.UTC(y,m,d+1) − DHAKA_OFFSET_MS
-  const d = new Date(noonUTC + DHAKA_OFFSET_MS); // BST date object
-  const y = d.getUTCFullYear();
-  const mo = d.getUTCMonth();
-  const day = d.getUTCDate();
-  return Date.UTC(y, mo, day + 1) - DHAKA_OFFSET_MS - 1;
-}
+const isOverdue = (ms) => ms && Date.now() > ms;
 
-/** Today's date in BST as "YYYY-MM-DD". */
-function todayBSTString() {
-  return toBSTDateString(Date.now());
-}
-
-/** Tomorrow in BST as "YYYY-MM-DD". */
-function tomorrowBSTString() {
-  return toBSTDateString(Date.now() + 86_400_000);
-}
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-const MAX_DUE_EXTENSION_MS = 10 * 24 * 60 * 60 * 1000;
-
-// ─── Formatters ───────────────────────────────────────────────────────────────
-const fmt = {
-  currency: (amount) =>
-    new Intl.NumberFormat("en-BD", {
-      style: "currency",
-      currency: "BDT",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount ?? 0),
-
-  // Display a UTC timestamp as a BST calendar date.
-  // e.g. dueDate = 1746723599999 (May 8 17:59:59 UTC = May 8 23:59:59 BST) → "May 8, 2026"
-  date: (utcMs) =>
-    utcMs
-      ? new Date(utcMs + DHAKA_OFFSET_MS).toLocaleDateString("en-BD", {
-          year: "numeric",
-          month: "short",
-          day: "numeric",
-          timeZone: "UTC", // already shifted by DHAKA_OFFSET_MS above
-        })
-      : "—",
-
-  period: (utcMs) =>
-    utcMs
-      ? new Date(utcMs + DHAKA_OFFSET_MS).toLocaleDateString("en-BD", {
-          year: "numeric",
-          month: "long",
-          timeZone: "UTC",
-        })
-      : "—",
-
-  datetime: (utcMs) =>
-    utcMs
-      ? new Date(utcMs).toLocaleString("en-BD", {
-          year: "numeric",
-          month: "short",
-          day: "numeric",
-          hour: "2-digit",
-          minute: "2-digit",
-          timeZone: "Asia/Dhaka",
-        })
-      : "—",
+const statusStyles = {
+  unpaid: "bg-amber-50 text-amber-700 border border-amber-200",
+  paid: "bg-emerald-50 text-emerald-700 border border-emerald-200",
+  free: "bg-slate-100 text-slate-500 border border-slate-200",
 };
 
-// ─── Skeleton ─────────────────────────────────────────────────────────────────
-const Sk = ({ className = "" }) => <div className={`animate-pulse rounded-lg bg-gray-200/80 ${className}`} />;
+const StatusBadge = ({ status }) => (
+  <span
+    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold uppercase tracking-wide ${statusStyles[status] ?? "bg-slate-100 text-slate-500"}`}
+  >
+    {status === "paid" && <CheckCircle2 size={10} />}
+    {status === "unpaid" && <Clock size={10} />}
+    {status === "free" && <Zap size={10} />}
+    {status}
+  </span>
+);
 
-const StatsSkeleton = () => (
-  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-    {[...Array(4)].map((_, i) => (
-      <div key={i} className="bg-white border border-gray-200/80 rounded-xl px-4 py-3 shadow-sm space-y-2">
-        <Sk className="h-2.5 w-16" />
-        <Sk className="h-6 w-20" />
-        <Sk className="h-2.5 w-24" />
+// ─── Stat Card ────────────────────────────────────────────────────────────────
+
+const StatCard = ({ icon: Icon, label, value, sub, accent = "indigo" }) => {
+  const accents = {
+    indigo: "from-indigo-500 to-indigo-400 shadow-indigo-200",
+    emerald: "from-emerald-500 to-emerald-400 shadow-emerald-200",
+    amber: "from-amber-500 to-amber-400 shadow-amber-200",
+    rose: "from-rose-500 to-rose-400 shadow-rose-200",
+  };
+  return (
+    <div className="bg-white rounded-2xl border border-slate-100 p-5 flex items-start gap-4 shadow-sm">
+      <div
+        className={`w-10 h-10 rounded-xl bg-gradient-to-br ${accents[accent]} flex items-center justify-center shadow-md shrink-0`}
+      >
+        <Icon size={17} className="text-white" />
       </div>
-    ))}
-  </div>
-);
-
-const TableSkeleton = ({ rows = 6 }) => (
-  <div className="border border-gray-200/80 rounded-2xl overflow-hidden shadow-sm">
-    <div className="w-full overflow-x-auto">
-      <table className="w-full text-left border-collapse" style={{ minWidth: "500px" }}>
-        <tbody className="divide-y divide-gray-100">
-          {[...Array(rows)].map((_, i) => (
-            <tr key={i} className="animate-pulse">
-              {[...Array(5)].map((__, j) => (
-                <td key={j} className="px-4 py-3.5">
-                  <Sk className={`h-3.5 ${j === 0 ? "w-20" : j === 4 ? "w-8" : "w-16"}`} />
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div className="min-w-0">
+        <p className="text-[11.5px] font-semibold text-slate-400 uppercase tracking-wide">{label}</p>
+        <p className="text-[22px] font-black text-slate-900 leading-tight tracking-tight">{value}</p>
+        {sub && <p className="text-[11.5px] text-slate-400 mt-0.5">{sub}</p>}
+      </div>
     </div>
-  </div>
-);
-
-// ─── Status Badge ─────────────────────────────────────────────────────────────
-const StatusBadge = ({ status, isOverdue }) => {
-  if (status === "paid")
-    return (
-      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-green-50 text-green-700 border border-green-200">
-        <CheckCircle2 className="w-3 h-3" /> Paid
-      </span>
-    );
-  if (status === "free")
-    return (
-      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200">
-        <Gift className="w-3 h-3" /> Free
-      </span>
-    );
-  if (isOverdue)
-    return (
-      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-red-50 text-red-700 border border-red-200">
-        <AlertTriangle className="w-3 h-3" /> Overdue
-      </span>
-    );
-  return (
-    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-      <Clock className="w-3 h-3" /> Unpaid
-    </span>
   );
 };
 
-// ─── Breakdown Panel ──────────────────────────────────────────────────────────
-const BreakdownPanel = ({ breakdown }) => {
-  if (!breakdown) return null;
-  const rows = [
-    { label: "Monthly fee", value: breakdown.monthlyFee },
-    { label: "Per-invoice fee", value: breakdown.perInvoiceFee },
-    { label: "Commission", value: breakdown.commission },
-    { label: "Net per invoice", value: breakdown.perInvoiceNet },
-  ].filter((r) => r.value != null);
+// ─── Modal Shell ──────────────────────────────────────────────────────────────
 
+const Modal = ({ open, onClose, title, children, width = "max-w-lg" }) => {
+  if (!open) return null;
   return (
-    <div className="bg-white rounded-xl border border-gray-200/80 overflow-hidden">
-      <p className="px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide border-b border-gray-100 flex items-center gap-2">
-        <TrendingUp className="w-3.5 h-3.5 text-blue-500" />
-        Charge breakdown
-      </p>
-      {rows.map((r) => (
-        <div key={r.label} className="flex justify-between px-4 py-2 border-b border-gray-50 last:border-b-0 text-sm">
-          <span className="text-gray-500">{r.label}</span>
-          <span className="font-medium text-gray-800">{fmt.currency(r.value)}</span>
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+      <div className="absolute inset-0 bg-slate-900/30 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className={`relative bg-white rounded-2xl shadow-2xl border border-slate-100 w-full ${width} animate-[slideUp_0.2s_ease]`}
+      >
+        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-slate-50">
+          <h3 className="text-[15px] font-bold text-slate-800">{title}</h3>
+          <button
+            onClick={onClose}
+            className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 transition cursor-pointer"
+          >
+            <X size={14} className="text-slate-400" />
+          </button>
         </div>
-      ))}
+        <div className="px-6 py-5">{children}</div>
+      </div>
     </div>
   );
 };
 
-// ─── Bill Row ─────────────────────────────────────────────────────────────────
-const BillRow = ({ bill, onPaySuccess }) => {
-  const [expanded, setExpanded] = useState(false);
-  const [paying, setPaying] = useState(false);
-  const [popup, setPopup] = useState(null);
-  const [editingDue, setEditingDue] = useState(false);
-  const [newDueDate, setNewDueDate] = useState(""); // "YYYY-MM-DD" in BST
-  const [savingDue, setSavingDue] = useState(false);
+// ─── Input ────────────────────────────────────────────────────────────────────
 
-  const isOverdue = bill.status === "unpaid" && Date.now() > bill.dueDate;
+const Input = ({ label, ...props }) => (
+  <div className="flex flex-col gap-1.5">
+    {label && <label className="text-[12px] font-semibold text-slate-600">{label}</label>}
+    <input
+      className="w-full px-3 py-2 text-[13px] border border-slate-200 rounded-xl bg-slate-50 text-slate-800 outline-none focus:border-indigo-400 focus:bg-white transition placeholder:text-slate-300"
+      {...props}
+    />
+  </div>
+);
 
-  // Max date the admin can pick: current dueDate + 10 days, expressed as BST date string
-  const maxDueDateStr = bill.dueDate ? toBSTDateString(bill.dueDate + MAX_DUE_EXTENSION_MS) : "";
+const Select = ({ label, children, ...props }) => (
+  <div className="flex flex-col gap-1.5">
+    {label && <label className="text-[12px] font-semibold text-slate-600">{label}</label>}
+    <select
+      className="w-full px-3 py-2 text-[13px] border border-slate-200 rounded-xl bg-slate-50 text-slate-800 outline-none focus:border-indigo-400 focus:bg-white transition cursor-pointer"
+      {...props}
+    >
+      {children}
+    </select>
+  </div>
+);
 
-  // Min: tomorrow in BST (can't pick today or past)
-  const minDueDateStr = tomorrowBSTString();
-
-  const handlePay = async (e) => {
-    e.stopPropagation();
-    setPaying(true);
-    try {
-      await adminBillingService.pay(bill._id, bill.labId);
-      setPopup({ type: "success", message: "Bill has been marked as paid successfully." });
-      onPaySuccess();
-    } catch (err) {
-      setPopup({ type: "error", message: err?.response?.data?.error || "Payment failed. Please try again." });
-    } finally {
-      setPaying(false);
-    }
+const Btn = ({ children, variant = "primary", loading, disabled, className = "", ...props }) => {
+  const base =
+    "inline-flex items-center gap-2 px-4 py-2 rounded-xl text-[13px] font-semibold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
+  const variants = {
+    primary: "bg-indigo-500 hover:bg-indigo-600 text-white shadow-sm shadow-indigo-200",
+    secondary: "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200",
+    success: "bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm shadow-emerald-200",
+    danger: "bg-red-50 hover:bg-red-100 text-red-600 border border-red-200",
   };
+  return (
+    <button className={`${base} ${variants[variant]} ${className}`} disabled={disabled || loading} {...props}>
+      {loading && <Loader2 size={13} className="animate-spin" />}
+      {children}
+    </button>
+  );
+};
 
-  const openDueEditor = (e) => {
-    e.stopPropagation();
-    // Seed with the current due date expressed as a BST calendar date.
-    // FIX: was using toISOString() (UTC) which showed +1 day for BST afternoons.
-    const seed = bill.dueDate ? toBSTDateString(bill.dueDate) : minDueDateStr;
-    setNewDueDate(seed);
-    setEditingDue(true);
-  };
+// ─── Bills Table ──────────────────────────────────────────────────────────────
 
-  const cancelDueEdit = (e) => {
-    e?.stopPropagation();
-    setEditingDue(false);
-  };
-
-  const saveDueDate = async (e) => {
-    e.stopPropagation();
-    if (!newDueDate) return;
-
-    // FIX: was appending "T23:59:59.999Z" (UTC) which made the stored timestamp
-    // 6 hours ahead of what the admin intended, so display showed the next day.
-    // Now we convert the BST date to end-of-BST-day in UTC.
-    const chosenMs = bstDateStringToEndOfDayUTC(newDueDate);
-
-    if (chosenMs <= Date.now()) {
-      setPopup({ type: "error", message: "Due date must be in the future." });
-      return;
-    }
-
-    if (bill.dueDate && chosenMs > bill.dueDate + MAX_DUE_EXTENSION_MS) {
-      setPopup({
-        type: "error",
-        message: `Cannot extend beyond ${fmt.date(bill.dueDate + MAX_DUE_EXTENSION_MS)} BST (10-day limit).`,
-      });
-      return;
-    }
-
-    setSavingDue(true);
-    try {
-      // Send the BST date string — backend converts to UTC end-of-day ms.
-      await adminBillingService.updateDueDate(bill._id, newDueDate);
-      setPopup({ type: "success", message: "Due date updated successfully." });
-      setEditingDue(false);
-      onPaySuccess();
-    } catch (err) {
-      setPopup({ type: "error", message: err?.response?.data?.error || "Failed to update due date." });
-    } finally {
-      setSavingDue(false);
-    }
-  };
+const BillRow = ({ bill, onPay, onExtend }) => {
+  const [open, setOpen] = useState(false);
+  const overdue = isOverdue(bill.dueDate) && bill.status === "unpaid";
 
   return (
     <>
-      {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
-
-      <tr className="hover:bg-gray-50/80 transition-colors cursor-pointer" onClick={() => setExpanded((v) => !v)}>
-        <td className="px-3 py-3 text-sm whitespace-nowrap">
-          <div className="flex items-center gap-1.5">
-            <div className="w-6 h-6 bg-blue-50 border border-blue-100 rounded-md flex items-center justify-center flex-shrink-0">
-              <Building2 className="w-3 h-3 text-blue-500" />
-            </div>
-            <span className="font-mono text-xs text-gray-500">…{String(bill.labId).slice(-6)}</span>
-          </div>
+      <tr className={`border-b border-slate-50 hover:bg-slate-50/60 transition group ${overdue ? "bg-red-50/30" : ""}`}>
+        <td className="px-4 py-3">
+          <div className="text-[12px] font-mono text-slate-400">{bill.labKey ?? bill.labId}</div>
         </td>
-
-        <td className="px-3 py-3 text-sm font-semibold text-gray-900 whitespace-nowrap">
-          {fmt.currency(bill.totalAmount)}
-        </td>
-
-        <td className="px-3 py-3 whitespace-nowrap">
-          <StatusBadge status={bill.status} isOverdue={isOverdue} />
-        </td>
-
-        <td className="px-3 py-3 text-sm text-gray-500 whitespace-nowrap hidden sm:table-cell">
-          <div className="flex items-center gap-1">
-            <Calendar className="w-3 h-3 text-gray-400 flex-shrink-0" />
-            {fmt.period(bill.billingPeriodStart)}
-          </div>
-        </td>
-
-        <td className="px-3 py-3 whitespace-nowrap">
-          {bill.status === "unpaid" && (
-            <button
-              onClick={handlePay}
-              disabled={paying}
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-all shadow-sm active:scale-95"
-            >
-              {paying ? <Loader2 className="w-3 h-3 animate-spin" /> : <CreditCard className="w-3 h-3" />}
-              Pay
-            </button>
+        <td className="px-4 py-3">
+          <StatusBadge status={bill.status} />
+          {overdue && (
+            <span className="ml-1.5 inline-flex items-center gap-1 text-[10px] font-semibold text-red-500 bg-red-50 px-1.5 py-0.5 rounded-md border border-red-200">
+              <AlertTriangle size={9} />
+              OVERDUE
+            </span>
           )}
         </td>
-
-        <td className="px-3 py-3 text-center w-8">
-          {expanded ? (
-            <ChevronUp className="w-4 h-4 text-gray-400 mx-auto" />
-          ) : (
-            <ChevronDown className="w-4 h-4 text-gray-400 mx-auto" />
-          )}
+        <td className="px-4 py-3 text-[13px] font-bold text-slate-800">{fmtCurrency(bill.totalAmount)}</td>
+        <td className="px-4 py-3 text-[12px] text-slate-500">
+          {fmt(bill.billingPeriodStart)} – {fmt(bill.billingPeriodEnd)}
+        </td>
+        <td className="px-4 py-3 text-[12px] text-slate-500">{fmt(bill.dueDate)}</td>
+        <td className="px-4 py-3 text-[12px] text-slate-400">{bill.invoiceCount ?? "—"}</td>
+        <td className="px-4 py-3">
+          <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition">
+            {bill.status === "unpaid" && (
+              <>
+                <Btn variant="success" className="!px-2.5 !py-1 !text-[11px]" onClick={() => onPay(bill)}>
+                  <CheckCircle2 size={11} /> Pay
+                </Btn>
+                <Btn variant="secondary" className="!px-2.5 !py-1 !text-[11px]" onClick={() => onExtend(bill)}>
+                  <Calendar size={11} /> Extend
+                </Btn>
+              </>
+            )}
+            {bill.breakdown && (
+              <button
+                onClick={() => setOpen((o) => !o)}
+                className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-slate-200 transition cursor-pointer"
+              >
+                {open ? (
+                  <ChevronUp size={12} className="text-slate-400" />
+                ) : (
+                  <ChevronDown size={12} className="text-slate-400" />
+                )}
+              </button>
+            )}
+          </div>
         </td>
       </tr>
-
-      {expanded && (
-        <tr className="bg-gray-50/60">
-          <td colSpan={6} className="px-3 pb-4 pt-2">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-              <BreakdownPanel breakdown={bill.breakdown} />
-
-              <div className="bg-white rounded-xl border border-gray-200/80 overflow-hidden">
-                <p className="px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide border-b border-gray-100">
-                  Details
-                </p>
-                <div className="divide-y divide-gray-50">
-                  <div className="flex justify-between gap-4 px-4 py-2">
-                    <span className="text-gray-500 shrink-0">Lab ID</span>
-                    <span className="font-mono text-xs text-gray-700 break-all text-right">{String(bill.labId)}</span>
-                  </div>
-
-                  {bill.labKey && (
-                    <div className="flex justify-between gap-4 px-4 py-2">
-                      <span className="text-gray-500 shrink-0">Lab key</span>
-                      <span className="font-medium text-gray-800">{bill.labKey}</span>
-                    </div>
-                  )}
-
-                  <div className="flex justify-between gap-4 px-4 py-2">
-                    <span className="text-gray-500 shrink-0">Period</span>
-                    <span className="font-medium text-gray-800 text-right">
-                      {fmt.date(bill.billingPeriodStart)} – {fmt.date(bill.billingPeriodEnd)}
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between gap-4 px-4 py-2">
-                    <span className="text-gray-500 shrink-0">Invoices</span>
-                    <span className="font-medium text-gray-800">{bill.invoiceCount ?? 0}</span>
-                  </div>
-
-                  {/* ── Due date — editable for unpaid bills ── */}
-                  <div className="flex justify-between items-center gap-4 px-4 py-2 min-h-[40px]">
-                    <span className="text-gray-500 shrink-0">Due (BST)</span>
-
-                    {bill.status === "unpaid" ? (
-                      editingDue ? (
-                        <div
-                          className="flex items-center gap-2 flex-wrap justify-end"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <div className="flex flex-col items-end gap-0.5">
-                            <input
-                              type="date"
-                              value={newDueDate}
-                              min={minDueDateStr}
-                              max={maxDueDateStr}
-                              onChange={(e) => setNewDueDate(e.target.value)}
-                              className="px-2 py-1 text-xs rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
-                            />
-                            <span className="text-[10px] text-gray-400">
-                              Max: {maxDueDateStr} BST · Min: {minDueDateStr} BST
-                            </span>
-                          </div>
-                          <button
-                            onClick={saveDueDate}
-                            disabled={savingDue}
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60 transition-all"
-                          >
-                            {savingDue ? (
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                            ) : (
-                              <CheckCircle2 className="w-3 h-3" />
-                            )}
-                            Save
-                          </button>
-                          <button
-                            onClick={cancelDueEdit}
-                            className="inline-flex items-center px-2 py-1.5 rounded-lg text-xs font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-all"
-                          >
-                            <XCircle className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <span className={`font-medium ${isOverdue ? "text-red-600" : "text-gray-800"}`}>
-                            {fmt.date(bill.dueDate)}
-                          </span>
-                          <button
-                            onClick={openDueEditor}
-                            title="Extend due date (max +10 days)"
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium text-blue-600 bg-blue-50 border border-blue-100 hover:bg-blue-100 transition-all"
-                          >
-                            <Calendar className="w-3 h-3" />
-                            Edit
-                          </button>
-                        </div>
-                      )
-                    ) : (
-                      <span className="font-medium text-gray-800">{fmt.date(bill.dueDate)}</span>
-                    )}
-                  </div>
-
-                  {bill.status === "paid" && (
-                    <>
-                      <div className="flex justify-between gap-4 px-4 py-2">
-                        <span className="text-gray-500 shrink-0">Paid at</span>
-                        <span className="font-medium text-gray-800 text-right">{fmt.datetime(bill.paidAt)}</span>
-                      </div>
-                      {bill.paidBy?.name && (
-                        <div className="flex justify-between gap-4 px-4 py-2">
-                          <span className="text-gray-500 shrink-0">Paid by</span>
-                          <span className="font-medium text-gray-800">{bill.paidBy.name}</span>
-                        </div>
-                      )}
-                    </>
-                  )}
+      {open && bill.breakdown && (
+        <tr className="bg-slate-50/80 border-b border-slate-100">
+          <td colSpan={7} className="px-6 py-3">
+            <div className="flex flex-wrap gap-3">
+              {Object.entries(bill.breakdown).map(([k, v]) => (
+                <div key={k} className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-[12px]">
+                  <span className="text-slate-400 capitalize">{k}: </span>
+                  <span className="font-bold text-slate-700">{typeof v === "number" ? fmtCurrency(v) : v}</span>
                 </div>
-              </div>
+              ))}
             </div>
           </td>
         </tr>
@@ -456,690 +218,627 @@ const BillRow = ({ bill, onPaySuccess }) => {
 };
 
 // ─── Run Row ──────────────────────────────────────────────────────────────────
-const RunRow = ({ run, onRetry }) => {
-  const [expanded, setExpanded] = useState(false);
-  const [retrying, setRetrying] = useState(false);
-  const [popup, setPopup] = useState(null);
 
-  const handleRetry = async (e) => {
-    e.stopPropagation();
-    setRetrying(true);
-    try {
-      const res = await adminBillingService.retryRun(run._id);
-      setPopup({ type: "success", message: res.data?.message || "Retry started successfully." });
-      onRetry();
-    } catch (err) {
-      setPopup({ type: "error", message: err?.response?.data?.error || "Retry failed. Please try again." });
-    } finally {
-      setRetrying(false);
-    }
-  };
-
-  return (
-    <>
-      {popup && <Popup type={popup.type} message={popup.message} onClose={() => setPopup(null)} />}
-
-      <tr className="hover:bg-gray-50/80 transition-colors cursor-pointer" onClick={() => setExpanded((v) => !v)}>
-        <td className="px-3 py-3 text-sm font-semibold text-gray-800 whitespace-nowrap">{run.period}</td>
-
-        <td className="px-3 py-3 text-sm whitespace-nowrap">
-          <div className="flex items-center gap-1.5">
-            <span className="text-green-600 font-semibold">{run.generated}</span>
-            <span className="text-gray-300">/</span>
-            <span className="text-gray-500 text-xs">{run.totalLabs} labs</span>
-          </div>
-        </td>
-
-        <td className="px-3 py-3 whitespace-nowrap">
-          {run.hasErrors ? (
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-red-50 text-red-700 border border-red-200">
-              <XCircle className="w-3 h-3" />
-              {run.failedCount}
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-green-50 text-green-700 border border-green-200">
-              <CheckCircle2 className="w-3 h-3" /> OK
-            </span>
-          )}
-        </td>
-
-        <td className="px-3 py-3 whitespace-nowrap hidden sm:table-cell">
-          <span
-            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium border ${
-              run.triggeredBy === "cron"
-                ? "bg-blue-50 text-blue-700 border-blue-200"
-                : "bg-violet-50 text-violet-700 border-violet-200"
-            }`}
-          >
-            {run.triggeredBy === "cron" ? <Activity className="w-3 h-3" /> : <Zap className="w-3 h-3" />}
-            {run.triggeredBy}
-          </span>
-        </td>
-
-        <td className="px-3 py-3 whitespace-nowrap">
-          {run.hasErrors && (
-            <button
-              onClick={handleRetry}
-              disabled={retrying}
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-amber-500 hover:bg-amber-600 disabled:opacity-60 transition-all shadow-sm active:scale-95"
-            >
-              {retrying ? <Loader2 className="w-3 h-3 animate-spin" /> : <RotateCcw className="w-3 h-3" />}
-              Retry
-            </button>
-          )}
-        </td>
-
-        <td className="px-3 py-3 text-center w-8">
-          {expanded ? (
-            <ChevronUp className="w-4 h-4 text-gray-400 mx-auto" />
-          ) : (
-            <ChevronDown className="w-4 h-4 text-gray-400 mx-auto" />
-          )}
-        </td>
-      </tr>
-
-      {expanded && (
-        <tr className="bg-gray-50/60">
-          <td colSpan={6} className="px-3 pb-4 pt-2">
-            <p className="text-xs text-gray-400 mb-3">
-              Triggered: {fmt.datetime(run.triggeredAt)}
-              {run.lastRetryAt && <> · Last retry: {fmt.datetime(run.lastRetryAt)}</>}
-            </p>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm mb-3">
-              {[
-                { label: "Generated", value: run.generated, color: "text-green-700" },
-                { label: "Free", value: run.free, color: "text-purple-700" },
-                { label: "Skipped", value: run.skipped, color: "text-gray-600" },
-                { label: "Failed", value: run.failedCount, color: "text-red-600" },
-              ].map((s) => (
-                <div key={s.label} className="bg-white rounded-xl border border-gray-200/80 px-3 py-2.5">
-                  <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">{s.label}</p>
-                  <p className={`text-lg font-bold ${s.color}`}>{s.value}</p>
-                </div>
-              ))}
-            </div>
-
-            {run.failedLabs?.length > 0 && (
-              <div className="bg-white rounded-xl border border-red-200 overflow-hidden">
-                <p className="px-4 py-2.5 text-xs font-semibold text-red-600 uppercase tracking-wide border-b border-red-100 flex items-center gap-2">
-                  <AlertTriangle className="w-3.5 h-3.5" />
-                  Failed labs
-                </p>
-                {run.failedLabs.map((f, i) => (
-                  <div key={i} className="flex flex-col gap-0.5 px-4 py-2.5 border-b border-gray-50 last:border-b-0">
-                    <p className="text-sm font-medium text-gray-800">{f.labName || "Unknown"}</p>
-                    <p className="font-mono text-xs text-gray-400 break-all">{String(f.labId)}</p>
-                    <p className="text-xs text-red-500 mt-0.5">{f.error}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </td>
-        </tr>
-      )}
-    </>
-  );
-};
-
-// ─── Generate Modal ───────────────────────────────────────────────────────────
-const GenerateModal = ({ onClose, onSuccess }) => {
-  // Default to previous month (same as cron would pick)
-  const now = new Date();
-  const prevMonth = now.getMonth() === 0 ? 12 : now.getMonth(); // getMonth() is 0-indexed; month before current
-  const prevYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
-
-  const [year, setYear] = useState(prevYear);
-  const [month, setMonth] = useState(prevMonth); // 1-indexed
-  const [loading, setLoading] = useState(false);
-  const [popup, setPopup] = useState(null);
-
-  const handleGenerate = async () => {
-    setLoading(true);
-    try {
-      const res = await adminBillingService.generate({ year, month });
-      setPopup({ type: "success", message: res.data?.message || "Bill generation started successfully." });
-    } catch (err) {
-      setPopup({ type: "error", message: err?.response?.data?.error || "Failed to start bill generation." });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handlePopupClose = () => {
-    const type = popup?.type;
-    setPopup(null);
-    if (type === "success") onSuccess();
-  };
-
-  const monthNames = [
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
-  ];
-
-  return (
-    <>
-      {popup && <Popup type={popup.type} message={popup.message} onClose={handlePopupClose} />}
-
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
-        <div className="bg-white rounded-2xl shadow-2xl border border-gray-200/80 w-full max-w-sm p-6">
-          <div className="flex items-center gap-3 mb-5">
-            <div className="w-10 h-10 bg-blue-50 border border-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
-              <Play className="w-5 h-5 text-blue-600" />
-            </div>
-            <div>
-              <h3 className="text-base font-bold text-gray-900">Generate Bills</h3>
-              <p className="text-xs text-gray-500">Only past months can be selected</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3 mb-5">
-            <div>
-              <label className="text-xs font-medium text-gray-600 mb-1.5 block">Year</label>
-              <input
-                type="number"
-                value={year}
-                onChange={(e) => setYear(parseInt(e.target.value))}
-                min={2024}
-                max={2100}
-                className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-gray-600 mb-1.5 block">Month</label>
-              <select
-                value={month}
-                onChange={(e) => setMonth(parseInt(e.target.value))}
-                className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 bg-white"
-              >
-                {monthNames.map((name, i) => (
-                  <option key={i} value={i + 1}>
-                    {name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4">
-            Bills can only be generated for months that have fully ended (BST). The backend will reject current or
-            future months.
-          </p>
-
-          <div className="flex gap-3">
-            <button
-              onClick={onClose}
-              className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleGenerate}
-              disabled={loading}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60 transition-all shadow-md shadow-blue-200"
-            >
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-              Generate
-            </button>
-          </div>
-        </div>
+const RunRow = ({ run, onRetry }) => (
+  <tr className="border-b border-slate-50 hover:bg-slate-50/60 transition group">
+    <td className="px-4 py-3 text-[12px] font-semibold text-slate-700">{run.period}</td>
+    <td className="px-4 py-3 text-[12px] text-slate-500">{fmt(run.triggeredAt)}</td>
+    <td className="px-4 py-3 text-[12px] text-slate-500">{run.triggeredBy}</td>
+    <td className="px-4 py-3 text-[12px] text-slate-700">{run.totalLabs}</td>
+    <td className="px-4 py-3">
+      <div className="flex items-center gap-2 text-[11px]">
+        <span className="text-emerald-600 font-semibold">{run.generated} gen</span>
+        <span className="text-slate-300">·</span>
+        <span className="text-slate-400">{run.free} free</span>
+        <span className="text-slate-300">·</span>
+        <span className="text-slate-400">{run.skipped} skip</span>
       </div>
-    </>
-  );
-};
-
-// ─── Tab Button ───────────────────────────────────────────────────────────────
-const Tab = ({ active, onClick, icon: Icon, label, count }) => (
-  <button
-    onClick={onClick}
-    className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all ${
-      active
-        ? "bg-white text-blue-700 border border-blue-200/80 shadow-sm"
-        : "text-gray-500 hover:text-gray-800 hover:bg-white/60"
-    }`}
-  >
-    <Icon className="w-4 h-4" />
-    <span className="hidden xs:inline">{label}</span>
-    {count != null && (
-      <span
-        className={`text-xs px-1.5 py-0.5 rounded-md font-semibold ${
-          active ? "bg-blue-50 text-blue-600" : "bg-gray-100 text-gray-500"
-        }`}
-      >
-        {count}
-      </span>
-    )}
-  </button>
+    </td>
+    <td className="px-4 py-3">
+      {run.failedCount > 0 ? (
+        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-red-600 bg-red-50 px-2 py-0.5 rounded-md border border-red-200">
+          <AlertCircle size={10} />
+          {run.failedCount} failed
+        </span>
+      ) : (
+        <span className="text-[11px] text-emerald-500 font-semibold">✓ All OK</span>
+      )}
+    </td>
+    <td className="px-4 py-3 opacity-0 group-hover:opacity-100 transition">
+      {run.failedCount > 0 && (
+        <Btn variant="danger" className="!px-2.5 !py-1 !text-[11px]" onClick={() => onRetry(run)}>
+          <RotateCcw size={11} /> Retry
+        </Btn>
+      )}
+    </td>
+  </tr>
 );
 
-// ─── Main Admin Billing Page ──────────────────────────────────────────────────
-const AdminBilling = () => {
-  const [tab, setTab] = useState("bills");
+// ─── Main Page ────────────────────────────────────────────────────────────────
 
+const TABS = [
+  { id: "all", label: "All Bills", icon: Receipt },
+  { id: "runs", label: "Billing Runs", icon: Activity },
+  { id: "lab", label: "Lab Lookup", icon: Building2 },
+];
+
+export default function AdminBilling() {
+  const [tab, setTab] = useState("all");
+
+  // ── All bills ──
   const [bills, setBills] = useState([]);
-  const [loadingBills, setLoadingBills] = useState(true);
-  const [billsError, setBillsError] = useState(null);
-  const [statusFilter, setStatusFilter] = useState("");
-  const [labIdFilter, setLabIdFilter] = useState(""); // filter by specific lab
-  const [labIdInput, setLabIdInput] = useState(""); // controlled input (not yet applied)
-  const [billsSkip, setBillsSkip] = useState(0);
-  const BILLS_LIMIT = 20;
+  const [billsTotal, setBillsTotal] = useState(0);
+  const [billsLoading, setBillsLoading] = useState(false);
+  const [billsFilter, setBillsFilter] = useState({ status: "", skip: 0, limit: 50 });
 
+  // ── Runs ──
   const [runs, setRuns] = useState([]);
-  const [loadingRuns, setLoadingRuns] = useState(true);
-  const [runsError, setRunsError] = useState(null);
-  const [errorsOnly, setErrorsOnly] = useState(false);
+  const [runsLoading, setRunsLoading] = useState(false);
+  const [runsFilter, setRunsFilter] = useState({ hasErrors: "", skip: 0, limit: 20 });
 
-  const [showGenerate, setShowGenerate] = useState(false);
-  const [summary, setSummary] = useState(null);
-  const [loadingSummary, setLoadingSummary] = useState(true);
+  // ── Lab lookup ──
+  const [labId, setLabId] = useState("");
+  const [labData, setLabData] = useState(null);
+  const [labLoading, setLabLoading] = useState(false);
+  const [labError, setLabError] = useState("");
 
-  const fetchBills = useCallback(async (skip = 0, filter = "", labId = "") => {
-    setLoadingBills(true);
-    setBillsError(null);
-    try {
-      const params = { limit: BILLS_LIMIT, skip };
-      if (filter) params.status = filter;
-      if (labId && labId.length === 24) params.labId = labId;
+  // ── Modals ──
+  const [payModal, setPayModal] = useState(null);
+  const [extendModal, setExtendModal] = useState(null);
+  const [generateModal, setGenerateModal] = useState(false);
+  const [genForm, setGenForm] = useState({ year: "", month: "", dueDate: "" });
+  const [extendDate, setExtendDate] = useState("");
+  const [actionLoading, setActionLoading] = useState(false);
+  const [toast, setToast] = useState(null);
 
-      const res = await adminBillingService.getAll(params);
-      setBills(res.data.bills ?? []);
-    } catch {
-      setBillsError("Failed to load bills.");
-    } finally {
-      setLoadingBills(false);
-    }
-  }, []);
-
-  const fetchRuns = useCallback(async (errOnly = false) => {
-    setLoadingRuns(true);
-    setRunsError(null);
-    try {
-      const res = await adminBillingService.getRuns({
-        hasErrors: errOnly ? "true" : undefined,
-        limit: 20,
-      });
-      setRuns(res.data.runs ?? []);
-    } catch {
-      setRunsError("Failed to load billing runs.");
-    } finally {
-      setLoadingRuns(false);
-    }
-  }, []);
-
-  const fetchSummary = useCallback(async () => {
-    setLoadingSummary(true);
-    try {
-      const [unpaidRes, paidRes] = await Promise.all([
-        adminBillingService.getAll({ status: "unpaid", limit: 100 }),
-        adminBillingService.getAll({ status: "paid", limit: 100 }),
-      ]);
-      const unpaidBills = unpaidRes.data.bills ?? [];
-      const paidBills = paidRes.data.bills ?? [];
-      setSummary({
-        unpaidCount: unpaidBills.length,
-        unpaidTotal: unpaidBills.reduce((s, b) => s + (b.totalAmount ?? 0), 0),
-        overdueCount: unpaidBills.filter((b) => Date.now() > b.dueDate).length,
-        paidTotal: paidBills.reduce((s, b) => s + (b.totalAmount ?? 0), 0),
-      });
-    } catch {
-      setSummary(null);
-    } finally {
-      setLoadingSummary(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchSummary();
-    fetchBills(0, statusFilter, labIdFilter);
-    fetchRuns(errorsOnly);
-  }, []);
-
-  useEffect(() => {
-    fetchBills(billsSkip, statusFilter, labIdFilter);
-  }, [statusFilter, billsSkip, labIdFilter]);
-
-  useEffect(() => {
-    fetchRuns(errorsOnly);
-  }, [errorsOnly]);
-
-  const handleRefresh = () => {
-    fetchSummary();
-    fetchBills(billsSkip, statusFilter, labIdFilter);
-    fetchRuns(errorsOnly);
+  const showToast = (msg, type = "success") => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3500);
   };
 
-  const applyLabFilter = () => {
-    const trimmed = labIdInput.trim();
-    setLabIdFilter(trimmed);
-    setBillsSkip(0);
+  // ── Fetch all bills ──
+  const fetchBills = useCallback(async () => {
+    setBillsLoading(true);
+    try {
+      const params = { skip: billsFilter.skip, limit: billsFilter.limit };
+      if (billsFilter.status) params.status = billsFilter.status;
+      const res = await billingService.getAll(params);
+      setBills(res.data.bills);
+      setBillsTotal(res.data.total);
+    } catch {
+      showToast("Failed to fetch bills", "error");
+    } finally {
+      setBillsLoading(false);
+    }
+  }, [billsFilter]);
+
+  // ── Fetch runs ──
+  const fetchRuns = useCallback(async () => {
+    setRunsLoading(true);
+    try {
+      const params = { skip: runsFilter.skip, limit: runsFilter.limit };
+      if (runsFilter.hasErrors) params.hasErrors = runsFilter.hasErrors;
+      const res = await billingService.getRuns(params);
+      setRuns(res.data.runs);
+    } catch {
+      showToast("Failed to fetch runs", "error");
+    } finally {
+      setRunsLoading(false);
+    }
+  }, [runsFilter]);
+
+  useEffect(() => {
+    if (tab === "all") fetchBills();
+  }, [tab, fetchBills]);
+  useEffect(() => {
+    if (tab === "runs") fetchRuns();
+  }, [tab, fetchRuns]);
+
+  // ── Lab lookup ──
+  const handleLabLookup = async () => {
+    if (!labId.trim() || labId.trim().length !== 24) {
+      setLabError("Lab ID must be 24 characters.");
+      return;
+    }
+    setLabLoading(true);
+    setLabError("");
+    setLabData(null);
+    try {
+      const res = await billingService.getLabSummary(labId.trim());
+      setLabData(res.data);
+    } catch (e) {
+      setLabError(e?.response?.data?.error ?? "Lab not found.");
+    } finally {
+      setLabLoading(false);
+    }
   };
 
-  const clearLabFilter = () => {
-    setLabIdInput("");
-    setLabIdFilter("");
-    setBillsSkip(0);
+  // ── Pay ──
+  const handlePay = async () => {
+    if (!payModal) return;
+    setActionLoading(true);
+    try {
+      await billingService.markPaid(payModal._id, payModal.labId);
+      showToast("Bill marked as paid ✓");
+      setPayModal(null);
+      fetchBills();
+    } catch (e) {
+      showToast(e?.response?.data?.error ?? "Failed to mark paid", "error");
+    } finally {
+      setActionLoading(false);
+    }
   };
+
+  // ── Extend ──
+  const handleExtend = async () => {
+    if (!extendModal || !extendDate) return;
+    setActionLoading(true);
+    try {
+      await billingService.updateDueDate(extendModal._id, extendDate);
+      showToast("Due date updated ✓");
+      setExtendModal(null);
+      setExtendDate("");
+      fetchBills();
+    } catch (e) {
+      showToast(e?.response?.data?.error ?? "Failed to update due date", "error");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // ── Generate ──
+  const handleGenerate = async () => {
+    setActionLoading(true);
+    try {
+      const body = {};
+      if (genForm.year) body.year = parseInt(genForm.year);
+      if (genForm.month) body.month = parseInt(genForm.month);
+      if (genForm.dueDate) body.dueDate = genForm.dueDate;
+      await billingService.generate(body);
+      showToast("Bill generation started ✓");
+      setGenerateModal(false);
+      setGenForm({ year: "", month: "", dueDate: "" });
+    } catch (e) {
+      showToast(e?.response?.data?.error ?? "Failed to start generation", "error");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // ── Retry ──
+  const handleRetry = async (run) => {
+    try {
+      await billingService.retryFailed(run._id);
+      showToast(`Retrying ${run.failedCount} failed lab(s) ✓`);
+      fetchRuns();
+    } catch (e) {
+      showToast(e?.response?.data?.error ?? "Retry failed", "error");
+    }
+  };
+
+  const totalPages = Math.ceil(billsTotal / billsFilter.limit);
+  const currentPage = Math.floor(billsFilter.skip / billsFilter.limit) + 1;
 
   return (
-    <div className="w-full min-w-0 overflow-x-hidden">
-      <div className="p-4 sm:p-6 lg:p-8">
-        <div className="max-w-6xl mx-auto min-w-0">
-          {/* ── Header ── */}
-          <div className="flex items-center justify-between gap-3 mb-6 min-w-0">
-            <div className="min-w-0">
-              <h1 className="text-lg sm:text-xl font-bold text-gray-900 leading-tight truncate">Billing Management</h1>
-              <p className="text-xs sm:text-sm text-gray-500 mt-0.5 hidden sm:block">
-                Manage all lab bills, payments, and billing run history · All dates in BST (Asia/Dhaka)
+    <div className="min-h-screen bg-slate-50 px-4 sm:px-6 lg:px-8 py-8">
+      <style>{`@keyframes slideUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }`}</style>
+
+      {/* Toast */}
+      {toast && (
+        <div
+          className={`fixed top-5 right-5 z-[100] flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-lg border text-[13px] font-semibold animate-[slideUp_0.2s_ease] ${toast.type === "error" ? "bg-red-50 border-red-200 text-red-700" : "bg-emerald-50 border-emerald-200 text-emerald-700"}`}
+        >
+          {toast.type === "error" ? <AlertCircle size={14} /> : <CheckCircle2 size={14} />}
+          {toast.msg}
+        </div>
+      )}
+
+      {/* Header */}
+      <div className="flex items-center justify-between mb-7 flex-wrap gap-3">
+        <div>
+          <div className="flex items-center gap-2.5 mb-1">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-400 flex items-center justify-center shadow-md shadow-indigo-200">
+              <CreditCard size={15} className="text-white" />
+            </div>
+            <h1 className="text-[22px] font-black text-slate-900 tracking-tight">Billing</h1>
+          </div>
+          <p className="text-[13px] text-slate-400 ml-10">Manage lab invoices, billing runs &amp; payments</p>
+        </div>
+        <Btn onClick={() => setGenerateModal(true)}>
+          <Play size={13} /> Generate Bills
+        </Btn>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex items-center gap-1 mb-6 bg-white border border-slate-100 rounded-xl p-1 w-fit shadow-sm">
+        {TABS.map((t) => {
+          const Icon = t.icon;
+          return (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-semibold transition-all cursor-pointer ${tab === t.id ? "bg-indigo-500 text-white shadow-sm" : "text-slate-500 hover:text-slate-800 hover:bg-slate-50"}`}
+            >
+              <Icon size={13} /> {t.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ─── ALL BILLS TAB ─── */}
+      {tab === "all" && (
+        <div>
+          {/* Filters */}
+          <div className="bg-white border border-slate-100 rounded-2xl p-4 mb-4 flex flex-wrap items-center gap-3 shadow-sm">
+            <Filter size={14} className="text-slate-300" />
+            <Select
+              label=""
+              value={billsFilter.status}
+              onChange={(e) => setBillsFilter((f) => ({ ...f, status: e.target.value, skip: 0 }))}
+            >
+              <option value="">All statuses</option>
+              <option value="unpaid">Unpaid</option>
+              <option value="paid">Paid</option>
+              <option value="free">Free</option>
+            </Select>
+            <Btn variant="secondary" onClick={fetchBills} loading={billsLoading}>
+              <RefreshCw size={12} /> Refresh
+            </Btn>
+            <span className="ml-auto text-[12px] text-slate-400">{billsTotal} total bills</span>
+          </div>
+
+          {/* Table */}
+          <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-slate-100 bg-slate-50/60">
+                    {["Lab", "Status", "Amount", "Period", "Due Date", "Invoices", "Actions"].map((h) => (
+                      <th
+                        key={h}
+                        className="px-4 py-3 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wide"
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {billsLoading ? (
+                    <tr>
+                      <td colSpan={7} className="py-16 text-center">
+                        <Loader2 size={22} className="animate-spin text-indigo-400 mx-auto" />
+                      </td>
+                    </tr>
+                  ) : bills.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="py-16 text-center text-slate-300 text-[13px]">
+                        No bills found
+                      </td>
+                    </tr>
+                  ) : (
+                    bills.map((b) => (
+                      <BillRow
+                        key={b._id}
+                        bill={b}
+                        onPay={setPayModal}
+                        onExtend={(bill) => {
+                          setExtendModal(bill);
+                          setExtendDate("");
+                        }}
+                      />
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            {billsTotal > billsFilter.limit && (
+              <div className="px-4 py-3 border-t border-slate-50 flex items-center justify-between">
+                <span className="text-[12px] text-slate-400">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <div className="flex items-center gap-2">
+                  <Btn
+                    variant="secondary"
+                    className="!px-3 !py-1.5 !text-[12px]"
+                    disabled={billsFilter.skip === 0}
+                    onClick={() => setBillsFilter((f) => ({ ...f, skip: Math.max(0, f.skip - f.limit) }))}
+                  >
+                    ← Prev
+                  </Btn>
+                  <Btn
+                    variant="secondary"
+                    className="!px-3 !py-1.5 !text-[12px]"
+                    disabled={billsFilter.skip + billsFilter.limit >= billsTotal}
+                    onClick={() => setBillsFilter((f) => ({ ...f, skip: f.skip + f.limit }))}
+                  >
+                    Next →
+                  </Btn>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ─── RUNS TAB ─── */}
+      {tab === "runs" && (
+        <div>
+          <div className="bg-white border border-slate-100 rounded-2xl p-4 mb-4 flex flex-wrap items-center gap-3 shadow-sm">
+            <Filter size={14} className="text-slate-300" />
+            <Select
+              value={runsFilter.hasErrors}
+              onChange={(e) => setRunsFilter((f) => ({ ...f, hasErrors: e.target.value, skip: 0 }))}
+            >
+              <option value="">All runs</option>
+              <option value="true">With errors only</option>
+            </Select>
+            <Btn variant="secondary" onClick={fetchRuns} loading={runsLoading}>
+              <RefreshCw size={12} /> Refresh
+            </Btn>
+          </div>
+
+          <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-slate-100 bg-slate-50/60">
+                    {["Period", "Triggered At", "By", "Total Labs", "Results", "Status", "Actions"].map((h) => (
+                      <th
+                        key={h}
+                        className="px-4 py-3 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wide"
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {runsLoading ? (
+                    <tr>
+                      <td colSpan={7} className="py-16 text-center">
+                        <Loader2 size={22} className="animate-spin text-indigo-400 mx-auto" />
+                      </td>
+                    </tr>
+                  ) : runs.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="py-16 text-center text-slate-300 text-[13px]">
+                        No runs found
+                      </td>
+                    </tr>
+                  ) : (
+                    runs.map((r) => <RunRow key={r._id} run={r} onRetry={handleRetry} />)
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── LAB LOOKUP TAB ─── */}
+      {tab === "lab" && (
+        <div className="max-w-2xl">
+          <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm mb-4">
+            <p className="text-[13px] font-semibold text-slate-600 mb-3">Look up a lab by its ID</p>
+            <div className="flex gap-2">
+              <Input
+                placeholder="24-character Lab ID"
+                value={labId}
+                onChange={(e) => setLabId(e.target.value)}
+                maxLength={24}
+                onKeyDown={(e) => e.key === "Enter" && handleLabLookup()}
+              />
+              <Btn onClick={handleLabLookup} loading={labLoading} disabled={!labId.trim()}>
+                <Search size={13} /> Lookup
+              </Btn>
+            </div>
+            {labError && (
+              <p className="text-[12px] text-red-500 mt-2 flex items-center gap-1">
+                <AlertCircle size={11} />
+                {labError}
               </p>
-            </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <button
-                onClick={handleRefresh}
-                className="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-xl border border-gray-200/80 transition-all"
-              >
-                <RefreshCw className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Refresh</span>
-              </button>
-              <button
-                onClick={() => setShowGenerate(true)}
-                className="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md shadow-blue-200 transition-all"
-              >
-                <Play className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Generate Bills</span>
-                <span className="sm:hidden">Generate</span>
-              </button>
-            </div>
+            )}
           </div>
 
-          {/* ── Summary Stats ── */}
-          {loadingSummary ? (
-            <StatsSkeleton />
-          ) : summary ? (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-              <div className="bg-white border border-gray-200/80 rounded-xl px-4 py-3 shadow-sm min-w-0">
-                <p className="text-xs text-gray-500 uppercase tracking-wide mb-1 truncate">Unpaid</p>
-                <p className="text-lg font-bold text-amber-600">{summary.unpaidCount}</p>
-                <p className="text-xs text-gray-400 mt-0.5 truncate">{fmt.currency(summary.unpaidTotal)}</p>
-              </div>
-              <div className="bg-white border border-gray-200/80 rounded-xl px-4 py-3 shadow-sm min-w-0">
-                <p className="text-xs text-gray-500 uppercase tracking-wide mb-1 truncate">Overdue</p>
-                <p className={`text-lg font-bold ${summary.overdueCount > 0 ? "text-red-600" : "text-gray-400"}`}>
-                  {summary.overdueCount}
-                </p>
-                <p className="text-xs text-gray-400 mt-0.5">past due</p>
-              </div>
-              <div className="bg-white border border-gray-200/80 rounded-xl px-4 py-3 shadow-sm min-w-0">
-                <p className="text-xs text-gray-500 uppercase tracking-wide mb-1 truncate">Collected</p>
-                <p className="text-lg font-bold text-green-700 truncate">{fmt.currency(summary.paidTotal)}</p>
-                <p className="text-xs text-gray-400 mt-0.5">total paid</p>
-              </div>
-              <div className="bg-white border border-gray-200/80 rounded-xl px-4 py-3 shadow-sm min-w-0">
-                <p className="text-xs text-gray-500 uppercase tracking-wide mb-1 truncate">Runs</p>
-                <p className="text-lg font-bold text-gray-800">{runs.length}</p>
-                <p className="text-xs text-gray-400 mt-0.5">{runs.filter((r) => r.hasErrors).length} with errors</p>
-              </div>
-            </div>
-          ) : null}
-
-          {/* ── Tabs ── */}
-          <div className="flex items-center gap-1 p-1 bg-gray-100/80 rounded-xl w-fit mb-5">
-            <Tab
-              active={tab === "bills"}
-              onClick={() => setTab("bills")}
-              icon={CreditCard}
-              label="Bills"
-              count={bills.length}
-            />
-            <Tab
-              active={tab === "runs"}
-              onClick={() => setTab("runs")}
-              icon={Activity}
-              label="Runs"
-              count={runs.length}
-            />
-          </div>
-
-          {/* ── Bills Tab ── */}
-          {tab === "bills" && (
-            <div className="min-w-0">
-              {/* Filters row */}
-              <div className="flex flex-wrap items-center gap-2 mb-4">
-                {/* Status filter */}
-                <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-                  <Filter className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                  {["", "unpaid", "paid", "free"].map((s) => (
-                    <button
-                      key={s}
-                      onClick={() => {
-                        setStatusFilter(s);
-                        setBillsSkip(0);
-                      }}
-                      className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
-                        statusFilter === s
-                          ? "bg-blue-600 text-white border-blue-600 shadow-sm"
-                          : "bg-white text-gray-600 border-gray-200 hover:border-blue-300"
-                      }`}
-                    >
-                      {s === "" ? "All" : s.charAt(0).toUpperCase() + s.slice(1)}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Lab ID filter */}
-                <div className="flex items-center gap-1.5 ml-auto">
-                  <div className="relative">
-                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400" />
-                    <input
-                      type="text"
-                      value={labIdInput}
-                      onChange={(e) => setLabIdInput(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && applyLabFilter()}
-                      placeholder="Filter by Lab ID"
-                      maxLength={24}
-                      className="pl-7 pr-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 w-44"
-                    />
-                  </div>
-                  {labIdInput && (
-                    <button
-                      onClick={applyLabFilter}
-                      className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-all"
-                    >
-                      Go
-                    </button>
-                  )}
-                  {labIdFilter && (
-                    <button
-                      onClick={clearLabFilter}
-                      className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-all"
-                    >
-                      Clear
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {labIdFilter && (
-                <p className="text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded-lg px-3 py-1.5 mb-3 flex items-center gap-1.5">
-                  <Building2 className="w-3 h-3" />
-                  Showing bills for lab: <span className="font-mono font-medium">{labIdFilter}</span>
-                </p>
-              )}
-
-              {loadingBills ? (
-                <TableSkeleton rows={6} />
-              ) : billsError ? (
-                <div className="flex items-center gap-3 px-5 py-4 bg-red-50 border border-red-200 rounded-2xl">
-                  <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0" />
+          {labData && (
+            <div className="space-y-4 animate-[slideUp_0.2s_ease]">
+              {/* Lab info */}
+              <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
+                <div className="flex items-start justify-between flex-wrap gap-3">
                   <div>
-                    <p className="text-sm font-medium text-red-800">{billsError}</p>
-                    <button
-                      onClick={() => fetchBills(billsSkip, statusFilter, labIdFilter)}
-                      className="text-xs text-red-600 hover:underline mt-0.5"
-                    >
-                      Try again
-                    </button>
+                    <p className="text-[17px] font-black text-slate-900">{labData.lab?.name ?? "—"}</p>
+                    <p className="text-[12px] font-mono text-slate-400 mt-0.5">{labData.lab?.labKey}</p>
                   </div>
+                  <span
+                    className={`text-[11px] font-bold px-2.5 py-1 rounded-full border ${labData.lab?.isActive ? "bg-emerald-50 text-emerald-600 border-emerald-200" : "bg-slate-100 text-slate-400 border-slate-200"}`}
+                  >
+                    {labData.lab?.isActive ? "Active" : "Inactive"}
+                  </span>
                 </div>
-              ) : bills.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-14 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
-                  <FileText className="w-8 h-8 text-gray-300 mb-3" />
-                  <p className="text-sm font-medium text-gray-500">No bills found</p>
-                  <p className="text-xs text-gray-400 mt-1">Try changing the filter or generate bills first</p>
-                </div>
-              ) : (
-                <div className="border border-gray-200/80 rounded-2xl overflow-hidden shadow-sm">
-                  <div className="w-full overflow-x-auto">
-                    <table className="text-left border-collapse" style={{ minWidth: "480px", width: "100%" }}>
-                      <thead>
-                        <tr className="bg-gray-50/80 border-b border-gray-200/80">
-                          <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Lab</th>
-                          <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                            Amount
-                          </th>
-                          <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                            Status
-                          </th>
-                          <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden sm:table-cell">
-                            Period
-                          </th>
-                          <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                            Action
-                          </th>
-                          <th className="px-3 py-3 w-8" />
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100">
-                        {bills.map((bill) => (
-                          <BillRow key={bill._id} bill={bill} onPaySuccess={handleRefresh} />
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+              </div>
 
-                  <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 bg-gray-50/50">
-                    <p className="text-xs text-gray-500">
-                      {billsSkip + 1}–{billsSkip + bills.length}
-                    </p>
+              {/* Stats */}
+              <div className="grid grid-cols-3 gap-3">
+                <StatCard
+                  icon={CheckCircle2}
+                  label="Paid"
+                  value={labData.stats?.paid?.count ?? 0}
+                  sub={fmtCurrency(labData.stats?.paid?.total)}
+                  accent="emerald"
+                />
+                <StatCard
+                  icon={Clock}
+                  label="Unpaid"
+                  value={labData.stats?.unpaid?.count ?? 0}
+                  sub={fmtCurrency(labData.stats?.unpaid?.total)}
+                  accent="amber"
+                />
+                <StatCard icon={Zap} label="Free" value={labData.stats?.free?.count ?? 0} accent="indigo" />
+              </div>
+
+              {/* Current bill */}
+              {labData.currentBill ? (
+                <div
+                  className={`bg-white border rounded-2xl p-5 shadow-sm ${labData.currentBill.isOverdue ? "border-red-200 bg-red-50/30" : "border-slate-100"}`}
+                >
+                  <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
                     <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => setBillsSkip(Math.max(0, billsSkip - BILLS_LIMIT))}
-                        disabled={billsSkip === 0}
-                        className="px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-200 text-gray-600 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                      {labData.currentBill.isOverdue ? (
+                        <AlertTriangle size={16} className="text-red-500" />
+                      ) : (
+                        <Clock size={16} className="text-amber-500" />
+                      )}
+                      <span className="text-[14px] font-bold text-slate-800">Current Unpaid Bill</span>
+                      {labData.currentBill.isOverdue && <StatusBadge status="overdue" />}
+                    </div>
+                    <span className="text-[20px] font-black text-slate-900">
+                      {fmtCurrency(labData.currentBill.amount)}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 text-[12px] mb-4">
+                    <div>
+                      <span className="text-slate-400">Period: </span>
+                      <span className="font-semibold text-slate-700">
+                        {fmt(labData.currentBill.billingPeriodStart)} – {fmt(labData.currentBill.billingPeriodEnd)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400">Due: </span>
+                      <span
+                        className={`font-semibold ${labData.currentBill.isOverdue ? "text-red-600" : "text-slate-700"}`}
                       >
-                        Prev
-                      </button>
-                      <button
-                        onClick={() => setBillsSkip(billsSkip + BILLS_LIMIT)}
-                        disabled={bills.length < BILLS_LIMIT}
-                        className="px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-200 text-gray-600 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                      >
-                        Next
-                      </button>
+                        {fmt(labData.currentBill.dueDate)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400">Invoices: </span>
+                      <span className="font-semibold text-slate-700">{labData.currentBill.invoiceCount}</span>
                     </div>
                   </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ── Runs Tab ── */}
-          {tab === "runs" && (
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 mb-4">
-                <button
-                  onClick={() => setErrorsOnly((v) => !v)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
-                    errorsOnly
-                      ? "bg-red-600 text-white border-red-600"
-                      : "bg-white text-gray-600 border-gray-200 hover:border-red-300"
-                  }`}
-                >
-                  <AlertTriangle className="w-3 h-3" />
-                  Errors only
-                </button>
-              </div>
-
-              {loadingRuns ? (
-                <TableSkeleton rows={5} />
-              ) : runsError ? (
-                <div className="flex items-center gap-3 px-5 py-4 bg-red-50 border border-red-200 rounded-2xl">
-                  <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0" />
-                  <div>
-                    <p className="text-sm font-medium text-red-800">{runsError}</p>
-                    <button
-                      onClick={() => fetchRuns(errorsOnly)}
-                      className="text-xs text-red-600 hover:underline mt-0.5"
+                  <div className="flex gap-2">
+                    <Btn
+                      variant="success"
+                      onClick={() => setPayModal({ ...labData.currentBill, _id: labData.currentBill.id, labId })}
                     >
-                      Try again
-                    </button>
+                      <CheckCircle2 size={13} /> Mark as Paid
+                    </Btn>
+                    <Btn
+                      variant="secondary"
+                      onClick={() => {
+                        setExtendModal({ ...labData.currentBill, _id: labData.currentBill.id });
+                        setExtendDate("");
+                      }}
+                    >
+                      <Calendar size={13} /> Extend Due Date
+                    </Btn>
                   </div>
-                </div>
-              ) : runs.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-14 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
-                  <Activity className="w-8 h-8 text-gray-300 mb-3" />
-                  <p className="text-sm font-medium text-gray-500">No billing runs yet</p>
-                  <p className="text-xs text-gray-400 mt-1">Runs appear here after bills are generated</p>
                 </div>
               ) : (
-                <div className="border border-gray-200/80 rounded-2xl overflow-hidden shadow-sm">
-                  <div className="w-full overflow-x-auto">
-                    <table className="text-left border-collapse" style={{ minWidth: "420px", width: "100%" }}>
-                      <thead>
-                        <tr className="bg-gray-50/80 border-b border-gray-200/80">
-                          <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                            Period
-                          </th>
-                          <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                            Results
-                          </th>
-                          <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                            Health
-                          </th>
-                          <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden sm:table-cell">
-                            Source
-                          </th>
-                          <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                            Action
-                          </th>
-                          <th className="px-3 py-3 w-8" />
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100">
-                        {runs.map((run) => (
-                          <RunRow key={run._id} run={run} onRetry={handleRefresh} />
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                <div className="bg-white border border-slate-100 rounded-2xl p-5 text-center shadow-sm">
+                  <CheckCircle2 size={24} className="text-emerald-400 mx-auto mb-2" />
+                  <p className="text-[13px] text-slate-500 font-medium">No unpaid bills for this lab</p>
                 </div>
               )}
             </div>
           )}
         </div>
-      </div>
-
-      {showGenerate && (
-        <GenerateModal
-          onClose={() => setShowGenerate(false)}
-          onSuccess={() => {
-            setShowGenerate(false);
-            handleRefresh();
-          }}
-        />
       )}
+
+      {/* ─── PAY MODAL ─── */}
+      <Modal open={!!payModal} onClose={() => setPayModal(null)} title="Confirm Payment">
+        <div className="space-y-4">
+          <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 text-[13px] text-emerald-700">
+            Mark this bill as paid? This will unblock the lab immediately via cache invalidation.
+          </div>
+          <div className="grid grid-cols-2 gap-3 text-[12px]">
+            <div className="bg-slate-50 rounded-lg p-3">
+              <span className="text-slate-400 block mb-0.5">Amount</span>
+              <span className="font-bold text-slate-800">{fmtCurrency(payModal?.amount ?? payModal?.totalAmount)}</span>
+            </div>
+            <div className="bg-slate-50 rounded-lg p-3">
+              <span className="text-slate-400 block mb-0.5">Due</span>
+              <span className="font-bold text-slate-800">{fmt(payModal?.dueDate)}</span>
+            </div>
+          </div>
+          <div className="flex gap-2 justify-end pt-1">
+            <Btn variant="secondary" onClick={() => setPayModal(null)}>
+              Cancel
+            </Btn>
+            <Btn variant="success" onClick={handlePay} loading={actionLoading}>
+              <CheckCircle2 size={13} /> Confirm Payment
+            </Btn>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ─── EXTEND MODAL ─── */}
+      <Modal open={!!extendModal} onClose={() => setExtendModal(null)} title="Extend Due Date">
+        <div className="space-y-4">
+          <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 text-[12px] text-amber-700">
+            Max extension: <strong>+10 days</strong> from the current due date ({fmt(extendModal?.dueDate)}).
+          </div>
+          <Input
+            label="New Due Date (YYYY-MM-DD)"
+            type="date"
+            value={extendDate}
+            onChange={(e) => setExtendDate(e.target.value)}
+          />
+          <div className="flex gap-2 justify-end pt-1">
+            <Btn variant="secondary" onClick={() => setExtendModal(null)}>
+              Cancel
+            </Btn>
+            <Btn onClick={handleExtend} loading={actionLoading} disabled={!extendDate}>
+              <Calendar size={13} /> Update Due Date
+            </Btn>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ─── GENERATE MODAL ─── */}
+      <Modal open={generateModal} onClose={() => setGenerateModal(false)} title="Generate Bills">
+        <div className="space-y-4">
+          <p className="text-[12.5px] text-slate-500">
+            Leave year/month blank to auto-generate for the previous BST month.
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="Year (optional)"
+              type="number"
+              placeholder="e.g. 2025"
+              value={genForm.year}
+              onChange={(e) => setGenForm((f) => ({ ...f, year: e.target.value }))}
+              min={2024}
+              max={2100}
+            />
+            <Input
+              label="Month (optional)"
+              type="number"
+              placeholder="1–12"
+              value={genForm.month}
+              onChange={(e) => setGenForm((f) => ({ ...f, month: e.target.value }))}
+              min={1}
+              max={12}
+            />
+          </div>
+          <Input
+            label="Due Date (optional, YYYY-MM-DD)"
+            type="date"
+            value={genForm.dueDate}
+            onChange={(e) => setGenForm((f) => ({ ...f, dueDate: e.target.value }))}
+          />
+          <div className="flex gap-2 justify-end pt-1">
+            <Btn variant="secondary" onClick={() => setGenerateModal(false)}>
+              Cancel
+            </Btn>
+            <Btn onClick={handleGenerate} loading={actionLoading}>
+              <Play size={13} /> Start Generation
+            </Btn>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
-};
-
-export default AdminBilling;
+}
