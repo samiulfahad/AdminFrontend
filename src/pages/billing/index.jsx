@@ -24,18 +24,53 @@ import {
 import adminBillingService from "../../api/adminBilling";
 import Popup from "../../components/popup";
 
+// ─── BST time helpers (mirrors the backend utils) ─────────────────────────────
+//
+// All timestamps in the DB are UTC epoch ms.
+// dueDate = 23:59:59.999 BST of the due calendar day = (due_day_end_BST) expressed in UTC.
+// BST = UTC+6, so:
+//   23:59:59.999 BST = 17:59:59.999 UTC of the same calendar day.
+//
+// For <input type="date"> we always work in BST calendar dates.
+
+const DHAKA_OFFSET_MS = 6 * 60 * 60 * 1000;
+
+/** Convert a UTC epoch ms to a BST calendar date string "YYYY-MM-DD". */
+function toBSTDateString(utcMs) {
+  return new Date(utcMs + DHAKA_OFFSET_MS).toISOString().slice(0, 10);
+}
+
+/**
+ * Convert a "YYYY-MM-DD" BST calendar date string to the UTC epoch ms of
+ * 23:59:59.999 BST on that day (= 17:59:59.999 UTC).
+ * This is the value we send to the backend as the new dueDate.
+ */
+function bstDateStringToEndOfDayUTC(dateStr) {
+  // Treat as noon UTC to avoid any boundary issues, then snap to end of BST day.
+  const noonUTC = new Date(dateStr + "T12:00:00Z").getTime();
+  // End of BST day = start of next BST day − 1ms
+  // Start of next BST day = midnight BST of (dateStr+1 day) = Date.UTC(y,m,d+1) − DHAKA_OFFSET_MS
+  const d = new Date(noonUTC + DHAKA_OFFSET_MS); // BST date object
+  const y = d.getUTCFullYear();
+  const mo = d.getUTCMonth();
+  const day = d.getUTCDate();
+  return Date.UTC(y, mo, day + 1) - DHAKA_OFFSET_MS - 1;
+}
+
+/** Today's date in BST as "YYYY-MM-DD". */
+function todayBSTString() {
+  return toBSTDateString(Date.now());
+}
+
+/** Tomorrow in BST as "YYYY-MM-DD". */
+function tomorrowBSTString() {
+  return toBSTDateString(Date.now() + 86_400_000);
+}
+
+// ─── Constants ────────────────────────────────────────────────────────────────
 const MAX_DUE_EXTENSION_MS = 10 * 24 * 60 * 60 * 1000;
 
-// ─── Date helpers ─────────────────────────────────────────────────────────────
-//
-// All timestamps in MongoDB are UTC ms.
-// All display should be in Asia/Dhaka (BST = UTC+6).
-// The HTML <input type="date"> value is a "YYYY-MM-DD" string that we treat as
-// a BST calendar date. We never append "Z" to it; instead we convert to
-// 23:59:59 BST = 17:59:59 UTC before sending to the server.
-
-const DHAKA_TZ = "Asia/Dhaka";
-
+// ─── Formatters ───────────────────────────────────────────────────────────────
 const fmt = {
   currency: (amount) =>
     new Intl.NumberFormat("en-BD", {
@@ -45,69 +80,41 @@ const fmt = {
       maximumFractionDigits: 0,
     }).format(amount ?? 0),
 
-  // Display a UTC-ms timestamp as a date in BST
-  date: (ts) =>
-    ts
-      ? new Date(ts).toLocaleDateString("en-BD", {
-          timeZone: DHAKA_TZ,
+  // Display a UTC timestamp as a BST calendar date.
+  // e.g. dueDate = 1746723599999 (May 8 17:59:59 UTC = May 8 23:59:59 BST) → "May 8, 2026"
+  date: (utcMs) =>
+    utcMs
+      ? new Date(utcMs + DHAKA_OFFSET_MS).toLocaleDateString("en-BD", {
           year: "numeric",
           month: "short",
           day: "numeric",
+          timeZone: "UTC", // already shifted by DHAKA_OFFSET_MS above
         })
       : "—",
 
-  // Display billing period (month + year) in BST
-  period: (ts) =>
-    ts
-      ? new Date(ts).toLocaleDateString("en-BD", {
-          timeZone: DHAKA_TZ,
+  period: (utcMs) =>
+    utcMs
+      ? new Date(utcMs + DHAKA_OFFSET_MS).toLocaleDateString("en-BD", {
           year: "numeric",
           month: "long",
+          timeZone: "UTC",
         })
       : "—",
 
-  // Display full datetime in BST
-  datetime: (ts) =>
-    ts
-      ? new Date(ts).toLocaleString("en-BD", {
-          timeZone: DHAKA_TZ,
+  datetime: (utcMs) =>
+    utcMs
+      ? new Date(utcMs).toLocaleString("en-BD", {
           year: "numeric",
           month: "short",
           day: "numeric",
           hour: "2-digit",
           minute: "2-digit",
+          timeZone: "Asia/Dhaka",
         })
       : "—",
-
-  /**
-   * Convert a UTC-ms timestamp to "YYYY-MM-DD" in BST.
-   * Used to seed the <input type="date"> with the correct BST calendar date.
-   *
-   * We can't use toISOString() here because that always gives UTC, which is
-   * 6 hours behind BST and would show the wrong day near midnight.
-   */
-  bstDateString: (ts) => {
-    if (!ts) return "";
-    return new Date(ts).toLocaleDateString("en-CA", {
-      // en-CA gives "YYYY-MM-DD" format
-      timeZone: DHAKA_TZ,
-    });
-  },
 };
 
-/**
- * Convert a BST calendar date string ("YYYY-MM-DD") to the UTC ms timestamp
- * that represents 23:59:59.999 BST on that day.
- *
- * 23:59:59 BST  =  17:59:59 UTC  (BST is UTC+6)
- */
-function bstDateStringToUtcMs(dateStr) {
-  const [y, mo, d] = dateStr.split("-").map(Number);
-  return Date.UTC(y, mo - 1, d, 17, 59, 59, 999);
-}
-
-// ─── Skeleton primitives ──────────────────────────────────────────────────────
-
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
 const Sk = ({ className = "" }) => <div className={`animate-pulse rounded-lg bg-gray-200/80 ${className}`} />;
 
 const StatsSkeleton = () => (
@@ -143,7 +150,6 @@ const TableSkeleton = ({ rows = 6 }) => (
 );
 
 // ─── Status Badge ─────────────────────────────────────────────────────────────
-
 const StatusBadge = ({ status, isOverdue }) => {
   if (status === "paid")
     return (
@@ -171,7 +177,6 @@ const StatusBadge = ({ status, isOverdue }) => {
 };
 
 // ─── Breakdown Panel ──────────────────────────────────────────────────────────
-
 const BreakdownPanel = ({ breakdown }) => {
   if (!breakdown) return null;
   const rows = [
@@ -198,21 +203,21 @@ const BreakdownPanel = ({ breakdown }) => {
 };
 
 // ─── Bill Row ─────────────────────────────────────────────────────────────────
-
 const BillRow = ({ bill, onPaySuccess }) => {
   const [expanded, setExpanded] = useState(false);
   const [paying, setPaying] = useState(false);
   const [popup, setPopup] = useState(null);
   const [editingDue, setEditingDue] = useState(false);
-  const [newDueDate, setNewDueDate] = useState("");
+  const [newDueDate, setNewDueDate] = useState(""); // "YYYY-MM-DD" in BST
   const [savingDue, setSavingDue] = useState(false);
 
   const isOverdue = bill.status === "unpaid" && Date.now() > bill.dueDate;
 
-  // Max selectable date in BST: current dueDate + 10 days, as a BST date string
-  const maxDueDateStr = bill.dueDate ? fmt.bstDateString(bill.dueDate + MAX_DUE_EXTENSION_MS) : "";
-  // Min = tomorrow in BST
-  const minDueDateStr = fmt.bstDateString(Date.now() + 86_400_000);
+  // Max date the admin can pick: current dueDate + 10 days, expressed as BST date string
+  const maxDueDateStr = bill.dueDate ? toBSTDateString(bill.dueDate + MAX_DUE_EXTENSION_MS) : "";
+
+  // Min: tomorrow in BST (can't pick today or past)
+  const minDueDateStr = tomorrowBSTString();
 
   const handlePay = async (e) => {
     e.stopPropagation();
@@ -230,8 +235,10 @@ const BillRow = ({ bill, onPaySuccess }) => {
 
   const openDueEditor = (e) => {
     e.stopPropagation();
-    // Seed with the current due date as a BST calendar date string
-    setNewDueDate(bill.dueDate ? fmt.bstDateString(bill.dueDate) : minDueDateStr);
+    // Seed with the current due date expressed as a BST calendar date.
+    // FIX: was using toISOString() (UTC) which showed +1 day for BST afternoons.
+    const seed = bill.dueDate ? toBSTDateString(bill.dueDate) : minDueDateStr;
+    setNewDueDate(seed);
     setEditingDue(true);
   };
 
@@ -244,8 +251,10 @@ const BillRow = ({ bill, onPaySuccess }) => {
     e.stopPropagation();
     if (!newDueDate) return;
 
-    // Convert BST date string → UTC ms at 23:59:59.999 BST (= 17:59:59.999 UTC)
-    const chosenMs = bstDateStringToUtcMs(newDueDate);
+    // FIX: was appending "T23:59:59.999Z" (UTC) which made the stored timestamp
+    // 6 hours ahead of what the admin intended, so display showed the next day.
+    // Now we convert the BST date to end-of-BST-day in UTC.
+    const chosenMs = bstDateStringToEndOfDayUTC(newDueDate);
 
     if (chosenMs <= Date.now()) {
       setPopup({ type: "error", message: "Due date must be in the future." });
@@ -262,11 +271,11 @@ const BillRow = ({ bill, onPaySuccess }) => {
 
     setSavingDue(true);
     try {
-      // Send the BST date string; the server converts it to the correct UTC ms
+      // Send the BST date string — backend converts to UTC end-of-day ms.
       await adminBillingService.updateDueDate(bill._id, newDueDate);
       setPopup({ type: "success", message: "Due date updated successfully." });
       setEditingDue(false);
-      onPaySuccess(); // refresh
+      onPaySuccess();
     } catch (err) {
       setPopup({ type: "error", message: err?.response?.data?.error || "Failed to update due date." });
     } finally {
@@ -341,6 +350,13 @@ const BillRow = ({ bill, onPaySuccess }) => {
                     <span className="font-mono text-xs text-gray-700 break-all text-right">{String(bill.labId)}</span>
                   </div>
 
+                  {bill.labKey && (
+                    <div className="flex justify-between gap-4 px-4 py-2">
+                      <span className="text-gray-500 shrink-0">Lab key</span>
+                      <span className="font-medium text-gray-800">{bill.labKey}</span>
+                    </div>
+                  )}
+
                   <div className="flex justify-between gap-4 px-4 py-2">
                     <span className="text-gray-500 shrink-0">Period</span>
                     <span className="font-medium text-gray-800 text-right">
@@ -353,7 +369,7 @@ const BillRow = ({ bill, onPaySuccess }) => {
                     <span className="font-medium text-gray-800">{bill.invoiceCount ?? 0}</span>
                   </div>
 
-                  {/* ── Due date — editable only for unpaid ── */}
+                  {/* ── Due date — editable for unpaid bills ── */}
                   <div className="flex justify-between items-center gap-4 px-4 py-2 min-h-[40px]">
                     <span className="text-gray-500 shrink-0">Due (BST)</span>
 
@@ -372,7 +388,9 @@ const BillRow = ({ bill, onPaySuccess }) => {
                               onChange={(e) => setNewDueDate(e.target.value)}
                               className="px-2 py-1 text-xs rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
                             />
-                            <span className="text-[10px] text-gray-400">Max: {maxDueDateStr} (BST)</span>
+                            <span className="text-[10px] text-gray-400">
+                              Max: {maxDueDateStr} BST · Min: {minDueDateStr} BST
+                            </span>
                           </div>
                           <button
                             onClick={saveDueDate}
@@ -438,7 +456,6 @@ const BillRow = ({ bill, onPaySuccess }) => {
 };
 
 // ─── Run Row ──────────────────────────────────────────────────────────────────
-
 const RunRow = ({ run, onRetry }) => {
   const [expanded, setExpanded] = useState(false);
   const [retrying, setRetrying] = useState(false);
@@ -489,16 +506,12 @@ const RunRow = ({ run, onRetry }) => {
         <td className="px-3 py-3 whitespace-nowrap hidden sm:table-cell">
           <span
             className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium border ${
-              run.triggeredBy === "cron" || run.triggeredBy?.startsWith("cron-retry")
+              run.triggeredBy === "cron"
                 ? "bg-blue-50 text-blue-700 border-blue-200"
                 : "bg-violet-50 text-violet-700 border-violet-200"
             }`}
           >
-            {run.triggeredBy === "cron" || run.triggeredBy?.startsWith("cron-retry") ? (
-              <Activity className="w-3 h-3" />
-            ) : (
-              <Zap className="w-3 h-3" />
-            )}
+            {run.triggeredBy === "cron" ? <Activity className="w-3 h-3" /> : <Zap className="w-3 h-3" />}
             {run.triggeredBy}
           </span>
         </td>
@@ -570,35 +583,14 @@ const RunRow = ({ run, onRetry }) => {
 };
 
 // ─── Generate Modal ───────────────────────────────────────────────────────────
-//
-// Lets admin pick a past month in BST and trigger manual bill generation.
-// Defaults to showing last month (the most common use case after a cron failure).
-
-const MONTH_NAMES = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
-
 const GenerateModal = ({ onClose, onSuccess }) => {
-  // Default to last month in BST
-  const nowBst = new Date(Date.now() + 6 * 60 * 60 * 1000);
-  const curMonBst = nowBst.getUTCMonth() + 1; // 1-indexed
-  const curYrBst = nowBst.getUTCFullYear();
-  const defMon = curMonBst === 1 ? 12 : curMonBst - 1;
-  const defYr = curMonBst === 1 ? curYrBst - 1 : curYrBst;
+  // Default to previous month (same as cron would pick)
+  const now = new Date();
+  const prevMonth = now.getMonth() === 0 ? 12 : now.getMonth(); // getMonth() is 0-indexed; month before current
+  const prevYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
 
-  const [year, setYear] = useState(defYr);
-  const [month, setMonth] = useState(defMon); // 1-indexed
+  const [year, setYear] = useState(prevYear);
+  const [month, setMonth] = useState(prevMonth); // 1-indexed
   const [loading, setLoading] = useState(false);
   const [popup, setPopup] = useState(null);
 
@@ -620,6 +612,21 @@ const GenerateModal = ({ onClose, onSuccess }) => {
     if (type === "success") onSuccess();
   };
 
+  const monthNames = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ];
+
   return (
     <>
       {popup && <Popup type={popup.type} message={popup.message} onClose={handlePopupClose} />}
@@ -632,7 +639,7 @@ const GenerateModal = ({ onClose, onSuccess }) => {
             </div>
             <div>
               <h3 className="text-base font-bold text-gray-900">Generate Bills</h3>
-              <p className="text-xs text-gray-500">Select a past billing period (BST)</p>
+              <p className="text-xs text-gray-500">Only past months can be selected</p>
             </div>
           </div>
 
@@ -644,7 +651,7 @@ const GenerateModal = ({ onClose, onSuccess }) => {
                 value={year}
                 onChange={(e) => setYear(parseInt(e.target.value))}
                 min={2024}
-                max={curYrBst}
+                max={2100}
                 className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
               />
             </div>
@@ -655,7 +662,7 @@ const GenerateModal = ({ onClose, onSuccess }) => {
                 onChange={(e) => setMonth(parseInt(e.target.value))}
                 className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 bg-white"
               >
-                {MONTH_NAMES.map((name, i) => (
+                {monthNames.map((name, i) => (
                   <option key={i} value={i + 1}>
                     {name}
                   </option>
@@ -665,7 +672,8 @@ const GenerateModal = ({ onClose, onSuccess }) => {
           </div>
 
           <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4">
-            Bills can only be generated for months that have fully ended in BST.
+            Bills can only be generated for months that have fully ended (BST). The backend will reject current or
+            future months.
           </p>
 
           <div className="flex gap-3">
@@ -691,7 +699,6 @@ const GenerateModal = ({ onClose, onSuccess }) => {
 };
 
 // ─── Tab Button ───────────────────────────────────────────────────────────────
-
 const Tab = ({ active, onClick, icon: Icon, label, count }) => (
   <button
     onClick={onClick}
@@ -716,21 +723,18 @@ const Tab = ({ active, onClick, icon: Icon, label, count }) => (
 );
 
 // ─── Main Admin Billing Page ──────────────────────────────────────────────────
-
 const AdminBilling = () => {
   const [tab, setTab] = useState("bills");
 
-  // Bills state
   const [bills, setBills] = useState([]);
   const [loadingBills, setLoadingBills] = useState(true);
   const [billsError, setBillsError] = useState(null);
   const [statusFilter, setStatusFilter] = useState("");
-  const [labIdFilter, setLabIdFilter] = useState("");
-  const [labIdInput, setLabIdInput] = useState(""); // raw input before submission
+  const [labIdFilter, setLabIdFilter] = useState(""); // filter by specific lab
+  const [labIdInput, setLabIdInput] = useState(""); // controlled input (not yet applied)
   const [billsSkip, setBillsSkip] = useState(0);
   const BILLS_LIMIT = 20;
 
-  // Runs state
   const [runs, setRuns] = useState([]);
   const [loadingRuns, setLoadingRuns] = useState(true);
   const [runsError, setRunsError] = useState(null);
@@ -740,18 +744,15 @@ const AdminBilling = () => {
   const [summary, setSummary] = useState(null);
   const [loadingSummary, setLoadingSummary] = useState(true);
 
-  // ── Data fetchers ───────────────────────────────────────────────────────────
-
   const fetchBills = useCallback(async (skip = 0, filter = "", labId = "") => {
     setLoadingBills(true);
     setBillsError(null);
     try {
-      const res = await adminBillingService.getAll({
-        status: filter || undefined,
-        labId: labId || undefined,
-        limit: BILLS_LIMIT,
-        skip,
-      });
+      const params = { limit: BILLS_LIMIT, skip };
+      if (filter) params.status = filter;
+      if (labId && labId.length === 24) params.labId = labId;
+
+      const res = await adminBillingService.getAll(params);
       setBills(res.data.bills ?? []);
     } catch {
       setBillsError("Failed to load bills.");
@@ -764,7 +765,10 @@ const AdminBilling = () => {
     setLoadingRuns(true);
     setRunsError(null);
     try {
-      const res = await adminBillingService.getRuns({ hasErrors: errOnly ? "true" : undefined, limit: 20 });
+      const res = await adminBillingService.getRuns({
+        hasErrors: errOnly ? "true" : undefined,
+        limit: 20,
+      });
       setRuns(res.data.runs ?? []);
     } catch {
       setRunsError("Failed to load billing runs.");
@@ -795,8 +799,6 @@ const AdminBilling = () => {
     }
   }, []);
 
-  // ── Effects ─────────────────────────────────────────────────────────────────
-
   useEffect(() => {
     fetchSummary();
     fetchBills(0, statusFilter, labIdFilter);
@@ -817,7 +819,6 @@ const AdminBilling = () => {
     fetchRuns(errorsOnly);
   };
 
-  // Lab ID search: apply on Enter or button click
   const applyLabFilter = () => {
     const trimmed = labIdInput.trim();
     setLabIdFilter(trimmed);
@@ -830,8 +831,6 @@ const AdminBilling = () => {
     setBillsSkip(0);
   };
 
-  // ── Render ──────────────────────────────────────────────────────────────────
-
   return (
     <div className="w-full min-w-0 overflow-x-hidden">
       <div className="p-4 sm:p-6 lg:p-8">
@@ -841,7 +840,7 @@ const AdminBilling = () => {
             <div className="min-w-0">
               <h1 className="text-lg sm:text-xl font-bold text-gray-900 leading-tight truncate">Billing Management</h1>
               <p className="text-xs sm:text-sm text-gray-500 mt-0.5 hidden sm:block">
-                Manage all lab bills, payments, and billing run history · All times in BST (UTC+6)
+                Manage all lab bills, payments, and billing run history · All dates in BST (Asia/Dhaka)
               </p>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
@@ -878,7 +877,7 @@ const AdminBilling = () => {
                 <p className={`text-lg font-bold ${summary.overdueCount > 0 ? "text-red-600" : "text-gray-400"}`}>
                   {summary.overdueCount}
                 </p>
-                <p className="text-xs text-gray-400 mt-0.5">past due date</p>
+                <p className="text-xs text-gray-400 mt-0.5">past due</p>
               </div>
               <div className="bg-white border border-gray-200/80 rounded-xl px-4 py-3 shadow-sm min-w-0">
                 <p className="text-xs text-gray-500 uppercase tracking-wide mb-1 truncate">Collected</p>
@@ -916,7 +915,7 @@ const AdminBilling = () => {
             <div className="min-w-0">
               {/* Filters row */}
               <div className="flex flex-wrap items-center gap-2 mb-4">
-                {/* Status filter pills */}
+                {/* Status filter */}
                 <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
                   <Filter className="w-4 h-4 text-gray-400 flex-shrink-0" />
                   {["", "unpaid", "paid", "free"].map((s) => (
@@ -937,29 +936,32 @@ const AdminBilling = () => {
                   ))}
                 </div>
 
-                {/* Lab ID search */}
+                {/* Lab ID filter */}
                 <div className="flex items-center gap-1.5 ml-auto">
                   <div className="relative">
-                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400" />
                     <input
                       type="text"
-                      placeholder="Filter by Lab ID…"
                       value={labIdInput}
                       onChange={(e) => setLabIdInput(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && applyLabFilter()}
-                      className="pl-8 pr-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 w-44"
+                      placeholder="Filter by Lab ID"
+                      maxLength={24}
+                      className="pl-7 pr-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 w-44"
                     />
                   </div>
-                  <button
-                    onClick={applyLabFilter}
-                    className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-gray-800 text-white hover:bg-gray-900 transition-all"
-                  >
-                    Search
-                  </button>
+                  {labIdInput && (
+                    <button
+                      onClick={applyLabFilter}
+                      className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-all"
+                    >
+                      Go
+                    </button>
+                  )}
                   {labIdFilter && (
                     <button
                       onClick={clearLabFilter}
-                      className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition-all"
+                      className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-all"
                     >
                       Clear
                     </button>
@@ -968,9 +970,9 @@ const AdminBilling = () => {
               </div>
 
               {labIdFilter && (
-                <p className="text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded-lg px-3 py-1.5 mb-3 inline-flex items-center gap-1.5">
-                  <Building2 className="w-3.5 h-3.5" />
-                  Showing bills for lab: <span className="font-mono">{labIdFilter}</span>
+                <p className="text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded-lg px-3 py-1.5 mb-3 flex items-center gap-1.5">
+                  <Building2 className="w-3 h-3" />
+                  Showing bills for lab: <span className="font-mono font-medium">{labIdFilter}</span>
                 </p>
               )}
 
@@ -1027,7 +1029,7 @@ const AdminBilling = () => {
 
                   <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 bg-gray-50/50">
                     <p className="text-xs text-gray-500">
-                      {bills.length > 0 ? `${billsSkip + 1}–${billsSkip + bills.length}` : "0"}
+                      {billsSkip + 1}–{billsSkip + bills.length}
                     </p>
                     <div className="flex items-center gap-2">
                       <button
