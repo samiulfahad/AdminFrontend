@@ -29,14 +29,24 @@ import billingService from "../../api/billingService";
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const fmtDate = (ms) =>
-  ms ? new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(ms)) : "—";
+  ms
+    ? new Intl.DateTimeFormat("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      }).format(new Date(ms))
+    : "—";
 
 const fmtMonth = (ms) =>
   ms ? new Intl.DateTimeFormat("en-GB", { month: "short", year: "numeric" }).format(new Date(ms)) : "—";
 
 const fmtCurrency = (n) =>
   typeof n === "number"
-    ? new Intl.NumberFormat("en-BD", { style: "currency", currency: "BDT", maximumFractionDigits: 0 }).format(n)
+    ? new Intl.NumberFormat("en-BD", {
+        style: "currency",
+        currency: "BDT",
+        maximumFractionDigits: 0,
+      }).format(n)
     : "—";
 
 const isOverdue = (ms) => ms && Date.now() > ms;
@@ -123,7 +133,7 @@ const StatusBadge = ({ status, overdue }) => {
   );
 };
 
-// ─── Month Tag (unpaid pill) ──────────────────────────────────────────────────
+// ─── Month Tag ────────────────────────────────────────────────────────────────
 
 const MonthTag = ({ label, isOverdue: over }) => (
   <span
@@ -207,7 +217,7 @@ const MonthYearPicker = ({ value, onChange, label, maxYear, maxMonth }) => {
   );
 };
 
-// ─── Lab History Drawer (loads on expand) ────────────────────────────────────
+// ─── Lab History Drawer ───────────────────────────────────────────────────────
 
 const LabHistoryDrawer = ({ labKey, onPay, onExtend }) => {
   const [data, setData] = useState(null);
@@ -292,7 +302,6 @@ const LabHistoryDrawer = ({ labKey, onPay, onExtend }) => {
               >
                 <StatusBadge status={bill.status} overdue={over} />
 
-                {/* Period */}
                 <div className="min-w-[110px]">
                   <div className="text-[12.5px] font-semibold text-slate-700">{fmtMonth(bill.billingPeriodStart)}</div>
                   <div className="text-[11px] text-slate-400">
@@ -300,24 +309,20 @@ const LabHistoryDrawer = ({ labKey, onPay, onExtend }) => {
                   </div>
                 </div>
 
-                {/* Amount */}
                 <span className="text-[13px] font-bold text-slate-800 min-w-[90px]">
                   {fmtCurrency(bill.totalAmount)}
                 </span>
 
-                {/* Invoices */}
                 {bill.invoiceCount != null && (
                   <span className="text-[11.5px] text-slate-400">{bill.invoiceCount} inv.</span>
                 )}
 
-                {/* Paid info */}
                 {bill.status === "paid" && bill.paidAt && (
                   <span className="text-[11.5px] text-emerald-600 font-medium flex items-center gap-1">
                     <BadgeCheck size={12} /> Paid {fmtDate(bill.paidAt)}
                   </span>
                 )}
 
-                {/* Due info */}
                 {bill.status === "unpaid" && (
                   <span
                     className={`text-[11.5px] flex items-center gap-1 ${over ? "text-red-500 font-semibold" : "text-slate-400"}`}
@@ -327,7 +332,6 @@ const LabHistoryDrawer = ({ labKey, onPay, onExtend }) => {
                   </span>
                 )}
 
-                {/* Breakdown chips */}
                 {bill.breakdown && (
                   <div className="flex flex-wrap gap-1 w-full mt-1">
                     {Object.entries(bill.breakdown).map(([k, v]) => (
@@ -342,7 +346,6 @@ const LabHistoryDrawer = ({ labKey, onPay, onExtend }) => {
                   </div>
                 )}
 
-                {/* Actions */}
                 {bill.status === "unpaid" && (
                   <div className="flex items-center gap-1.5 ml-auto">
                     <Btn variant="success" className="!px-2.5 !py-1.5 !text-[11px]" onClick={() => onPay(bill)}>
@@ -359,7 +362,6 @@ const LabHistoryDrawer = ({ labKey, onPay, onExtend }) => {
         </div>
       )}
 
-      {/* Pagination */}
       {totalPages > 1 && (
         <div className="px-5 py-3 flex items-center justify-between border-t border-slate-100">
           <span className="text-[11.5px] text-slate-400">
@@ -391,14 +393,12 @@ const LabHistoryDrawer = ({ labKey, onPay, onExtend }) => {
 
 // ─── Unpaid Lab Row ───────────────────────────────────────────────────────────
 
-const UnpaidLabRow = ({ lab, onPay, onExtend, onLabPaidFromHistory }) => {
+const UnpaidLabRow = ({ lab, onPay, onExtend }) => {
   const [expanded, setExpanded] = useState(false);
 
   return (
     <div className="border border-slate-100 rounded-2xl overflow-hidden bg-white shadow-sm">
-      {/* Summary row */}
       <div className="flex items-start gap-4 px-5 py-4">
-        {/* Left: Lab info */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-2">
             <span className="text-[14px] font-bold text-slate-800 truncate">{lab.labName ?? "Unknown Lab"}</span>
@@ -411,8 +411,6 @@ const UnpaidLabRow = ({ lab, onPay, onExtend, onLabPaidFromHistory }) => {
               </span>
             )}
           </div>
-
-          {/* Unpaid month tags */}
           <div className="flex flex-wrap gap-1.5">
             {lab.unpaidMonths.map((um) => (
               <MonthTag key={um.billingId} label={um.month} isOverdue={um.isOverdue} />
@@ -420,14 +418,11 @@ const UnpaidLabRow = ({ lab, onPay, onExtend, onLabPaidFromHistory }) => {
           </div>
         </div>
 
-        {/* Right: Total + actions */}
         <div className="flex items-center gap-3 shrink-0">
           <div className="text-right">
             <div className="text-[11px] text-slate-400 font-medium">Total Unpaid</div>
             <div className="text-[16px] font-black text-amber-600">{fmtCurrency(lab.unpaidTotal)}</div>
           </div>
-
-          {/* Expand toggle */}
           <button
             type="button"
             onClick={() => setExpanded((o) => !o)}
@@ -439,7 +434,7 @@ const UnpaidLabRow = ({ lab, onPay, onExtend, onLabPaidFromHistory }) => {
         </div>
       </div>
 
-      {/* Unpaid bills quick-pay (inline, no expand needed) */}
+      {/* Unpaid bills quick-pay */}
       {lab.unpaidMonths.length > 0 && (
         <div className="px-5 pb-4 flex flex-col gap-2">
           {lab.unpaidMonths.map((um) => (
@@ -491,7 +486,6 @@ const UnpaidLabRow = ({ lab, onPay, onExtend, onLabPaidFromHistory }) => {
         </div>
       )}
 
-      {/* Expandable history drawer */}
       {expanded && <LabHistoryDrawer labKey={lab.labKey} onPay={onPay} onExtend={onExtend} />}
     </div>
   );
@@ -541,6 +535,8 @@ const TABS = [
   { id: "lab", label: "Lab Lookup", icon: Building2 },
 ];
 
+const UNPAID_LIMIT = 20;
+
 export default function AdminBilling() {
   const [tab, setTab] = useState("unpaid");
 
@@ -548,10 +544,10 @@ export default function AdminBilling() {
   const [unpaidLabs, setUnpaidLabs] = useState([]);
   const [unpaidTotal, setUnpaidTotal] = useState(0);
   const [unpaidLoading, setUnpaidLoading] = useState(false);
+  // Single source of truth: the committed search term (debounced)
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [unpaidSkip, setUnpaidSkip] = useState(0);
-  const UNPAID_LIMIT = 20;
   const searchTimer = useRef(null);
 
   // ── Runs ──
@@ -580,40 +576,40 @@ export default function AdminBilling() {
     setTimeout(() => setToast(null), 3500);
   };
 
-  // ── Fetch unpaid labs ──
-  const fetchUnpaid = useCallback(
-    async (skipVal = 0, searchVal = search) => {
-      setUnpaidLoading(true);
-      try {
-        const params = { skip: skipVal, limit: UNPAID_LIMIT };
-        if (searchVal) params.search = searchVal;
-        const res = await billingService.getUnpaidLabs(params);
-        setUnpaidLabs(res.data.labs);
-        setUnpaidTotal(res.data.total);
-      } catch {
-        showToast("Failed to fetch unpaid labs", "error");
-      } finally {
-        setUnpaidLoading(false);
-      }
-    },
-    [search],
-  );
+  // ── Fetch unpaid labs ─────────────────────────────────────────────────────
+  // fetchUnpaid takes explicit args so it never closes over stale state.
+  const fetchUnpaid = useCallback(async (skip, searchVal) => {
+    setUnpaidLoading(true);
+    try {
+      const params = { skip, limit: UNPAID_LIMIT };
+      if (searchVal) params.search = searchVal;
+      const res = await billingService.getUnpaidLabs(params);
+      setUnpaidLabs(res.data.labs);
+      setUnpaidTotal(res.data.total);
+    } catch {
+      showToast("Failed to fetch unpaid labs", "error");
+    } finally {
+      setUnpaidLoading(false);
+    }
+  }, []); // no deps — args are passed explicitly
 
-  // Debounced search
-  const handleSearchInput = (val) => {
-    setSearchInput(val);
-    clearTimeout(searchTimer.current);
-    searchTimer.current = setTimeout(() => {
-      setSearch(val);
-      setUnpaidSkip(0);
-    }, 400);
-  };
-
+  // Trigger fetch whenever tab/skip/search change (single effect, no double-fire).
   useEffect(() => {
     if (tab === "unpaid") fetchUnpaid(unpaidSkip, search);
   }, [tab, unpaidSkip, search, fetchUnpaid]);
 
-  // ── Fetch runs ──
+  // Debounced search: update searchInput immediately (controlled input),
+  // commit `search` + reset skip after 400 ms.
+  const handleSearchInput = (val) => {
+    setSearchInput(val);
+    clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(() => {
+      setUnpaidSkip(0); // reset first so the effect fires with skip=0
+      setSearch(val); // this is what triggers the fetch effect
+    }, 400);
+  };
+
+  // ── Fetch runs ────────────────────────────────────────────────────────────
   const fetchRuns = useCallback(async () => {
     setRunsLoading(true);
     try {
@@ -632,7 +628,7 @@ export default function AdminBilling() {
     if (tab === "runs") fetchRuns();
   }, [tab, fetchRuns]);
 
-  // ── Lab lookup ──
+  // ── Lab lookup ────────────────────────────────────────────────────────────
   const handleLabLookup = async () => {
     const key = labKeyInput.trim();
     if (!key) {
@@ -652,7 +648,7 @@ export default function AdminBilling() {
     }
   };
 
-  // ── Pay ──
+  // ── Pay ───────────────────────────────────────────────────────────────────
   const handlePay = async () => {
     if (!payModal) return;
     setActionLoading(true);
@@ -660,7 +656,7 @@ export default function AdminBilling() {
       await billingService.markPaid(payModal._id, payModal.labId);
       showToast("Bill marked as paid ✓");
       setPayModal(null);
-      fetchUnpaid(unpaidSkip);
+      fetchUnpaid(unpaidSkip, search);
     } catch (e) {
       showToast(e?.response?.data?.error ?? "Failed to mark paid", "error");
     } finally {
@@ -668,7 +664,7 @@ export default function AdminBilling() {
     }
   };
 
-  // ── Extend ──
+  // ── Extend ────────────────────────────────────────────────────────────────
   const handleExtend = async () => {
     if (!extendModal || !extendDate) return;
     setActionLoading(true);
@@ -677,7 +673,7 @@ export default function AdminBilling() {
       showToast("Due date updated ✓");
       setExtendModal(null);
       setExtendDate("");
-      fetchUnpaid(unpaidSkip);
+      fetchUnpaid(unpaidSkip, search);
     } catch (e) {
       showToast(e?.response?.data?.error ?? "Failed to update due date", "error");
     } finally {
@@ -685,7 +681,7 @@ export default function AdminBilling() {
     }
   };
 
-  // ── Generate ──
+  // ── Generate ──────────────────────────────────────────────────────────────
   const handleGenerate = async () => {
     setActionLoading(true);
     try {
@@ -705,7 +701,7 @@ export default function AdminBilling() {
     }
   };
 
-  // ── Retry ──
+  // ── Retry ─────────────────────────────────────────────────────────────────
   const handleRetry = async (run) => {
     try {
       await billingService.retryFailed(run._id);
@@ -784,7 +780,6 @@ export default function AdminBilling() {
       {/* ─── UNPAID BILLS TAB ─── */}
       {tab === "unpaid" && (
         <div>
-          {/* Toolbar */}
           <div className="bg-white border border-slate-100 rounded-2xl p-4 mb-4 flex flex-wrap items-center gap-3 shadow-sm">
             <div className="relative flex-1 min-w-[200px] max-w-xs">
               <Search
@@ -798,7 +793,7 @@ export default function AdminBilling() {
                 onChange={(e) => handleSearchInput(e.target.value)}
               />
             </div>
-            <Btn variant="secondary" onClick={() => fetchUnpaid(unpaidSkip)} loading={unpaidLoading}>
+            <Btn variant="secondary" onClick={() => fetchUnpaid(unpaidSkip, search)} loading={unpaidLoading}>
               <RefreshCw size={12} /> Refresh
             </Btn>
             <span className="ml-auto text-[12px] text-slate-400">
@@ -806,7 +801,6 @@ export default function AdminBilling() {
             </span>
           </div>
 
-          {/* List */}
           {unpaidLoading ? (
             <div className="flex items-center justify-center py-20">
               <Loader2 size={24} className="animate-spin text-indigo-400" />
@@ -834,7 +828,6 @@ export default function AdminBilling() {
             </div>
           )}
 
-          {/* Pagination */}
           {unpaidPages > 1 && (
             <div className="flex items-center justify-between mt-4 px-1">
               <span className="text-[12px] text-slate-400">
@@ -942,7 +935,6 @@ export default function AdminBilling() {
 
           {labData && (
             <div className="space-y-4 animate-[fadeUp_0.2s_ease]">
-              {/* Lab card */}
               <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
                 <div className="flex items-start justify-between flex-wrap gap-3">
                   <div>
@@ -957,7 +949,6 @@ export default function AdminBilling() {
                 </div>
               </div>
 
-              {/* Stats */}
               <div className="grid grid-cols-3 gap-3">
                 {[
                   { label: "Paid", key: "paid", border: "border-emerald-100" },
@@ -976,7 +967,6 @@ export default function AdminBilling() {
                 ))}
               </div>
 
-              {/* Current unpaid bill */}
               {labData.currentBill ? (
                 <div
                   className={`bg-white border rounded-2xl p-5 shadow-sm ${labData.currentBill.isOverdue ? "border-red-200 bg-red-50/20" : "border-amber-100"}`}
@@ -1019,7 +1009,11 @@ export default function AdminBilling() {
                     <Btn
                       variant="success"
                       onClick={() =>
-                        setPayModal({ ...labData.currentBill, _id: labData.currentBill.id, labId: labData.lab?._id })
+                        setPayModal({
+                          ...labData.currentBill,
+                          _id: labData.currentBill.id,
+                          labId: labData.lab?._id,
+                        })
                       }
                     >
                       <CheckCircle2 size={13} /> Mark as Paid
@@ -1042,7 +1036,6 @@ export default function AdminBilling() {
                 </div>
               )}
 
-              {/* Full history drawer */}
               <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-sm">
                 <div className="px-5 py-3 border-b border-slate-100 flex items-center gap-2">
                   <Receipt size={14} className="text-slate-400" />
