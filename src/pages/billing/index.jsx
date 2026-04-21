@@ -286,7 +286,10 @@ export default function AdminBilling() {
   const [payModal, setPayModal] = useState(null);
   const [extendModal, setExtendModal] = useState(null);
   const [generateModal, setGenerateModal] = useState(false);
-  const [genForm, setGenForm] = useState({ year: "", month: "", dueDate: "" });
+
+  // Updated state for native month picker
+  const [genForm, setGenForm] = useState({ period: "", dueDate: "" });
+
   const [extendDate, setExtendDate] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
   const [toast, setToast] = useState(null);
@@ -336,8 +339,8 @@ export default function AdminBilling() {
 
   // ── Lab lookup ──
   const handleLabLookup = async () => {
-    if (!labId.trim() || labId.trim().length !== 24) {
-      setLabError("Lab ID must be 24 characters.");
+    if (!labId.trim()) {
+      setLabError("Please enter a Lab ID or Lab Key.");
       return;
     }
     setLabLoading(true);
@@ -391,13 +394,20 @@ export default function AdminBilling() {
     setActionLoading(true);
     try {
       const body = {};
-      if (genForm.year) body.year = parseInt(genForm.year);
-      if (genForm.month) body.month = parseInt(genForm.month);
+
+      // Parse the "YYYY-MM" string from the native month picker
+      if (genForm.period) {
+        const [year, month] = genForm.period.split("-");
+        body.year = parseInt(year, 10);
+        body.month = parseInt(month, 10);
+      }
+
       if (genForm.dueDate) body.dueDate = genForm.dueDate;
+
       await billingService.generate(body);
       showToast("Bill generation started ✓");
       setGenerateModal(false);
-      setGenForm({ year: "", month: "", dueDate: "" });
+      setGenForm({ period: "", dueDate: "" });
     } catch (e) {
       showToast(e?.response?.data?.error ?? "Failed to start generation", "error");
     } finally {
@@ -622,13 +632,12 @@ export default function AdminBilling() {
       {tab === "lab" && (
         <div className="max-w-2xl">
           <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm mb-4">
-            <p className="text-[13px] font-semibold text-slate-600 mb-3">Look up a lab by its ID</p>
+            <p className="text-[13px] font-semibold text-slate-600 mb-3">Look up a lab by its ID or Key</p>
             <div className="flex gap-2">
               <Input
-                placeholder="24-character Lab ID"
+                placeholder="Lab ID or Lab Key (e.g. 11111)"
                 value={labId}
                 onChange={(e) => setLabId(e.target.value)}
-                maxLength={24}
                 onKeyDown={(e) => e.key === "Enter" && handleLabLookup()}
               />
               <Btn onClick={handleLabLookup} loading={labLoading} disabled={!labId.trim()}>
@@ -721,7 +730,9 @@ export default function AdminBilling() {
                   <div className="flex gap-2">
                     <Btn
                       variant="success"
-                      onClick={() => setPayModal({ ...labData.currentBill, _id: labData.currentBill.id, labId })}
+                      onClick={() =>
+                        setPayModal({ ...labData.currentBill, _id: labData.currentBill.id, labId: labData.lab._id })
+                      }
                     >
                       <CheckCircle2 size={13} /> Mark as Paid
                     </Btn>
@@ -801,28 +812,14 @@ export default function AdminBilling() {
       <Modal open={generateModal} onClose={() => setGenerateModal(false)} title="Generate Bills">
         <div className="space-y-4">
           <p className="text-[12.5px] text-slate-500">
-            Leave year/month blank to auto-generate for the previous BST month.
+            Leave the billing period blank to auto-generate for the previous BST month.
           </p>
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Year (optional)"
-              type="number"
-              placeholder="e.g. 2025"
-              value={genForm.year}
-              onChange={(e) => setGenForm((f) => ({ ...f, year: e.target.value }))}
-              min={2024}
-              max={2100}
-            />
-            <Input
-              label="Month (optional)"
-              type="number"
-              placeholder="1–12"
-              value={genForm.month}
-              onChange={(e) => setGenForm((f) => ({ ...f, month: e.target.value }))}
-              min={1}
-              max={12}
-            />
-          </div>
+          <Input
+            label="Billing Period (optional)"
+            type="month"
+            value={genForm.period}
+            onChange={(e) => setGenForm((f) => ({ ...f, period: e.target.value }))}
+          />
           <Input
             label="Due Date (optional, YYYY-MM-DD)"
             type="date"
