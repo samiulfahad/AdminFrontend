@@ -29,6 +29,9 @@ import billingService from "../../api/billingService";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+// All period timestamps are stored as UTC ms but represent BST (UTC+6) boundaries.
+// e.g. Dec 1 00:00 BST = Nov 30 18:00 UTC. We must add 6h before formatting
+// so the browser renders the correct Dhaka date regardless of the user's locale.
 const BST_OFFSET_MS = 6 * 60 * 60 * 1000;
 
 const fmtDate = (ms) =>
@@ -37,6 +40,7 @@ const fmtDate = (ms) =>
         new Date(ms + BST_OFFSET_MS),
       )
     : "—";
+
 const fmtMonth = (ms) =>
   ms ? new Intl.DateTimeFormat("en-GB", { month: "short", year: "numeric" }).format(new Date(ms + BST_OFFSET_MS)) : "—";
 
@@ -198,7 +202,6 @@ const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "
 
 const MonthYearPicker = ({ value, onChange, label, maxYear, maxMonth }) => {
   const [viewYear, setViewYear] = useState(value?.year ?? new Date().getFullYear());
-  // maxMonth is 1-indexed — months with index > maxMonth in maxYear are disabled
   const isDisabled = (y, m) => maxYear && (y > maxYear || (y === maxYear && m > maxMonth));
 
   return (
@@ -224,7 +227,7 @@ const MonthYearPicker = ({ value, onChange, label, maxYear, maxMonth }) => {
         </div>
         <div className="grid grid-cols-4 gap-1 p-2">
           {MONTHS.map((m, i) => {
-            const mn = i + 1; // 1-indexed
+            const mn = i + 1;
             const dis = isDisabled(viewYear, mn);
             const sel = value?.year === viewYear && value?.month === mn;
             return (
@@ -568,18 +571,12 @@ const RunRow = ({ run, onRetry }) => (
 );
 
 // ─── Month Overview Tab ───────────────────────────────────────────────────────
-// Step 1: pick month/year from a dropdown of available periods
-// Step 2: show per-lab bill list with paid/unpaid/free tags + stats banner
 
 const MonthOverviewTab = () => {
-  const [months, setMonths] = useState([]); // all available periods from API
+  const [months, setMonths] = useState([]);
   const [overviewLoading, setOverviewLoading] = useState(false);
   const [overviewError, setOverviewError] = useState("");
-
-  // Selected period (one of the months returned by API)
-  const [selectedPeriod, setSelectedPeriod] = useState(null); // { period, label, year, month, periodStart, paid, unpaid, free, totalLabs }
-
-  // Per-lab bills for selected period
+  const [selectedPeriod, setSelectedPeriod] = useState(null);
   const [bills, setBills] = useState([]);
   const [billsLoading, setBillsLoading] = useState(false);
   const [billsError, setBillsError] = useState("");
@@ -587,7 +584,6 @@ const MonthOverviewTab = () => {
   const [billsTotal, setBillsTotal] = useState(0);
   const BILLS_LIMIT = 30;
 
-  // Load available periods on mount
   const loadPeriods = useCallback(async () => {
     setOverviewLoading(true);
     setOverviewError("");
@@ -595,7 +591,7 @@ const MonthOverviewTab = () => {
       const res = await billingService.getMonthOverview();
       const m = res.data.months ?? [];
       setMonths(m);
-      if (m.length > 0 && !selectedPeriod) setSelectedPeriod(m[0]); // default to newest
+      if (m.length > 0 && !selectedPeriod) setSelectedPeriod(m[0]);
     } catch {
       setOverviewError("Failed to load billing periods");
     } finally {
@@ -607,7 +603,6 @@ const MonthOverviewTab = () => {
     loadPeriods();
   }, [loadPeriods]);
 
-  // Load per-lab bills whenever selected period or page changes
   const loadBills = useCallback(async (periodStart, skip) => {
     if (periodStart == null) return;
     setBillsLoading(true);
@@ -645,7 +640,6 @@ const MonthOverviewTab = () => {
 
   return (
     <div>
-      {/* Period selector toolbar */}
       <div className="bg-white border border-slate-100 rounded-2xl p-4 mb-4 flex flex-wrap items-center gap-3 shadow-sm">
         <BarChart3 size={14} className="text-slate-300" />
         <span className="text-[13px] font-semibold text-slate-600">Billing Period</span>
@@ -683,7 +677,6 @@ const MonthOverviewTab = () => {
         </div>
       )}
 
-      {/* Stats banner for selected period */}
       {sp && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
           {[
@@ -725,21 +718,17 @@ const MonthOverviewTab = () => {
         </div>
       )}
 
-      {/* Progress bar */}
       {sp && total > 0 && (
         <div className="bg-white border border-slate-100 rounded-2xl p-4 mb-4 shadow-sm">
           <div className="flex items-center justify-between mb-2 text-[11.5px] text-slate-500">
             <span className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block" />
-              Paid {paidPct}%
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block" /> Paid {paidPct}%
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block" />
-              Unpaid {unpaidPct}%
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block" /> Unpaid {unpaidPct}%
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-slate-300 inline-block" />
-              Free {freePct}%
+              <span className="w-2.5 h-2.5 rounded-full bg-slate-300 inline-block" /> Free {freePct}%
             </span>
           </div>
           <div className="h-3 rounded-full overflow-hidden bg-slate-100 flex">
@@ -750,9 +739,7 @@ const MonthOverviewTab = () => {
         </div>
       )}
 
-      {/* Bills list */}
       <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden">
-        {/* Table header */}
         <div className="grid grid-cols-[1fr_auto_auto_auto] gap-4 px-5 py-3 border-b border-slate-100 bg-slate-50/60">
           {["Lab", "Status", "Amount", "Due / Paid"].map((h) => (
             <div key={h} className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">
@@ -792,7 +779,6 @@ const MonthOverviewTab = () => {
                   key={bill._id}
                   className={`grid grid-cols-[1fr_auto_auto_auto] gap-4 px-5 py-3.5 items-center transition-colors ${over ? "bg-red-50/30" : "hover:bg-slate-50/60"}`}
                 >
-                  {/* Lab info */}
                   <div className="min-w-0">
                     <div className="text-[13px] font-bold text-slate-800 truncate">{bill.labName ?? "—"}</div>
                     <div className="flex items-center gap-1.5 mt-0.5">
@@ -807,16 +793,10 @@ const MonthOverviewTab = () => {
                       )}
                     </div>
                   </div>
-
-                  {/* Status badge */}
                   <StatusBadge status={bill.status} overdue={over} />
-
-                  {/* Amount */}
                   <span className="text-[13px] font-black text-slate-800 tabular-nums">
                     {fmtCurrency(bill.totalAmount)}
                   </span>
-
-                  {/* Due / Paid date */}
                   <div className="text-right">
                     {bill.status === "paid" && bill.paidAt ? (
                       <span className="text-[11.5px] text-emerald-600 font-medium flex items-center gap-1 justify-end">
@@ -839,7 +819,6 @@ const MonthOverviewTab = () => {
           </div>
         )}
 
-        {/* Pagination */}
         {billsPages > 1 && (
           <div className="px-5 py-3 border-t border-slate-100 flex items-center justify-between">
             <span className="text-[11.5px] text-slate-400">
@@ -884,7 +863,6 @@ const UNPAID_LIMIT = 20;
 export default function AdminBilling() {
   const [tab, setTab] = useState("unpaid");
 
-  // ── Unpaid labs ──
   const [unpaidLabs, setUnpaidLabs] = useState([]);
   const [unpaidTotal, setUnpaidTotal] = useState(0);
   const [unpaidLoading, setUnpaidLoading] = useState(false);
@@ -893,18 +871,15 @@ export default function AdminBilling() {
   const [unpaidSkip, setUnpaidSkip] = useState(0);
   const searchTimer = useRef(null);
 
-  // ── Runs ──
   const [runs, setRuns] = useState([]);
   const [runsLoading, setRunsLoading] = useState(false);
   const [runsFilter, setRunsFilter] = useState({ hasErrors: "", skip: 0, limit: 20 });
 
-  // ── Lab lookup ──
   const [labKeyInput, setLabKeyInput] = useState("");
   const [labData, setLabData] = useState(null);
   const [labLoading, setLabLoading] = useState(false);
   const [labError, setLabError] = useState("");
 
-  // ── Modals ──
   const [payModal, setPayModal] = useState(null);
   const [extendModal, setExtendModal] = useState(null);
   const [extendDate, setExtendDate] = useState("");
@@ -919,7 +894,6 @@ export default function AdminBilling() {
     setTimeout(() => setToast(null), 3500);
   };
 
-  // ── Fetch unpaid labs ──
   const fetchUnpaid = useCallback(async (skip, searchVal) => {
     setUnpaidLoading(true);
     try {
@@ -948,7 +922,6 @@ export default function AdminBilling() {
     }, 400);
   };
 
-  // ── Fetch runs ──
   const fetchRuns = useCallback(async () => {
     setRunsLoading(true);
     try {
@@ -967,7 +940,6 @@ export default function AdminBilling() {
     if (tab === "runs") fetchRuns();
   }, [tab, fetchRuns]);
 
-  // ── Lab lookup ──
   const handleLabLookup = async () => {
     const key = labKeyInput.trim();
     if (!key) {
@@ -987,7 +959,6 @@ export default function AdminBilling() {
     }
   };
 
-  // ── Pay ──
   const handlePay = async () => {
     if (!payModal) return;
     setActionLoading(true);
@@ -1003,7 +974,6 @@ export default function AdminBilling() {
     }
   };
 
-  // ── Extend ──
   const handleExtend = async () => {
     if (!extendModal || !extendDate) return;
     setActionLoading(true);
@@ -1020,13 +990,12 @@ export default function AdminBilling() {
     }
   };
 
-  // ── Generate ──
   const handleGenerate = async () => {
     setActionLoading(true);
     try {
       const body = {};
       if (genPeriod?.year) body.year = genPeriod.year;
-      if (genPeriod?.month) body.month = genPeriod.month; // picker is already 1-indexed, send as-is
+      if (genPeriod?.month) body.month = genPeriod.month;
       if (genDueDate) body.dueDate = genDueDate;
       await billingService.generate(body);
       showToast("Bill generation started ✓");
@@ -1040,7 +1009,6 @@ export default function AdminBilling() {
     }
   };
 
-  // ── Retry ──
   const handleRetry = async (run) => {
     try {
       await billingService.retryFailed(run._id);
@@ -1051,11 +1019,8 @@ export default function AdminBilling() {
     }
   };
 
-  // maxMonth: current month minus 1, 1-indexed (last completed month)
-  // e.g. April 2026 → maxMonth = 3 (March), maxYear = 2026
-  // If January → maxMonth = 12, maxYear = year - 1
   const now = new Date();
-  const currentMonth1 = now.getMonth() + 1; // 1-indexed current month
+  const currentMonth1 = now.getMonth() + 1;
   const maxYear = currentMonth1 === 1 ? now.getFullYear() - 1 : now.getFullYear();
   const maxMonth = currentMonth1 === 1 ? 12 : currentMonth1 - 1;
 
@@ -1071,7 +1036,6 @@ export default function AdminBilling() {
         }
       `}</style>
 
-      {/* Toast */}
       {toast && (
         <div
           className={`fixed top-5 right-5 z-[100] flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg border text-[13px] font-semibold animate-[fadeUp_0.2s_ease] ${toast.type === "error" ? "bg-red-50 border-red-200 text-red-700" : "bg-emerald-50 border-emerald-200 text-emerald-700"}`}
@@ -1081,7 +1045,6 @@ export default function AdminBilling() {
         </div>
       )}
 
-      {/* Header */}
       <div className="flex items-center justify-between mb-7 flex-wrap gap-3">
         <div>
           <div className="flex items-center gap-2.5 mb-1">
@@ -1097,7 +1060,6 @@ export default function AdminBilling() {
         </Btn>
       </div>
 
-      {/* Tabs */}
       <div className="flex items-center gap-1 mb-6 bg-white border border-slate-100 rounded-xl p-1 w-fit shadow-sm">
         {TABS.map((t) => {
           const Icon = t.icon;
