@@ -34,12 +34,22 @@ import billingService from "../../api/billingService";
 // so the browser renders the correct Dhaka date regardless of the user's locale.
 const BST_OFFSET_MS = 6 * 60 * 60 * 1000;
 
-const fmtDate = (ms) =>
-  ms
-    ? new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric" }).format(
-        new Date(ms + BST_OFFSET_MS),
-      )
-    : "—";
+// For BST-boundary timestamps (billingPeriodStart, billingPeriodEnd, dueDate):
+// Add the BST offset then floor to midnight so that end-of-day timestamps
+// (23:59:59.999 BST stored as UTC) don't bleed into the next calendar day.
+// e.g. billingPeriodEnd = Feb 28 17:59:59 UTC = Feb 28 23:59:59 BST
+//      +6h → Mar 01 05:59:59 (wrong) → floored → Feb 28 (correct)
+const fmtDate = (ms) => {
+  if (!ms) return "—";
+  const bstMs = ms + BST_OFFSET_MS;
+  const d = new Date(bstMs);
+  const floored = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  return new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric" }).format(floored);
+};
+
+// For plain UTC epoch timestamps (paidAt, createdAt) — no offset adjustment needed.
+const fmtDateUTC = (ms) =>
+  ms ? new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(ms)) : "—";
 
 const fmtMonth = (ms) =>
   ms ? new Intl.DateTimeFormat("en-GB", { month: "short", year: "numeric" }).format(new Date(ms + BST_OFFSET_MS)) : "—";
@@ -366,7 +376,7 @@ const LabHistoryDrawer = ({ labKey, onPay, onExtend }) => {
                 )}
                 {bill.status === "paid" && bill.paidAt && (
                   <span className="text-[11.5px] text-emerald-600 font-medium flex items-center gap-1">
-                    <BadgeCheck size={12} /> Paid {fmtDate(bill.paidAt)}
+                    <BadgeCheck size={12} /> Paid {fmtDateUTC(bill.paidAt)}
                   </span>
                 )}
                 {bill.status === "unpaid" && (
@@ -539,7 +549,7 @@ const UnpaidLabRow = ({ lab, onPay, onExtend }) => {
 const RunRow = ({ run, onRetry }) => (
   <tr className="border-b border-slate-50 hover:bg-slate-50/60 transition group">
     <td className="px-4 py-3 text-[12.5px] font-bold text-slate-700">{run.period}</td>
-    <td className="px-4 py-3 text-[12px] text-slate-500">{fmtDate(run.triggeredAt)}</td>
+    <td className="px-4 py-3 text-[12px] text-slate-500">{fmtDateUTC(run.triggeredAt)}</td>
     <td className="px-4 py-3 text-[12px] text-slate-500">{run.triggeredBy}</td>
     <td className="px-4 py-3 text-[12px] text-slate-700 font-semibold">{run.totalLabs}</td>
     <td className="px-4 py-3">
@@ -800,7 +810,7 @@ const MonthOverviewTab = () => {
                   <div className="text-right">
                     {bill.status === "paid" && bill.paidAt ? (
                       <span className="text-[11.5px] text-emerald-600 font-medium flex items-center gap-1 justify-end">
-                        <BadgeCheck size={11} /> {fmtDate(bill.paidAt)}
+                        <BadgeCheck size={11} /> {fmtDateUTC(bill.paidAt)}
                       </span>
                     ) : bill.status === "unpaid" ? (
                       <span
