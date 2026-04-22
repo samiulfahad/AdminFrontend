@@ -24,21 +24,14 @@ import {
   BadgeCheck,
   Ban,
   BarChart3,
+  Trash2,
 } from "lucide-react";
 import billingService from "../../api/billingService";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-// All period timestamps are stored as UTC ms but represent BST (UTC+6) boundaries.
-// e.g. Dec 1 00:00 BST = Nov 30 18:00 UTC. We must add 6h before formatting
-// so the browser renders the correct Dhaka date regardless of the user's locale.
 const BST_OFFSET_MS = 6 * 60 * 60 * 1000;
 
-// For BST-boundary timestamps (billingPeriodStart, billingPeriodEnd, dueDate):
-// Add the BST offset then floor to midnight so that end-of-day timestamps
-// (23:59:59.999 BST stored as UTC) don't bleed into the next calendar day.
-// e.g. billingPeriodEnd = Feb 28 17:59:59 UTC = Feb 28 23:59:59 BST
-//      +6h → Mar 01 05:59:59 (wrong) → floored → Feb 28 (correct)
 const fmtDate = (ms) => {
   if (!ms) return "—";
   const bstMs = ms + BST_OFFSET_MS;
@@ -47,7 +40,6 @@ const fmtDate = (ms) => {
   return new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric" }).format(floored);
 };
 
-// For plain UTC epoch timestamps (paidAt, createdAt) — no offset adjustment needed.
 const fmtDateUTC = (ms) =>
   ms ? new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(ms)) : "—";
 
@@ -210,9 +202,9 @@ const MonthTag = ({ label, isOverdue: over }) => (
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-const MonthYearPicker = ({ value, onChange, label, maxYear, maxMonth }) => {
+const MonthYearPicker = ({ value, onChange, label, maxYear, maxMonth, minYear = 2020 }) => {
   const [viewYear, setViewYear] = useState(value?.year ?? new Date().getFullYear());
-  const isDisabled = (y, m) => maxYear && (y > maxYear || (y === maxYear && m > maxMonth));
+  const isDisabled = (y, m) => y < minYear || (maxYear && (y > maxYear || (y === maxYear && m > maxMonth)));
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -222,7 +214,8 @@ const MonthYearPicker = ({ value, onChange, label, maxYear, maxMonth }) => {
           <button
             type="button"
             onClick={() => setViewYear((y) => y - 1)}
-            className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-200 transition cursor-pointer"
+            disabled={viewYear <= minYear}
+            className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-200 transition cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
           >
             <ChevronLeft size={13} className="text-slate-500" />
           </button>
@@ -230,7 +223,8 @@ const MonthYearPicker = ({ value, onChange, label, maxYear, maxMonth }) => {
           <button
             type="button"
             onClick={() => setViewYear((y) => y + 1)}
-            className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-200 transition cursor-pointer"
+            disabled={maxYear && viewYear >= maxYear}
+            className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-200 transition cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
           >
             <ChevronRight size={13} className="text-slate-500" />
           </button>
@@ -246,7 +240,13 @@ const MonthYearPicker = ({ value, onChange, label, maxYear, maxMonth }) => {
                 type="button"
                 disabled={dis}
                 onClick={() => onChange({ year: viewYear, month: mn })}
-                className={`py-1.5 rounded-lg text-[12px] font-semibold transition cursor-pointer ${sel ? "bg-indigo-500 text-white shadow-sm" : !dis ? "hover:bg-indigo-50 text-slate-700" : "text-slate-200 cursor-not-allowed"}`}
+                className={`py-1.5 rounded-lg text-[12px] font-semibold transition cursor-pointer ${
+                  sel
+                    ? "bg-indigo-500 text-white shadow-sm"
+                    : !dis
+                      ? "hover:bg-indigo-50 text-slate-700"
+                      : "text-slate-200 cursor-not-allowed"
+                }`}
               >
                 {m}
               </button>
@@ -471,7 +471,6 @@ const UnpaidLabRow = ({ lab, onPay, onExtend }) => {
             ))}
           </div>
         </div>
-
         <div className="flex items-center gap-3 shrink-0">
           <div className="text-right">
             <div className="text-[11px] text-slate-400 font-medium">Total Unpaid</div>
@@ -582,7 +581,7 @@ const RunRow = ({ run, onRetry }) => (
 
 // ─── Month Overview Tab ───────────────────────────────────────────────────────
 
-const MonthOverviewTab = () => {
+const MonthOverviewTab = ({ showToast }) => {
   const [months, setMonths] = useState([]);
   const [overviewLoading, setOverviewLoading] = useState(false);
   const [overviewError, setOverviewError] = useState("");
@@ -592,6 +591,9 @@ const MonthOverviewTab = () => {
   const [billsError, setBillsError] = useState("");
   const [billsSkip, setBillsSkip] = useState(0);
   const [billsTotal, setBillsTotal] = useState(0);
+  const [deleteModal, setDeleteModal] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
   const BILLS_LIMIT = 30;
 
   const loadPeriods = useCallback(async () => {
@@ -639,6 +641,28 @@ const MonthOverviewTab = () => {
     if (selectedPeriod) loadBills(selectedPeriod.periodStart, billsSkip);
   }, [billsSkip]); // eslint-disable-line
 
+  const handleDeletePeriod = async () => {
+    if (!selectedPeriod) return;
+    setDeleteLoading(true);
+    setDeleteError("");
+    try {
+      const res = await billingService.deletePeriodBills(selectedPeriod.periodStart);
+      setDeleteModal(false);
+      showToast(`Deleted ${res.data.deleted} bills for ${selectedPeriod.label} ✓`);
+      setMonths((prev) => {
+        const next = prev.filter((m) => m.periodStart !== selectedPeriod.periodStart);
+        setSelectedPeriod(next[0] ?? null);
+        return next;
+      });
+      setBills([]);
+      setBillsTotal(0);
+    } catch (e) {
+      setDeleteError(e?.response?.data?.error ?? "Failed to delete period bills");
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
   const billsPages = Math.ceil(billsTotal / BILLS_LIMIT);
   const billsPage = Math.floor(billsSkip / BILLS_LIMIT);
 
@@ -650,6 +674,7 @@ const MonthOverviewTab = () => {
 
   return (
     <div>
+      {/* ── Period selector bar ── */}
       <div className="bg-white border border-slate-100 rounded-2xl p-4 mb-4 flex flex-wrap items-center gap-3 shadow-sm">
         <BarChart3 size={14} className="text-slate-300" />
         <span className="text-[13px] font-semibold text-slate-600">Billing Period</span>
@@ -671,14 +696,26 @@ const MonthOverviewTab = () => {
             ))}
           </select>
         )}
-        <Btn
-          variant="secondary"
-          onClick={() => selectedPeriod && loadBills(selectedPeriod.periodStart, billsSkip)}
-          loading={billsLoading}
-          className="ml-auto"
-        >
-          <RefreshCw size={12} /> Refresh
-        </Btn>
+        <div className="flex items-center gap-2 ml-auto">
+          <Btn
+            variant="secondary"
+            onClick={() => selectedPeriod && loadBills(selectedPeriod.periodStart, billsSkip)}
+            loading={billsLoading}
+          >
+            <RefreshCw size={12} /> Refresh
+          </Btn>
+          {selectedPeriod && (
+            <Btn
+              variant="danger"
+              onClick={() => {
+                setDeleteError("");
+                setDeleteModal(true);
+              }}
+            >
+              <Trash2 size={12} /> Delete Period
+            </Btn>
+          )}
+        </div>
       </div>
 
       {overviewError && (
@@ -687,6 +724,7 @@ const MonthOverviewTab = () => {
         </div>
       )}
 
+      {/* ── Stats cards ── */}
       {sp && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
           {[
@@ -728,6 +766,7 @@ const MonthOverviewTab = () => {
         </div>
       )}
 
+      {/* ── Progress bar ── */}
       {sp && total > 0 && (
         <div className="bg-white border border-slate-100 rounded-2xl p-4 mb-4 shadow-sm">
           <div className="flex items-center justify-between mb-2 text-[11.5px] text-slate-500">
@@ -749,6 +788,7 @@ const MonthOverviewTab = () => {
         </div>
       )}
 
+      {/* ── Bills table ── */}
       <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden">
         <div className="grid grid-cols-[1fr_auto_auto_auto] gap-4 px-5 py-3 border-b border-slate-100 bg-slate-50/60">
           {["Lab", "Status", "Amount", "Due / Paid"].map((h) => (
@@ -855,6 +895,46 @@ const MonthOverviewTab = () => {
           </div>
         )}
       </div>
+
+      {/* ── Delete confirm modal ── */}
+      <Modal open={deleteModal} onClose={() => !deleteLoading && setDeleteModal(false)} title="Delete Period Bills">
+        <div className="space-y-4">
+          <div className="bg-red-50 border border-red-100 rounded-xl p-3.5 text-[13px] text-red-700 space-y-1.5">
+            <p className="font-bold flex items-center gap-1.5">
+              <AlertTriangle size={14} /> This action is irreversible.
+            </p>
+            <p>
+              All <span className="font-bold">{sp?.totalLabs ?? 0} bills</span> for{" "}
+              <span className="font-bold">{sp?.label}</span> will be permanently deleted, including any paid records.
+            </p>
+          </div>
+          <div className="grid grid-cols-3 gap-2 text-[12px]">
+            {[
+              { label: "Paid", value: sp?.paid?.count ?? 0, color: "text-emerald-700" },
+              { label: "Unpaid", value: sp?.unpaid?.count ?? 0, color: "text-amber-700" },
+              { label: "Free", value: sp?.free?.count ?? 0, color: "text-slate-500" },
+            ].map(({ label, value, color }) => (
+              <div key={label} className="bg-slate-50 rounded-xl p-3 text-center">
+                <div className="text-slate-400 mb-0.5">{label}</div>
+                <div className={`text-[18px] font-black ${color}`}>{value}</div>
+              </div>
+            ))}
+          </div>
+          {deleteError && (
+            <p className="text-[12px] text-red-500 flex items-center gap-1">
+              <AlertCircle size={11} /> {deleteError}
+            </p>
+          )}
+          <div className="flex gap-2 justify-end pt-1">
+            <Btn variant="secondary" onClick={() => setDeleteModal(false)} disabled={deleteLoading}>
+              Cancel
+            </Btn>
+            <Btn variant="danger" onClick={handleDeletePeriod} loading={deleteLoading}>
+              <Trash2 size={13} /> Delete {sp?.totalLabs ?? 0} Bills
+            </Btn>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };
@@ -1055,6 +1135,7 @@ export default function AdminBilling() {
         </div>
       )}
 
+      {/* ── Header ── */}
       <div className="flex items-center justify-between mb-7 flex-wrap gap-3">
         <div>
           <div className="flex items-center gap-2.5 mb-1">
@@ -1070,6 +1151,7 @@ export default function AdminBilling() {
         </Btn>
       </div>
 
+      {/* ── Tab bar ── */}
       <div className="flex items-center gap-1 mb-6 bg-white border border-slate-100 rounded-xl p-1 w-fit shadow-sm">
         {TABS.map((t) => {
           const Icon = t.icon;
@@ -1226,7 +1308,7 @@ export default function AdminBilling() {
       )}
 
       {/* ─── MONTH OVERVIEW TAB ─── */}
-      {tab === "overview" && <MonthOverviewTab />}
+      {tab === "overview" && <MonthOverviewTab showToast={showToast} />}
 
       {/* ─── LAB LOOKUP TAB ─── */}
       {tab === "lab" && (
@@ -1464,6 +1546,7 @@ export default function AdminBilling() {
             onChange={setGenPeriod}
             maxYear={maxYear}
             maxMonth={maxMonth}
+            minYear={2020}
           />
           <Input
             label="Due Date (optional)"
